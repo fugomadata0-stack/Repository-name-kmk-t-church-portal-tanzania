@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PHASE 12 - Usimamizi wa Watumiaji</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="phase12-user-management-center.css" />
+  </head>
+  <body>
+    <div class="site-bg"></div>
+    <header class="top-nav glass">
+      <div class="brand">
+        <span class="brand-mark">✝</span>
+        <div>
+          <h1>PHASE 12: USIMAMIZI WA WATUMIAJI WA MFUMO</h1>
+          <p>Premium User Governance • Role Intelligence • Access Control</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a href="index.html" class="btn-link">Rudi Home</a>
+        <button id="menuToggle" class="menu-toggle">Menu</button>
+      </div>
+      <nav id="mainNav">
+        <a href="#user-center">User Center</a>
+        <a href="#role-engine">Role Engine</a>
+        <a href="#slot-manager">Access Slots</a>
+        <a href="#permission-matrix">Permission Matrix</a>
+        <a href="#scope-rules">Scoped Restrictions</a>
+        <a href="#profile-panel">Profile Panel</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="section hero" id="user-center">
+        <div>
+          <p class="eyebrow">KMK(T) Governance Suite</p>
+          <h2>USIMAMIZI WA WATUMIAJI WA MFUMO</h2>
+          <p>
+            Kituo hiki kinaunganisha usalama, utawala wa role, audit trails na
+            access control katika mfumo mmoja wa kisasa unaoweza kukua kitaifa.
+          </p>
+          <div class="kpi-grid">
+            <article class="kpi-card">
+              <p>Total Users</p>
+              <h3>1,248</h3>
+              <small>Across all levels</small>
+            </article>
+            <article class="kpi-card">
+              <p>Active Users</p>
+              <h3>1,031</h3>
+              <small>82.6% live access</small>
+            </article>
+            <article class="kpi-card">
+              <p>Pending Reviews</p>
+              <h3>47</h3>
+              <small>Need approval</small>
+            </article>
+            <article class="kpi-card">
+              <p>Locked/Suspended</p>
+              <h3>23</h3>
+              <small>Security watchlist</small>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <h3>All Users, Active, Inactive, Pending, Suspended, Locked</h3>
+        <div class="toolbar card">
+          <input id="searchInput" type="text" placeholder="Tafuta kwa jina, email, phone..." />
+          <select id="statusFilter">
+            <option value="all">Status Zote</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="pending">Pending</option>
+            <option value="suspended">Suspended</option>
+            <option value="locked">Locked</option>
+          </select>
+          <select id="levelFilter">
+            <option value="all">Ngazi Zote</option>
+            <option value="National">National</option>
+            <option value="Dayosisi">Dayosisi</option>
+            <option value="Jimbo">Jimbo</option>
+            <option value="Tawi">Tawi/Parokia/Kituo</option>
+          </select>
+          <button id="bulkActivate">Bulk Activate</button>
+          <button id="bulkSuspend">Bulk Suspend</button>
+          <button id="bulkArchive">Bulk Archive</button>
+        </div>
+
+        <div class="table-wrap card">
+          <table id="usersTable">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="checkAll" /></th>
+                <th>S/N</th>
+                <th>Full Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Primary Role</th>
+                <th>Assigned Level</th>
+                <th>Assigned Unit</th>
+                <th>Status</th>
+                <th>Last Login</th>
+                <th>Created Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="role-engine">
+        <h3>ENGINE YA MGAWANYO WA ROLE</h3>
+        <div class="dual-grid">
+          <article class="card">
+            <h4>Role Assignment Engine</h4>
+            <div class="stack">
+              <label>User</label>
+              <select id="roleUser"></select>
+              <label>Assign one/multiple roles</label>
+              <select id="rolePicker" multiple size="7"></select>
+              <div class="triple">
+                <div>
+                  <label>Primary Role</label>
+                  <select id="primaryRole"></select>
+                </div>
+                <div>
+                  <label>Temporary Role</label>
+                  <input id="temporaryRole" type="text" placeholder="Mfano: Relief Reviewer" />
+                </div>
+                <div>
+                  <label>Acting Role</label>
+                  <input id="actingRole" type="text" placeholder="Mfano: Acting Jimbo Admin" />
+                </div>
+              </div>
+              <label>Expiry date for role</label>
+              <input id="expiryDate" type="date" />
+              <div class="btn-row">
+                <button id="assignRoleBtn">Assign Role</button>
+                <button id="removeRoleBtn">Remove Role</button>
+                <button id="cloneRoleBtn">Clone Role</button>
+                <button id="disableRoleBtn">Disable Role</button>
+              </div>
+            </div>
+          </article>
+          <article class="card">
+            <h4>Supported Roles</h4>
+            <ul id="rolesList" class="tag-list"></ul>
+            <div class="stack top-gap">
+              <label>Add Custom Role</label>
+              <input id="customRoleInput" type="text" placeholder="Andika custom role..." />
+              <button id="addRoleBtn">Add Custom Role</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="slot-manager">
+        <h3>WATUMIAJI WENYE RUHUSA KWA KILA ENEO</h3>
+        <p class="muted">
+          Premium slot manager kwa Dayosisi, Jimbo na Tawi/Parokia/Kituo. Slot labels
+          zinaweza kuongezwa au kupunguzwa siku zijazo.
+        </p>
+        <div class="slot-head card">
+          <select id="slotArea">
+            <option>Dayosisi</option>
+            <option>Jimbo</option>
+            <option>Tawi/Parokia/Kituo</option>
+          </select>
+          <input id="customSlotLabel" type="text" placeholder="Custom slot label" />
+          <input id="customAccessGroup" type="text" placeholder="Custom access group" />
+          <button id="addSlotLabelBtn">Add Custom Slot</button>
+          <button id="addGroupBtn">Add Access Group</button>
+        </div>
+        <div id="slotGrid" class="slot-grid"></div>
+      </section>
+
+      <section class="section" id="permission-matrix">
+        <h3>JEDWALI LA RUHUSA ZA ROLE</h3>
+        <div class="toolbar card">
+          <button id="bulkEnablePermissions">Bulk Role Update</button>
+          <button id="clonePermissionBtn">Clone Role Permissions</button>
+          <button id="resetPermissionBtn">Reset to Default</button>
+          <input id="customPermissionInput" type="text" placeholder="Add custom permission" />
+          <button id="addPermissionBtn">Add Permission</button>
+        </div>
+        <div class="table-wrap card">
+          <table id="permissionsTable">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="muted">Permission groups: User Management, Data Ops, Workflow, Security, System.</p>
+      </section>
+
+      <section class="section" id="scope-rules">
+        <h3>UNIT-SCOPED RESTRICTIONS</h3>
+        <div class="grid-3">
+          <article class="card">
+            <h4>Dayosisi Scope</h4>
+            <p>Diocese users only access assigned diocese.</p>
+            <span class="scope-badge">Scope: Dayosisi ya Mwanza</span>
+          </article>
+          <article class="card">
+            <h4>Jimbo Scope</h4>
+            <p>Jimbo users only access assigned jimbo.</p>
+            <span class="scope-badge">Scope: Jimbo la Nkuyu</span>
+          </article>
+          <article class="card">
+            <h4>Tawi Scope</h4>
+            <p>Branch users only access assigned branch/unit.</p>
+            <span class="scope-badge">Scope: Tawi la Nyakato</span>
+          </article>
+        </div>
+        <div class="grid-3 top-gap">
+          <article class="card">
+            <h4>Department Scope</h4>
+            <p>Department users only access assigned department.</p>
+          </article>
+          <article class="card">
+            <h4>Choir Scope</h4>
+            <p>Choir users only access assigned choir operations.</p>
+          </article>
+          <article class="card">
+            <h4>Institution Scope</h4>
+            <p>Institution users only access assigned institution.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="profile-panel">
+        <h3>User Profile Panel</h3>
+        <div class="profile-wrap card">
+          <div class="profile-main">
+            <img
+              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=500&q=80"
+              alt="User profile"
+            />
+            <div>
+              <h4 id="profileName">Mch. Elias Mwakalonge</h4>
+              <p id="profileEmail">elias.mwakalonge@kmt.or.tz</p>
+              <p id="profilePhone">+255 712 554 008</p>
+              <span class="status active">Active</span>
+            </div>
+          </div>
+          <div class="profile-stats">
+            <p><strong>Primary Role:</strong> <span id="profilePrimary">Diocese Admin</span></p>
+            <p><strong>Other Roles:</strong> <span id="profileOthers">Reviewer, Approver</span></p>
+            <p><strong>Assigned Scope:</strong> <span id="profileScope">Dayosisi ya Mwanza</span></p>
+            <p><strong>Slot Assignment:</strong> <span id="profileSlot">Slot 2 - Dayosisi</span></p>
+            <p><strong>Last Login:</strong> <span id="profileLogin">27 Apr 2026, 02:48</span></p>
+            <p><strong>Activity Summary:</strong> <span id="profileActivity">18 shughuli wiki hii</span></p>
+            <p><strong>Submissions Count:</strong> <span id="profileSubmit">126</span></p>
+            <p><strong>Approval Count:</strong> <span id="profileApprove">84</span></p>
+            <p><strong>Rejection Count:</strong> <span id="profileReject">6</span></p>
+            <p><strong>Completion Rate:</strong> <span id="profileCompletion">94%</span></p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>KMK(T) PHASE 12 • Secure • Responsive • Scalable • Professional</p>
+    </footer>
+
+    <script src="phase12-user-management-center.js"></script>
+  </body>
+</html>

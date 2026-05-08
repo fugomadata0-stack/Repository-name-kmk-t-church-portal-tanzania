@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Midaliji ya Tovuti — Logo, Hero &amp; Msalaba | KMK(T)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --navy: #061a40;
+        --blue: #0b3d91;
+        --gold: #d4af37;
+        --ivory: #f8f6ef;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Inter, Segoe UI, sans-serif;
+        background: linear-gradient(145deg, #f8f6ef 0%, #e8eefc 45%, #fff 100%);
+        color: #1f2937;
+      }
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 28px 18px 48px;
+      }
+      header.hero-adm {
+        border-radius: 22px;
+        padding: 22px 24px;
+        background: linear-gradient(135deg, rgba(6, 26, 64, 0.96), rgba(11, 61, 145, 0.88));
+        color: #fff;
+        box-shadow: 0 18px 44px rgba(2, 8, 23, 0.28);
+        border: 1px solid rgba(212, 175, 55, 0.35);
+        margin-bottom: 22px;
+      }
+      header.hero-adm h1 {
+        margin: 0 0 8px;
+        font-size: 1.35rem;
+      }
+      header.hero-adm p {
+        margin: 0;
+        opacity: 0.92;
+        font-size: 0.92rem;
+        line-height: 1.55;
+      }
+      .actions-top {
+        margin-top: 14px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .actions-top a {
+        display: inline-flex;
+        align-items: center;
+        padding: 9px 14px;
+        border-radius: 12px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        text-decoration: none;
+        background: rgba(255, 255, 255, 0.14);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+      }
+      .actions-top a.gold {
+        background: linear-gradient(135deg, var(--gold), #ffe89a);
+        color: var(--navy);
+        border: 0;
+      }
+      #adminBrandingGate {
+        display: none;
+        padding: 24px;
+        border-radius: 18px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        color: #991b1b;
+      }
+      #adminBrandingMain {
+        display: none;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+      @media (max-width: 820px) {
+        .grid2 {
+          grid-template-columns: 1fr;
+        }
+      }
+      .card-ac {
+        background: rgba(255, 255, 255, 0.82);
+        backdrop-filter: blur(12px);
+        border-radius: 20px;
+        padding: 18px;
+        border: 1px solid rgba(11, 61, 145, 0.1);
+        box-shadow: 0 12px 32px rgba(2, 8, 23, 0.08);
+      }
+      .card-ac h2 {
+        margin: 0 0 12px;
+        font-size: 1.05rem;
+        color: var(--navy);
+      }
+      .preview {
+        border-radius: 16px;
+        overflow: hidden;
+        background: #0f172a;
+        min-height: 160px;
+        display: grid;
+        place-items: center;
+        margin-bottom: 12px;
+      }
+      .preview img {
+        max-width: 100%;
+        max-height: 220px;
+        object-fit: contain;
+      }
+      label.file {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #374151;
+      }
+      input[type="file"] {
+        width: 100%;
+        font-size: 0.82rem;
+      }
+      .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      button.btn-pr {
+        border: 0;
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-weight: 800;
+        cursor: pointer;
+        font-size: 0.82rem;
+      }
+      button.btn-pr.primary {
+        background: linear-gradient(135deg, var(--blue), var(--navy));
+        color: #fff;
+      }
+      button.btn-pr.gold {
+        background: linear-gradient(135deg, var(--gold), #ffe89a);
+        color: var(--navy);
+      }
+      .urls {
+        margin-top: 22px;
+      }
+      .urls label {
+        display: block;
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin: 10px 0 4px;
+        color: var(--navy);
+      }
+      .urls input[type="text"] {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(11, 61, 145, 0.18);
+        font-size: 0.88rem;
+      }
+      #adminBrandingStatus {
+        display: none;
+        margin-top: 18px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        font-size: 0.88rem;
+        font-weight: 600;
+      }
+      #adminBrandingStatus[data-kind="ok"] {
+        background: #ecfdf5;
+        color: #047857;
+        border: 1px solid #a7f3d0;
+      }
+      #adminBrandingStatus[data-kind="err"] {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+      }
+      #adminBrandingStatus[data-kind="warn"] {
+        background: #fffbeb;
+        color: #b45309;
+        border: 1px solid #fde68a;
+      }
+      #adminBrandingStatus[data-kind="info"] {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+      }
+      .hint {
+        font-size: 0.78rem;
+        color: #6b7280;
+        margin-top: 8px;
+        line-height: 1.45;
+      }
+      .card-ac.lead {
+        border: 2px solid rgba(212, 175, 55, 0.45);
+        background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(255, 250, 235, 0.9));
+        box-shadow: 0 16px 40px rgba(2, 8, 23, 0.1);
+      }
+      .card-ac.lead h2 {
+        color: var(--navy);
+        font-size: 1.15rem;
+      }
+      .sub-lead {
+        font-size: 0.86rem;
+        color: #4b5563;
+        margin: 0 0 14px;
+        line-height: 1.55;
+      }
+      .preview-logo {
+        min-height: 120px;
+        background: linear-gradient(160deg, #f1f5f9, #e0e7ff);
+      }
+      .preview-logo img {
+        max-height: 100px;
+      }
+      button.btn-pr.ghost {
+        background: #fff;
+        color: var(--navy);
+        border: 2px solid rgba(11, 61, 145, 0.25);
+      }
+      button.btn-pr.ghost:hover {
+        border-color: var(--gold);
+        background: #fffef5;
+      }
+    </style>
+  </head>
+  <body data-back-fallback="dashboard-premium.html">
+    <div class="wrap">
+      <header class="hero-adm">
+        <h1>Midaliji ya Tovuti — Logo, Hero, Msalaba, Mandhari</h1>
+        <p>
+          <strong>Nembo ya kanisa</strong> inaonekana kwenye kichwa cha <code>index.html</code> na dashibodi. Pakia picha za umma (Storage:
+          <code>site-branding</code>), au bandika URL. Unaweza <strong>kupakua</strong> nembo iliyohifadhiwa wakati wowote.
+        </p>
+        <div class="actions-top">
+          <a class="gold" href="dashboard-premium.html">← Dashibodi Premium</a>
+          <a href="auth-login.html">Ingia (Supabase)</a>
+          <a href="system-settings.html">Mipangilio ya Mfumo</a>
+        </div>
+      </header>
+
+      <div id="adminBrandingGate">
+        <strong>Huwezi kuingia.</strong> Ukurasa huu ni kwa <strong>Chief Admin</strong> au <strong>Super Admin</strong> pekee (kulingana na kipindi cha
+        <code>kmt_session</code>). Ingia kwanza kupitia <a href="auth-login.html">auth-login.html</a>.
+      </div>
+
+      <div id="adminBrandingMain">
+        <section class="card-ac lead" id="sectionChurchLogo">
+          <h2>🏛 Nembo ya kanisa (Logo) — muhimu sana</h2>
+          <p class="sub-lead">
+            Faili bora: <strong>PNG</strong> (fumbo), <strong>SVG</strong>, au <strong>WebP</strong>. Ukisha pakia, nembo inaonekana papo hapo kwenye ukurasa wa mwanzo na dashibodi.
+          </p>
+          <div class="grid2">
+            <div>
+              <div class="preview preview-logo">
+                <img id="previewLogo" src="assets/images/church-modern.svg" alt="Hakiki nembo" />
+              </div>
+              <label class="file">Chagua faili ya nembo</label>
+              <input type="file" id="fileLogo" accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg" />
+              <div class="btn-row">
+                <button type="button" class="btn-pr primary" id="btnUploadLogo">Pakia nembo &amp; hifadhi</button>
+                <button type="button" class="btn-pr ghost" id="btnDownloadLogo" title="Pakua nembo ya sasa (au faili ulichagua)">⬇ Pakua logo</button>
+              </div>
+              <p class="hint">Ikiwa bado hujapakia, <strong>Pakua</strong> inatumia faili ulichagua moja kwa moja; baada ya kuhifadhi, inapakua kutoka kwa URL ya Storage.</p>
+            </div>
+            <div>
+              <label for="urlLogo" class="file" style="margin-top: 0">Weka URL moja kwa moja (<code>logo</code>)</label>
+              <input type="text" id="urlLogo" placeholder="https://.../nembo.png" autocomplete="off" style="width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(11, 61, 145, 0.18); font-size: 0.88rem" />
+              <p class="hint">Hifadhi URL pamoja na sehemu ya chini (hifadhi zote za URL) au tumia kitufe <strong>Pakia nembo</strong> pekee.</p>
+            </div>
+          </div>
+        </section>
+
+        <div class="grid2">
+          <article class="card-ac">
+            <h2>Picha kuu ya Hero (Yesu / upande wa kulia — <code>jesus_image</code>)</h2>
+            <div class="preview"><img id="previewHero" src="assets/images/jesus-premium.svg" alt="Preview hero" /></div>
+            <label class="file">Chagua faili (JPG, PNG, WebP, SVG)</label>
+            <input type="file" id="fileJesus" accept="image/*" />
+            <div class="btn-row">
+              <button type="button" class="btn-pr primary" id="btnUploadJesus">Pakia &amp; Hifadhi</button>
+            </div>
+            <p class="hint">Inahitaji kuingia kwa Supabase Auth (si login ya mock pekee) ili RLS iruhusu kuandika.</p>
+          </article>
+          <article class="card-ac">
+            <h2>Picha ya Msalaba (<code>cross_image</code>)</h2>
+            <div class="preview"><img id="previewCross" src="assets/images/cross-worship-bg.svg" alt="Preview msalaba" /></div>
+            <label class="file">Chagua faili</label>
+            <input type="file" id="fileCross" accept="image/*" />
+            <div class="btn-row">
+              <button type="button" class="btn-pr primary" id="btnUploadCross">Pakia &amp; Hifadhi</button>
+            </div>
+          </article>
+        </div>
+
+        <section class="card-ac urls">
+          <h2 style="margin-top: 0">URL moja kwa moja (hiari — badilisha bila upload)</h2>
+          <p class="hint" style="margin: 0 0 10px">
+            Kitufe <strong>Hifadhi URL</strong> kinahifadhi pamoja: nembo (iliyoandikwa kwenye ubao wa juu), <code>jesus_image</code>, <code>cross_image</code>, na <code>hero_bg</code>.
+          </p>
+          <label for="urlJesus">jesus_image</label>
+          <input type="text" id="urlJesus" placeholder="https://..." autocomplete="off" />
+          <label for="urlCross">cross_image</label>
+          <input type="text" id="urlCross" placeholder="https://..." autocomplete="off" />
+          <label for="urlHeroBg">hero_bg (mandhari ya dashibodi — URL ya picha)</label>
+          <input type="text" id="urlHeroBg" placeholder="https://..." autocomplete="off" />
+          <div class="btn-row" style="margin-top: 14px">
+            <button type="button" class="btn-pr gold" id="btnSaveUrls">Hifadhi URL</button>
+          </div>
+        </section>
+
+        <div id="adminBrandingStatus" role="status"></div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script type="module" src="assets/js/admin-site-branding-main.js"></script>
+    <script src="global-back-button.js"></script>
+  </body>
+</html>

@@ -1,0 +1,34 @@
+KMK(T) Portal — mpangilio wa kusudi wa SQL kwenye Supabase (soma kabla ya kuunganisha portal)
+
+1) Msingi wa muundo wa kanisa + huduma
+   - phase4-supabase-migration.sql          (dayosisi, majimbo, matawi, activity_logs)
+   - phase5-supabase-leadership.sql         (leaders, assignments, history, documents + RLS za msingi)
+   - phase6-members-supabase.sql            (members, member_families, baptism_records, …)
+   - phase6-security-rls.sql                (RLS kali kwa viongozi — inahitaji JWT app_role / metadata)
+   - phase7-supabase-ministries.sql
+
+2) Backend / wasifu / submissions
+   - phase20-supabase-backend.sql           (auth_user_profiles — MUHIMU kwa bridge ya phase38)
+   - phase16-supabase-access-control.sql    (ikiwa unatumia workflow za super admin)
+
+3) Moduli za ziada (chagua kinachohitajika)
+   - phase8-supabase-events.sql, phase9-supabase-attendance.sql, phase10-supabase-finance.sql,
+     phase11-supabase-payments.sql, phase12-supabase-media.sql, phase13-supabase-comms.sql,
+     phase14-supabase-reports.sql, phase15-supabase-settings.sql, nk.
+
+4) RLS za members suite (ikiwa unatumia jedwali la phase36)
+   - phase36-supabase-members-suite.sql
+   - phase37-members-rls-policies.sql
+
+5) Uandalizi wa uendeshaji (baada ya meza kuwepo + auth_user_profiles)
+   - phase38-portal-operational-readiness.sql
+     → huunganisha safu tawi/branch kwenye members
+     → huongeza sera za nyongeza kwa jedwali la viongozi kupitia auth_user_profiles
+
+HAKIKISHA:
+   - supabase-config.js: enabled: true, url + anonKey sahihi
+   - Kila mtumiaji wa portal awe na safu katika auth_user_profiles (id = auth.uid()) na primary_role
+   - Endesha system-health.html → Run Full System Check kuona meza zipi zimesoma (RLS)
+
+KUMBUKA: Usichanganye phase10-supabase-national-core.sql (dioceses / majimbo tofauti) na phase4 bila
+migration maalum — portal kinategemea majina dayosisi, majimbo, matawi kutoka phase4.

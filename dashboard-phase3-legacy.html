@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashibodi Kuu (Phase 3 Legacy) | KMK(T)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase3.css" />
+  </head>
+  <body data-back-fallback="index.html">
+    <div class="dashboard-shell" id="dashboardShell">
+      <aside class="sidebar" id="sidebar">
+        <div class="side-brand">
+          <span>✝</span>
+          <div>
+            <h1>KMK(T) Portal</h1>
+            <p>Executive Admin</p>
+            <p style="margin-top:8px;font-size:0.8rem">
+              <a href="dashboard.html" style="color:var(--gold)">Dashibodi SaaS (mpya)</a>
+            </p>
+          </div>
+        </div>
+        <input id="sidebarSearch" type="search" placeholder="Tafuta module..." />
+        <nav id="mainModules"></nav>
+      </aside>
+
+      <div class="main-area">
+        <header class="topbar">
+          <div class="left-tools">
+            <button class="icon-btn" id="collapseBtn">☰</button>
+            <input type="search" placeholder="Tafuta Dayosisi, Waumini, Mahudhurio..." />
+          </div>
+          <div class="right-tools">
+            <button class="icon-btn" title="Notifications">🔔</button>
+            <button class="icon-btn" id="themeToggle" title="Theme">🌗</button>
+            <span class="role-badge" id="dataModeBadge">Data: Mock</span>
+            <span class="role-badge" id="roleBadge">Role: -</span>
+            <div class="profile-menu">
+              <button class="icon-btn" id="profileBtn">👤</button>
+              <div class="profile-dropdown" id="profileDropdown">
+                <a href="#">Wasifu / Profile</a>
+                <a href="request-elevated-access.html">Omba Ruhusa ya Juu</a>
+                <a href="#">Mipangilio / Settings</a>
+                <a href="#" id="logoutBtn">Logout</a>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="content">
+          <section class="hero-card">
+            <div class="hero-cross">✝</div>
+            <h2>Karibu Kwenye Dashibodi ya KMK(T) National Church Portal</h2>
+            <p>Simamia huduma, uongozi, taarifa, mawasiliano na utendaji wa Kanisa kwa usahihi na ubora.</p>
+            <strong>Serving the Church Through Digital Excellence</strong>
+          </section>
+
+          <section class="verse-widget">
+            <h3>Verse of the Day</h3>
+            <blockquote id="dayVerse">“The Lord is my shepherd; I shall not want.” — Psalm 23:1</blockquote>
+          </section>
+
+          <section class="kpi-grid" id="kpiGrid"></section>
+
+          <section class="table-card">
+            <div class="table-head">
+              <h3>Live Website Visitors</h3>
+              <div class="table-head-actions">
+                <a class="btn gold" href="website-analytics.html">Open Full Analytics</a>
+              </div>
+            </div>
+            <div class="kpi-grid" id="websiteAnalyticsKpis" style="margin-bottom:10px"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th>Location</th>
+                    <th>Current Page</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="websiteOnlineBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="chart-grid" id="chartGrid">
+            <article class="chart-card"><strong>Ukuaji wa Waumini</strong><canvas id="chartMembers"></canvas></article>
+            <article class="chart-card"><strong>Mahudhurio kwa Mwezi</strong><canvas id="chartAttendance"></canvas></article>
+            <article class="chart-card"><strong>Michango vs Matumizi</strong><canvas id="chartFinance"></canvas></article>
+            <article class="chart-card"><strong>Makambi Participation</strong><canvas id="chartCamp"></canvas></article>
+            <article class="chart-card"><strong>Matawi kwa Mkoa</strong><canvas id="chartBranches"></canvas></article>
+          </section>
+
+          <section class="actions-wrap">
+            <h3>Quick Actions</h3>
+            <div class="actions-grid" id="quickActions"></div>
+          </section>
+
+          <section class="table-card">
+            <div class="table-head">
+              <h3 id="moduleWorkspaceTitle">Module Workspace</h3>
+              <div class="table-head-actions">
+                <button class="btn gold" id="moduleAddBtn">Add</button>
+                <button class="btn secondary" id="moduleEditBtn">Edit</button>
+                <button class="btn secondary" id="moduleDeleteBtn">Delete</button>
+                <button class="btn secondary" id="moduleClearBtn">Clear</button>
+              </div>
+            </div>
+            <div id="moduleWorkspace"></div>
+          </section>
+
+          <section class="table-card">
+            <div class="table-head">
+              <h3>Shughuli za Hivi Karibuni</h3>
+              <div class="table-head-actions">
+                <button class="btn gold" id="activityViewBtn">View</button>
+                <button class="btn secondary" id="activityClearBtn">Clear Logs</button>
+                <button class="btn secondary" id="activityExportBtn">Export</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Tarehe</th>
+                    <th>Mtumiaji</th>
+                    <th>Module</th>
+                    <th>Action</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="activityBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="table-card">
+            <div class="table-head">
+              <h3>Taarifa Mpya / Latest Notifications</h3>
+              <div class="table-head-actions">
+                <button class="btn gold" id="notificationViewBtn">View</button>
+                <button class="btn secondary" id="markReadBtn">Mark as Read</button>
+                <button class="btn secondary" id="clearNotificationsBtn">Clear All</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Priority</th>
+                    <th>Target Role</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="notificationsBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <div class="confirm-backdrop" id="confirmBackdrop">
+      <div class="confirm-card">
+        <h4 id="confirmTitle">Thibitisha Hatua</h4>
+        <p id="confirmMessage">Una uhakika?</p>
+        <div class="confirm-actions">
+          <button class="btn secondary" id="confirmCancelBtn">Cancel</button>
+          <button class="btn danger" id="confirmOkBtn">Endelea</button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer" style="padding:12px 16px;text-align:center;color:#c9d8ff;">
+      <p><strong>KANISA LA MENNONITE LA KIINJILI TANZANIA - KMK(T)</strong></p>
+      <p>Softdeveloper: MR Fugo | Phone: 0624683622</p>
+    </footer>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script type="module" src="phase3-main.js?v=20260427-1"></script>
+    <script src="global-back-button.js"></script>
+    <script src="dashboard-analytics-widget.js"></script>
+  </body>
+</html>

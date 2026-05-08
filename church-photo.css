@@ -1,0 +1,8 @@
+/**
+ * Msuli wa sehemu ya Historia: inabadilisha --about-church-bg.
+ * Sasa: gallery-church-1.svg (ipo tayari). Badili kuwa church-bg.webp ukiweka picha yako.
+ */
+.about-premium-section {
+  --about-church-bg: url("assets/images/gallery-church-1.svg");
+  /* --about-church-bg: url("assets/images/church-bg.webp"); */
+}

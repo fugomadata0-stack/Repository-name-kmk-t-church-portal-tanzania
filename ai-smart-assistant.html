@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Smart Assistant / Msaidizi Mwerevu | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase29-ai-smart.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div class="particles"></div>
+        <div class="hero-content">
+          <h1>AI Smart Assistant / Msaidizi Mwerevu</h1>
+          <p>
+            Future-ready spiritual-tech layer kwa insights, summaries, alerts, duplicate detection, na decision support across modules za kanisa.
+            (Placeholder only, no real AI API yet).
+          </p>
+          <div class="mini-modules" id="miniModules"></div>
+          <span class="live-badge" id="liveBadge">Realtime: checking...</span>
+        </div>
+        <div class="hero-images">
+          <article class="image-pill jesus">Jesus Wisdom</article>
+          <article class="image-pill bible">Bible Insight</article>
+          <article class="image-pill church">Church AI Desk</article>
+        </div>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="kpi-grid" id="kpiGrid"></section>
+
+      <section class="card">
+        <h2 class="title">AI Insight Cards</h2>
+        <div class="insight-grid" id="insightCards"></div>
+      </section>
+
+      <section class="card">
+        <h2 class="title">Smart Insights Center</h2>
+        <div class="table-tools">
+          <button class="btn" data-action="export">Export</button>
+          <button class="btn" data-action="clear">Clear</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Insight ID</th>
+                <th>Module</th>
+                <th>Type</th>
+                <th>Priority</th>
+                <th>Message Preview</th>
+                <th>Suggested Action</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="insightsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase29-ai-smart-main.js"></script>
+  </body>
+</html>

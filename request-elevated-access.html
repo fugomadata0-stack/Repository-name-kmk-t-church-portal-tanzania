@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Omba Ruhusa ya Juu | KMK(T) National Church Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase31-elevated-access.css" />
+  </head>
+  <body data-back-fallback="dashboard.html">
+    <main class="layout">
+      <header class="card hero">
+        <div>
+          <h1>OMBA RUHUSA YA JUU / REQUEST ELEVATED ACCESS</h1>
+          <p>
+            Kwa watumiaji walioingia na wameidhinishwa (officers / approved accounts): omba role au ruhusa ya juu kwa
+            <strong>workflow salama</strong>, audit trail, na approval routing. <span lang="en">Not a public sign-up page.</span>
+          </p>
+        </div>
+        <a class="btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="card profile" id="profilePanel"></section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>OMBA RUHUSA YA JUU YA MFUMO</h2>
+          <div class="actions">
+            <button class="btn" data-action="preview">Preview Before Submit</button>
+            <button class="btn" data-action="saveDraft">Save Draft</button>
+            <button class="btn gold" data-action="submitRequest">Submit Request</button>
+            <button class="btn danger" data-action="cancelForm">Cancel</button>
+          </div>
+        </div>
+
+        <div class="steps" id="stepStatus"></div>
+
+        <form id="requestForm" class="form-grid">
+          <label>Full Name<input name="applicantName" id="fullName" readonly /></label>
+          <label>Email<input name="email" id="email" readonly /></label>
+          <label>Phone<input name="phone" id="phone" readonly /></label>
+          <label>Current Role(s)<input name="currentRoles" id="currentRoles" readonly /></label>
+          <label>Current Assigned Scope<input name="currentScope" id="currentScope" readonly /></label>
+          <label>Request Category<select name="requestCategory" id="requestCategory"></select></label>
+          <label>Requested Role or Permission<select name="requestedRolePermission" id="requestedRolePermission"></select></label>
+          <label>Requested Level<select name="requestedLevel" id="requestedLevel"></select></label>
+          <label>Requested Unit (if applicable)<input name="requestedUnit" placeholder="Mfano: Dayosisi ya Mara" /></label>
+          <label class="full">Reason / Justification<textarea name="justification" rows="3" required></textarea></label>
+          <label>Start Date (if temporary)<input type="date" name="startDate" /></label>
+          <label>End Date (if temporary)<input type="date" name="endDate" /></label>
+          <label class="full">Supporting Notes<textarea name="notes" rows="2"></textarea></label>
+          <div class="full upload-block">
+            <span class="upload-label">Barua ya kuunga mkono / Supporting letter (optional)</span>
+            <input type="file" id="supportingLetterFile" name="supportingLetterFile" accept=".pdf,.doc,.docx,image/*" />
+            <p class="subtitle upload-hint">
+              Bila Supabase: faili ndogo (~450KB) zinahifadhiwa ndani ya kivinjari. With Supabase: uploads go to bucket
+              <code>elevated-access-letters</code> — angalia <code>phase31-storage-elevated-letters.sql</code>.
+            </p>
+          </div>
+          <label class="full check"><input type="checkbox" id="termsCheck" /> Nimekubali terms, responsibilities, na audit compliance.</label>
+        </form>
+      </section>
+
+      <div class="modal" id="previewModal" role="dialog" aria-modal="true" aria-labelledby="previewTitle" hidden>
+        <div class="modal-dialog card">
+          <div class="section-head">
+            <h3 id="previewTitle">Makadirio / Preview</h3>
+            <button type="button" class="btn" data-action="closePreview">Funga</button>
+          </div>
+          <div id="previewBody" class="preview-body"></div>
+        </div>
+      </div>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Approval Routing Settings</h2>
+          <div class="actions">
+            <button class="btn" data-action="addApprovalStage">Add approval stage</button>
+            <button class="btn" data-action="addApproverRole">Add approver role</button>
+            <button class="btn" data-action="addModuleRoute">Add module-specific route</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Request Type</th><th>Route</th></tr></thead>
+            <tbody id="routingBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>MAOMBI YANGU YA RUHUSA YA JUU</h2>
+          <div class="actions">
+            <button type="button" class="btn" data-action="exportMyRequests">Export (CSV)</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table><thead id="tableHead"></thead><tbody id="myRequestBody"></tbody></table></div>
+      </section>
+
+      <section class="card" id="adminQueueSection">
+        <div class="section-head">
+          <h2>MAOMBI YANAYOSUBIRI UTHIBITISHO</h2>
+        </div>
+        <p class="subtitle">Inaonekana kwa Chief / Super / National Admin / Admin pekee.</p>
+        <div class="table-wrap"><table><thead id="tableHeadAdmin"></thead><tbody id="adminQueueBody"></tbody></table></div>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>RUHUSA ZA JUU ZILIZOPO</h2>
+          <div class="actions">
+            <button type="button" class="btn" data-action="exportApprovedTable">Export (CSV)</button>
+          </div>
+        </div>
+        <div class="table-wrap"><table><thead><tr><th>S/N</th><th>Request ID</th><th>Applicant</th><th>Role/Permission</th><th>Scope/Unit</th><th>Status</th><th>Expiry Date</th><th>Actions</th></tr></thead><tbody id="approvedBody"></tbody></table></div>
+      </section>
+
+      <section class="card grid-2">
+        <div>
+          <h3>Notifications</h3>
+          <div class="table-wrap"><table><thead><tr><th>Title</th><th>Channel</th><th>Status</th><th>Date</th></tr></thead><tbody id="notificationBody"></tbody></table></div>
+        </div>
+        <div>
+          <h3>Audit Logs</h3>
+          <div class="table-wrap"><table><thead><tr><th>Action</th><th>Actor</th><th>Details</th><th>Date</th></tr></thead><tbody id="auditBody"></tbody></table></div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script type="module" src="phase31-elevated-access-main.js"></script>
+    <script src="global-back-button.js"></script>
+  </body>
+  </html>

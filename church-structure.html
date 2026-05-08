@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Muundo wa Kanisa | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase4-structure.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">KMK(T) PHASE 2</p>
+          <h1>Muundo wa Kanisa / Church Structure</h1>
+          <p>KMK(T) Ofisi ya Ngazi Kuu ya Kanisa Tanzania: simamia Dayosisi, Majimbo, Matawi/Parokia/Vituo vya Huduma, na ngazi za baadaye kwa mfumo wa kisasa.</p>
+        </div>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="tabs" id="moduleTabs"></section>
+
+      <section class="card" id="moduleHeaderCard">
+        <h2 id="moduleTitle">Usimamizi wa Dayosisi</h2>
+        <p id="moduleSubtitle">Ongeza, hariri, futa na simamia taarifa zote za Dayosisi za Kanisa la Mennonite la Kiinjili Tanzania - KMK(T).</p>
+      </section>
+
+      <section class="kpis" id="moduleKpis"></section>
+
+      <section class="card">
+        <div class="table-head">
+          <h3 id="tableTitle">Orodha ya Dayosisi</h3>
+          <div class="head-actions">
+            <button class="btn gold" id="addBtn">Add</button>
+            <button class="btn" id="editBtn">Edit</button>
+            <button class="btn danger" id="deleteBtn">Delete</button>
+            <button class="btn" id="clearBtn">Clear</button>
+            <button class="btn" id="viewBtn">View Details</button>
+            <button class="btn" id="exportBtn">Export</button>
+            <button class="btn" id="printBtn">Print</button>
+          </div>
+        </div>
+        <div class="filters" id="filtersBar"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr id="tableHeadRow"></tr></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span id="pageInfo">Page 1</span>
+          <div>
+            <button class="btn" id="prevBtn">Prev</button>
+            <button class="btn" id="nextBtn">Next</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h3>Forms za Kitaalamu</h3>
+          <p class="muted">Tumia Add/Edit kufungua premium modal form yenye validation na dynamic fields.</p>
+          <div id="formGuide" class="form-guide"></div>
+        </section>
+        <section class="card">
+          <h3>Hierarchy View</h3>
+          <div class="tree-controls">
+            <button class="btn" id="treeViewBtn">Tree View</button>
+            <button class="btn" id="orgViewBtn">Org Chart View</button>
+            <button class="btn" id="tableViewBtn">Table View</button>
+            <button class="btn" id="cardViewBtn">Card View</button>
+          </div>
+          <input type="search" id="hierarchySearch" placeholder="Search hierarchy..." />
+          <div class="tree-controls">
+            <button class="btn" id="expandTreeBtn">Expand</button>
+            <button class="btn" id="collapseTreeBtn">Collapse</button>
+          </div>
+          <div class="tree-controls">
+            <button class="btn" id="addLevelBtn">Add Hierarchy Level</button>
+            <button class="btn" id="addCategoryBtn">Add Category</button>
+            <button class="btn" id="addTypeBtn">Add Type</button>
+            <button class="btn" id="addFieldBtn">Add Custom Field</button>
+            <button class="btn" id="addSectionBtn">Add Custom Section</button>
+            <button class="btn" id="archiveNodeBtn">Archive</button>
+            <button class="btn" id="reorderNodeBtn">Reorder</button>
+            <button class="btn" id="toggleNodeBtn">Enable/Disable</button>
+          </div>
+          <ul class="tree" id="treeView"></ul>
+          <div id="orgChartView" class="map-placeholder hidden">Org Chart View Placeholder (KMK(T) HQ -> Dayosisi -> Majimbo -> Local Units)</div>
+          <div id="cardHierarchyView" class="form-guide hidden"></div>
+        </section>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h3>Ofisi Kuu</h3>
+          <p>KANISA LA MENNONITE LA KIINJILI TANZANIA - KMK(T), OFISI YA NGAZI KUU YA KANISA TANZANIA. Makao Makuu: Musoma Mjini, Mkoa wa Mara, S.L.P 317, Musoma - Tanzania.</p>
+        </section>
+        <section class="card">
+          <h3>Idara</h3>
+          <p>Vijana, Wanawake, Wanaume, Kwaya, Media, Maombi, Outreach, Sunday School.</p>
+        </section>
+      </section>
+
+      <section class="card">
+        <h3>Location Map Placeholder</h3>
+        <div class="map-placeholder">Interactive Church Location Map (Placeholder)</div>
+      </section>
+    </main>
+
+    <div class="modal" id="confirmModal">
+      <div class="modal-card">
+        <h4>Thibitisha Kufuta</h4>
+        <p>Una uhakika unataka kufuta record hii?</p>
+        <div class="head-actions">
+          <button class="btn" id="cancelDeleteBtn">Cancel</button>
+          <button class="btn danger" id="confirmDeleteBtn">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="formModal">
+      <div class="modal-card wide">
+        <h4 id="formModalTitle">Form</h4>
+        <form id="entityForm" class="form-grid"></form>
+        <p class="muted" id="formError"></p>
+        <div class="head-actions">
+          <button class="btn" id="cancelFormBtn">Cancel</button>
+          <button class="btn gold" id="saveFormBtn">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase4-structure-main.js"></script>
+  </body>
+</html>

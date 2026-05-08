@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>People & Ministry Center | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase18-people-ministry.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div>
+          <h1>PHASE 18: People & Ministry Modules</h1>
+          <p>Usimamizi wa Waumini, Families, Jumuiya (JVKMKT/JWKMK), Idara, Kwaya, na Katekisimu kwa workflow ya kisasa, role-aware access, na ripoti za kitaifa.</p>
+        </div>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="card">
+        <h2 class="title">Vituo vya Modules</h2>
+        <p class="subtitle">Chagua module unayotaka kusimamia. Kila module ina CRUD, Search, Filter, Reports, Export, Print, Add Category/Type/Custom Field/Custom Section.</p>
+        <div class="grid" id="moduleGrid"></div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2 class="title">Common Actions / Vitendo vya Pamoja</h2>
+          <div class="actions">
+            <button class="btn gold" data-action="addCategory">Add Category</button>
+            <button class="btn" data-action="addType">Add Type</button>
+            <button class="btn" data-action="addCustomField">Add Custom Field</button>
+            <button class="btn" data-action="addCustomSection">Add Custom Section</button>
+            <button class="btn" data-action="exportPdf">Export PDF</button>
+            <button class="btn" data-action="exportExcel">Export Excel</button>
+            <button class="btn" data-action="print">Print</button>
+          </div>
+          <p class="note">Role-aware access imewashwa: users wanaona data kwa scope yao (Dayosisi/Jimbo/Tawi) kulingana na role.</p>
+        </section>
+
+        <section class="card">
+          <h2 class="title">MUHTASARI WA HALI ZA PEOPLE & MINISTRY</h2>
+          <div class="kpis" id="kpis"></div>
+        </section>
+      </section>
+
+      <section class="card">
+        <h2 class="title">Module Capability Matrix</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Module</th><th>CRUD</th><th>Search</th><th>Filter</th><th>Reports</th><th>Export</th><th>Print</th><th>Workflow</th><th>Role-aware</th>
+              </tr>
+            </thead>
+            <tbody id="capabilityBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase18-people-ministry-main.js"></script>
+  </body>
+</html>

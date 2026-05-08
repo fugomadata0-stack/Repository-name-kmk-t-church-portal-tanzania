@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="Dashibodi ya kitaifa KMK(T) — muunganisho wa Supabase" />
+<title>KMK(T) National Church Portal | Dashibodi</title>
+<style>
+:root{
+  --navy:#061a40; --blue:#0b3d91; --gold:#d4af37; --ivory:#f8f6ef;
+  --white:#fff; --text:#1f2937; --muted:#6b7280; --green:#059669;
+  --red:#dc2626; --orange:#f97316; --purple:#7c3aed; --cyan:#0891b2;
+  --shadow:0 14px 35px rgba(2,8,23,.14); --r:20px; --side:320px;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Segoe UI,Arial,sans-serif}
+body{background:linear-gradient(135deg,#f8f6ef,#eef4ff,#fff);color:var(--text)}
+.app{display:flex;min-height:100vh}
+.sidebar{
+  width:var(--side);position:fixed;inset:0 auto 0 0;overflow:auto;z-index:20;
+  background:linear-gradient(180deg,rgba(6,26,64,.98),rgba(11,61,145,.96));
+  color:white;padding:16px;box-shadow:8px 0 30px rgba(0,0,0,.2)
+}
+.brand{display:flex;gap:12px;align-items:center;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.12)}
+.logo{width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,var(--gold),#fff2ad);display:grid;place-items:center;color:var(--navy);font-size:26px;font-weight:900;overflow:hidden}
+.logo img.kmt-dashboard-logo-img{width:100%;height:100%;object-fit:contain;display:block;padding:4px}
+.brand h1{font-size:16px;line-height:1.2}.brand p{font-size:11px;color:#dbeafe;margin-top:4px}
+.brand-home{margin-top:10px;display:block;font-size:12px;color:#fde68a;font-weight:700;text-decoration:none}
+.brand-home:hover{text-decoration:underline}
+.role{margin:14px 0;padding:12px;border-radius:16px;background:rgba(255,255,255,.08);border-left:4px solid var(--gold)}
+.role small{color:#cbd5e1}.role b{display:block;margin-top:4px}
+.search{width:100%;padding:12px 14px;border:0;border-radius:14px;margin:6px 0 14px;background:rgba(255,255,255,.12);color:#fff;outline:none}
+.search::placeholder{color:#cbd5e1}
+.module{margin-bottom:7px}
+.module-btn{
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:12px;border:0;border-radius:15px;background:transparent;color:white;cursor:pointer;
+  font-weight:800;text-align:left
+}
+.module-btn:hover,.module-btn.active{background:rgba(255,255,255,.11)}
+.module-left{display:flex;align-items:center;gap:10px}
+.ico{width:34px;height:34px;border-radius:12px;background:rgba(255,255,255,.12);display:grid;place-items:center}
+.subs{display:none;margin:4px 0 8px 46px;border-left:1px solid rgba(255,255,255,.14);padding-left:10px}
+.subs.open{display:block}
+.sub{display:block;color:#e5e7eb;text-decoration:none;font-size:13px;padding:9px 10px;border-radius:10px;margin:2px 0}
+.sub:hover,.sub.active{background:rgba(212,175,55,.18);color:#fff}
+.main{margin-left:var(--side);width:calc(100% - var(--side))}
+.topbar{
+  height:76px;position:sticky;top:0;z-index:10;background:rgba(255,255,255,.82);
+  backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:space-between;
+  padding:12px 24px;border-bottom:1px solid rgba(11,61,145,.08)
+}
+.menu{display:none;background:linear-gradient(135deg,var(--blue),var(--navy));color:white;border:0;border-radius:14px;width:45px;height:45px;font-size:22px}
+.title h2{font-size:20px;color:var(--navy)}.title p{font-size:12px;color:var(--muted);margin-top:3px}
+.chips{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.chip{background:white;border-radius:14px;padding:10px 13px;box-shadow:0 6px 18px rgba(2,8,23,.08);font-size:12px;font-weight:800;color:var(--blue)}
+.content{padding:24px}
+.hero{
+  border-radius:28px;overflow:hidden;min-height:260px;position:relative;margin-bottom:22px;box-shadow:var(--shadow);
+  background:linear-gradient(135deg,rgba(6,26,64,.94),rgba(11,61,145,.78)),url("https://images.unsplash.com/photo-1438232992991-995b7058bbb3?auto=format&fit=crop&w=1600&q=80") center/cover
+}
+.hero:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 20% 20%,rgba(212,175,55,.25),transparent 22%);animation:pulse 7s infinite alternate}
+@keyframes pulse{to{transform:scale(1.03)}}
+.hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:1.25fr .75fr;gap:18px;padding:28px;align-items:center}
+.hero h1{color:white;font-size:32px;line-height:1.15}.hero p{color:#e5e7eb;line-height:1.65;margin-top:10px}
+.hero .motto{display:inline-block;margin-top:14px;background:rgba(212,175,55,.18);border:1px solid rgba(212,175,55,.35);padding:10px 15px;border-radius:999px;color:#fff3c4;font-weight:900;font-size:12px}
+.visuals{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.visual{height:170px;border-radius:22px;overflow:hidden;position:relative;border:1px solid rgba(255,255,255,.18)}
+.visual img{width:100%;height:100%;object-fit:cover}.visual span{position:absolute;bottom:9px;left:9px;background:rgba(6,26,64,.75);color:white;border-radius:999px;padding:6px 9px;font-size:11px;font-weight:800}
+.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:24px 0 14px;flex-wrap:wrap}
+.section-head h3{font-size:22px;color:var(--navy)}.section-head p{font-size:13px;color:var(--muted);margin-top:4px}
+.btn{border:0;border-radius:13px;padding:11px 14px;font-weight:900;cursor:pointer}
+.btn.gold{background:linear-gradient(135deg,var(--gold),#ffe89a);color:var(--navy)}
+.btn.blue{background:linear-gradient(135deg,var(--blue),var(--navy));color:white}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(190px,1fr));gap:15px}
+.kpi{border-radius:22px;padding:18px;color:white;min-height:132px;box-shadow:var(--shadow);position:relative;overflow:hidden;transition:.25s}
+.kpi:hover{transform:translateY(-4px)}.kpi:after{content:"";position:absolute;right:-30px;top:-30px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,.15)}
+.kpi small{font-weight:800;opacity:.9}.kpi b{display:block;font-size:27px;margin-top:16px}.kpi span{display:block;font-size:11px;margin-top:8px;opacity:.9}
+.g1{background:linear-gradient(135deg,#0b3d91,#2563eb)}.g2{background:linear-gradient(135deg,#061a40,#1d4ed8)}
+.g3{background:linear-gradient(135deg,#d4af37,#f59e0b)}.g4{background:linear-gradient(135deg,#059669,#10b981)}
+.g5{background:linear-gradient(135deg,#7c3aed,#a78bfa)}.g6{background:linear-gradient(135deg,#e11d48,#fb7185)}
+.g7{background:linear-gradient(135deg,#0d9488,#14b8a6)}.g8{background:linear-gradient(135deg,#4338ca,#6366f1)}
+.g9{background:linear-gradient(135deg,#ea580c,#fb923c)}.g10{background:linear-gradient(135deg,#0891b2,#22d3ee)}
+.g11{background:linear-gradient(135deg,#991b1b,#ef4444)}.g12{background:linear-gradient(135deg,#14532d,#22c55e)}
+.cards{display:grid;grid-template-columns:repeat(6,minmax(135px,1fr));gap:13px}.card{background:white;border-radius:20px;padding:16px;text-align:center;box-shadow:0 8px 22px rgba(2,8,23,.08);border:1px solid rgba(11,61,145,.06);cursor:pointer;transition:.25s}
+.card:hover{transform:translateY(-4px)}.card .ci{width:48px;height:48px;border-radius:15px;margin:0 auto 10px;display:grid;place-items:center;color:white;font-size:21px}.card b{font-size:13px;color:var(--navy)}.card small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;margin-top:18px}
+.panel{background:rgba(255,255,255,.9);border-radius:24px;box-shadow:0 8px 24px rgba(2,8,23,.08);overflow:hidden;border:1px solid rgba(11,61,145,.07)}
+.ph{padding:17px;border-bottom:1px solid rgba(11,61,145,.08);position:relative}.ph:after{content:"";position:absolute;bottom:0;left:17px;right:17px;height:3px;background:linear-gradient(90deg,var(--gold),transparent);border-radius:999px}
+.ph h4{color:var(--navy);font-size:18px}.ph p{color:var(--muted);font-size:12px;margin-top:4px}.pb{padding:17px}
+.table-wrap{overflow:auto;border-radius:17px;border:1px solid rgba(11,61,145,.07)}table{width:100%;min-width:850px;border-collapse:collapse;background:white}thead{background:linear-gradient(135deg,var(--navy),var(--blue));color:white}th,td{padding:13px 12px;border-bottom:1px solid rgba(11,61,145,.07);font-size:13px;text-align:left}tbody tr:hover{background:#f8fbff}
+.badge{border-radius:999px;padding:7px 10px;font-size:11px;font-weight:900}.ok{background:#dcfce7;color:#047857}.pend{background:#fef3c7;color:#b45309}.subm{background:#dbeafe;color:#1d4ed8}.bad{background:#fee2e2;color:#b91c1c}
+.actions button{border:0;border-radius:9px;padding:7px 8px;color:white;font-weight:900;font-size:10px;margin:2px}.view{background:#2563eb}.edit{background:#f59e0b}.approve{background:#059669}.del{background:#dc2626}
+.list{display:flex;flex-direction:column;gap:12px}.item{display:flex;gap:12px;align-items:center;background:white;border-radius:18px;padding:13px;box-shadow:0 6px 18px rgba(2,8,23,.07)}.item i{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;color:white;font-style:normal}.item b{font-size:13px;color:var(--navy)}.item small{display:block;color:var(--muted);font-size:11px;margin-top:4px;line-height:1.35}
+.overlay{display:none;position:fixed;inset:0;background:rgba(2,8,23,.45);z-index:19}.overlay.show{display:block}
+.content-loading{min-height:220px;display:grid;place-items:center;padding:32px}
+.content-loading-inner{background:white;border-radius:20px;padding:24px 28px;box-shadow:0 8px 28px rgba(2,8,23,.1);text-align:center;max-width:420px;border:1px solid rgba(11,61,145,.1)}
+.content-loading-inner p{color:var(--muted);font-size:14px;margin-top:10px;line-height:1.5}
+.content-error .content-loading-inner{border-color:#fecaca;background:#fff5f5}
+.spinner{width:40px;height:40px;border:3px solid #e5e7eb;border-top-color:var(--blue);border-radius:50%;margin:0 auto 12px;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#btnRefreshData:disabled{opacity:0.55;cursor:not-allowed}
+@media(max-width:1300px){.kpis{grid-template-columns:repeat(3,1fr)}.cards{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:1050px){.sidebar{transform:translateX(-100%);transition:.3s}.sidebar.open{transform:translateX(0)}.main{margin-left:0;width:100%}.menu{display:block}.hero-inner{grid-template-columns:1fr}.grid{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.content{padding:14px}.topbar{height:auto;gap:12px;align-items:flex-start;flex-direction:column}.hero h1{font-size:23px}.visuals{grid-template-columns:1fr}.kpis{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body data-back-fallback="index.html">
+<div class="overlay" id="overlay"></div>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo" id="dashboardBrandLogoSlot">✝</div>
+      <div>
+        <h1>KMK(T) NATIONAL<br>CHURCH PORTAL</h1>
+        <p>OFISI YA NGAZI KUU YA KANISA TANZANIA</p>
+        <a class="brand-home" href="index.html">← Rudi mwanzo (Landing)</a>
+        <a class="brand-home" href="dashboard.html" style="margin-top:4px">Dashibodi ya mfumo (legacy + Supabase)</a>
+      </div>
+    </div>
+    <div class="role">
+      <small>Logged in as</small>
+      <b>CHIEF ADMIN / SUPER ADMIN</b>
+    </div>
+    <input class="search" id="search" placeholder="Tafuta module..." />
+    <div id="modules"></div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div style="display:flex;gap:12px;align-items:center">
+        <button type="button" class="menu" id="menuBtn" aria-label="Fungua menyu">☰</button>
+        <div class="title">
+          <h2 id="pageTitle">Dashibodi Kuu</h2>
+          <p id="pageSub">Muhtasari wa mfumo mzima wa KMK(T)</p>
+        </div>
+      </div>
+      <div class="chips" id="chipsRow" style="align-items:center">
+        <span class="chip" id="dataModeChip">Inapakia data…</span>
+        <span class="chip" id="chipAlerts">🔔 —</span>
+        <span class="chip" id="chipOnline">🟢 —</span>
+        <span class="chip" id="chipPending">⏳ —</span>
+        <span class="chip">👤 Chief / Super</span>
+        <button type="button" class="btn gold" id="btnRefreshData" style="font-size:12px;padding:8px 12px;border:0;cursor:pointer;border-radius:12px">
+          🔄 Sasisha
+        </button>
+      </div>
+    </header>
+    <section class="content" id="content">
+      <div class="content-loading" id="contentLoadingState">
+        <div class="content-loading-inner">
+          <div class="spinner" aria-hidden="true"></div>
+          <h3 style="color:var(--navy)">Inapakia muunganisho</h3>
+          <p>Kusoma takwimu kutoka Supabase (<code>loadLiveSystemSummary</code>)…</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.local.js"></script>
+<script src="supabase-config.js"></script>
+<script type="module" src="dashboard-premium-main.js"></script>
+<script src="global-back-button.js"></script>
+</body>
+</html>

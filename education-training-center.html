@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Elimu & Mafunzo | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase27-education-training.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div class="particles"></div>
+        <div class="hero-content">
+          <h1>Elimu & Mafunzo</h1>
+          <p>
+            Kituo hiki kinasimamia trainings za kanisa, leadership seminars, Bible school, discipleship classes, na school management support kwa
+            Dayosisi, Jimbo, na Tawi.
+          </p>
+          <div class="mini-modules" id="miniModules"></div>
+          <span class="live-badge" id="liveBadge">Realtime: checking...</span>
+        </div>
+        <div class="hero-images">
+          <article class="image-pill jesus">Jesus Teaching</article>
+          <article class="image-pill bible">Bible Learning</article>
+          <article class="image-pill church">Church Classroom</article>
+        </div>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="kpi-grid" id="kpiGrid"></section>
+
+      <section class="card">
+        <h2 class="title">Training Cards / Course Modules</h2>
+        <div class="training-grid" id="trainingCards"></div>
+      </section>
+
+      <section class="card">
+        <h2 class="title">Orodha ya Mafunzo</h2>
+        <div class="table-tools">
+          <button class="btn gold" data-action="addTraining">Add Training</button>
+          <button class="btn" data-action="export">Export</button>
+          <button class="btn" data-action="print">Print</button>
+          <button class="btn" data-action="clearTrainings">Clear</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Training ID</th>
+                <th>Jina la Mafunzo</th>
+                <th>Category</th>
+                <th>Trainer</th>
+                <th>Dayosisi</th>
+                <th>Jimbo</th>
+                <th>Tawi</th>
+                <th>Start Date</th>
+                <th>Participants</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="trainingsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="title">Add / Update Training</h2>
+        <form id="trainingForm" class="form-grid">
+          <div class="field"><label for="trainingTitle">Training Title</label><input id="trainingTitle" required /></div>
+          <div class="field"><label for="category">Category</label><select id="category"></select></div>
+          <div class="field span-2"><label for="description">Description</label><textarea id="description"></textarea></div>
+          <div class="field"><label for="trainer">Trainer</label><input id="trainer" /></div>
+          <div class="field"><label for="dayosisi">Dayosisi</label><input id="dayosisi" /></div>
+          <div class="field"><label for="jimbo">Jimbo</label><input id="jimbo" /></div>
+          <div class="field"><label for="tawi">Tawi</label><input id="tawi" /></div>
+          <div class="field"><label for="startDate">Start Date</label><input id="startDate" type="date" /></div>
+          <div class="field"><label for="endDate">End Date</label><input id="endDate" type="date" /></div>
+          <div class="field"><label for="venue">Venue</label><input id="venue" /></div>
+          <div class="field span-2">
+            <label for="materialsPlaceholder">Materials upload placeholder</label>
+            <input id="materialsPlaceholder" placeholder="training-material.pdf" />
+          </div>
+          <div class="field span-2"><label for="status">Status</label><select id="status"></select></div>
+          <div class="field span-2"><label for="notes">Notes</label><textarea id="notes"></textarea></div>
+          <div class="actions span-2">
+            <button type="submit" class="btn gold">Save Training</button>
+            <button type="button" class="btn" data-action="clearTrainings">Clear</button>
+            <button type="button" class="btn" data-action="export">Export</button>
+            <button type="button" class="btn" data-action="print">Print</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase27-education-training-main.js"></script>
+  </body>
+</html>

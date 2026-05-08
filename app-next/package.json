@@ -1,0 +1,54 @@
+{
+  "name": "kmkt-enterprise-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "run-s build:tsc build:vite",
+    "build:tsc": "tsc -p tsconfig.json",
+    "build:vite": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --max-warnings 200",
+    "lint:fix": "eslint . --fix --max-warnings 200",
+    "validate": "run-s build:tsc lint",
+    "db:push:safe": "npx supabase db push --include-all --yes --workdir ..",
+    "test:e2e": "run-s build test:e2e:run",
+    "test:e2e:run": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:install": "playwright install chromium"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.8",
+    "framer-motion": "^12.12.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
+    "lucide-react": "^0.460.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^3.8.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.50.1",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.4.20",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.26",
+    "globals": "^15.15.0",
+    "npm-run-all": "^4.1.5",
+    "postcss": "^8.4.41",
+    "sass": "^1.77.8",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.4",
+    "typescript-eslint": "^8.59.1",
+    "vite": "^8.0.10"
+  }
+}

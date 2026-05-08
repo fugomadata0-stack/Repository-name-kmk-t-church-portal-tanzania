@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Dashibodi kuu ya KMK(T): muhtasari wa waumini, matawi, fedha, na ripoti — hali ya umma au mtumiaji aliyeingia."
+    />
+    <meta name="theme-color" content="#0B1F3A" />
+    <title>Dashibodi SaaS | KMK(T) National Church Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="assets/css/style.css" />
+  </head>
+  <body class="kmt-dash-body" id="kmt-top" data-back-fallback="index.html">
+    <div class="kmt-loading-overlay" id="kmtLoading" hidden aria-busy="false">
+      <div class="kmt-loading-inner">
+        <div class="kmt-spinner" role="status" aria-label="Inapakia"></div>
+        <p class="kmt-loading-text">Inasoma data za mfumo…</p>
+      </div>
+    </div>
+
+    <header class="kmt-topbar">
+      <div class="kmt-brand">
+        <div class="kmt-brand-mark" aria-hidden="true">✝</div>
+        <div>
+          <h1>KMK(T) Portal</h1>
+          <p>National Church Dashboard · Premium</p>
+        </div>
+      </div>
+      <div class="kmt-top-search">
+        <label class="visually-hidden" for="kmtDashboardSearch">Tafuta kwenye dashibodi</label>
+        <input id="kmtDashboardSearch" type="search" placeholder="Tafuta kadi, moduli, au neno…" autocomplete="off" />
+      </div>
+      <div class="kmt-top-actions">
+        <a
+          class="kmt-badge kmt-badge--live"
+          id="kmtSupabaseLink"
+          href="system-health.html"
+          hidden
+          title="Hali ya muunganisho wa Supabase"
+          >Supabase</a
+        >
+        <span class="kmt-badge kmt-badge--public" id="kmtModeBadge">Hali</span>
+        <span class="kmt-badge kmt-badge--live" id="kmtRoleDisplay" title="Jukumu">—</span>
+        <span class="kmt-user-pill" id="kmtUserName">—</span>
+        <a class="kmt-btn kmt-btn--gold" id="kmtBtnLogin" href="auth-login.html?next=dashboard.html">Ingia</a>
+        <button type="button" class="kmt-btn kmt-btn--ghost" id="kmtBtnLogout" hidden>Ondoka</button>
+      </div>
+    </header>
+
+    <div class="kmt-shell">
+      <aside class="kmt-sidebar" aria-label="Menyu kuu">
+        <nav id="kmtSidebarNav"></nav>
+        <p class="kmt-sidebar-hint">
+          Moduli zilizo na 🔒 zinahitaji kuingia na ruhusa. Toleo la awali:
+          <a href="dashboard-phase3-legacy.html">Phase 3 legacy</a>
+        </p>
+      </aside>
+
+      <main class="kmt-main">
+        <section class="kmt-public-banner" id="kmtPublicBanner" hidden>
+          <div>
+            <h2>Machapisho ya dashboard (siyo ya siri)</h2>
+            <p>
+              Unaona <strong>namba za mfano</strong> na uhuishaji wa machapisho. Vifaa vimefungwa hadi uingie ili kuona data halisi kutoka Supabase.
+            </p>
+          </div>
+          <a class="kmt-btn kmt-btn--gold" href="auth-login.html?next=dashboard.html">Ingia ili kuona taarifa kamili</a>
+        </section>
+
+        <section class="kmt-hero-glass">
+          <p class="kmt-hero-eyebrow">Kituo cha uendeshaji · Operations</p>
+          <h2>Karibu kwenye Dashibodi ya KMK(T)</h2>
+          <p class="kmt-hero-lead">
+            Muhtasari wa kanisa lote: waumini, matawi, viongozi, mahudhurio na fedha — muonekano wa SaaS na data halisi unapoingia.
+          </p>
+        </section>
+
+        <section aria-labelledby="kpi-heading">
+          <h2 id="kpi-heading" class="visually-hidden">Vipimo muhimu</h2>
+          <div class="kmt-kpi-grid" id="kmtKpiGrid"></div>
+        </section>
+
+        <section class="kmt-section" aria-labelledby="charts-heading">
+          <div class="kmt-section__head">
+            <h3 id="charts-heading" class="kmt-section__title">Chati na mwenendo</h3>
+            <p class="kmt-section__sub">Viwango vya miaka 12 na makadirio ya ukuaji — data halisi inapatikana baada ya kuingia.</p>
+          </div>
+          <div class="kmt-chart-grid">
+            <div class="kmt-chart-card">
+              <h4>Mahudhurio — mwenendo (mstari)</h4>
+              <canvas id="chartAttendanceTrend" aria-label="Chati ya mahudhurio"></canvas>
+            </div>
+            <div class="kmt-chart-card">
+              <h4>Mapato dhidi ya matumizi (miaka 6)</h4>
+              <canvas id="chartFinanceBar" aria-label="Chati ya fedha"></canvas>
+            </div>
+            <div class="kmt-chart-card">
+              <h4>Waumini kwa makundi (pai)</h4>
+              <canvas id="chartDemographics" aria-label="Chati ya makundi"></canvas>
+            </div>
+            <div class="kmt-chart-card">
+              <h4>Ukuaji wa kanisa (eneo)</h4>
+              <canvas id="chartGrowthArea" aria-label="Chati ya ukuaji"></canvas>
+            </div>
+          </div>
+        </section>
+
+        <section class="kmt-panel" id="panel-categories">
+          <div class="kmt-panel-head">
+            <h3>Makundi ya huduma (hifadhi ya ndani)</h3>
+            <span class="kmt-panel-meta">Ongeza / hariri bila kubadili code (Admin)</span>
+          </div>
+          <div class="kmt-cat-toolbar" id="kmtCatToolbar">
+            <input class="kmt-input" id="kmtCatSearch" type="search" placeholder="Tafuta kundi…" />
+            <button type="button" class="kmt-btn kmt-btn--gold kmt-btn--sm" id="kmtCatAdd">Ongeza kundi</button>
+          </div>
+          <div class="kmt-table-wrap">
+            <table class="kmt-table">
+              <thead>
+                <tr>
+                  <th>Jina</th>
+                  <th>Moduli</th>
+                  <th>Hali</th>
+                  <th>Viperuzi maalum</th>
+                  <th>Vitendo</th>
+                </tr>
+              </thead>
+              <tbody id="kmtCatBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="kmt-panel">
+          <div class="kmt-panel-head">
+            <h3>Shughuli za hivi karibuni</h3>
+            <div class="kmt-toolbar-row">
+              <input class="kmt-input" type="date" id="kmtFilterDate" title="Kichujio cha tarehe (demo)" />
+              <button type="button" class="kmt-btn kmt-btn--ghost kmt-btn--sm" id="kmtBtnExportActivity">Hamisha Excel (CSV)</button>
+              <button type="button" class="kmt-btn kmt-btn--ghost kmt-btn--sm" id="kmtBtnPrint">Chapisha</button>
+            </div>
+          </div>
+          <div class="kmt-table-wrap">
+            <table class="kmt-table">
+              <thead>
+                <tr>
+                  <th>Tarehe</th>
+                  <th>Mtumiaji</th>
+                  <th>Moduli</th>
+                  <th>Kitendo</th>
+                  <th>Maelezo</th>
+                </tr>
+              </thead>
+              <tbody id="kmtActivityBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="kmt-panel">
+          <div class="kmt-panel-head">
+            <h3>Arifa</h3>
+          </div>
+          <div class="kmt-table-wrap">
+            <table class="kmt-table">
+              <thead>
+                <tr>
+                  <th>Kichwa</th>
+                  <th>Aina</th>
+                  <th>Kipaumbele</th>
+                  <th>Tarehe</th>
+                </tr>
+              </thead>
+              <tbody id="kmtNotifBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <footer class="kmt-footer">
+      <p>KANISA LA MENNONITE LA KIINJILI TANZANIA — KMK(T)</p>
+      <p><a href="index.html">Tovuti kuu</a> · <a href="system-health.html">Afya ya mfumo</a></p>
+    </footer>
+
+    <div class="kmt-modal" id="kmtCatModal" hidden aria-modal="true" role="dialog" aria-labelledby="kmtCatModalTitle">
+      <div class="kmt-modal__backdrop" data-kmt-close-cat-modal tabindex="-1"></div>
+      <div class="kmt-modal__card">
+        <h3 id="kmtCatModalTitle">Kundi</h3>
+        <form id="kmtCatForm" class="kmt-modal__form">
+          <label class="kmt-modal__label"
+            ><span>Jina la kundi</span><input class="kmt-input" id="kmtCatName" name="name" type="text" required autocomplete="off"
+          /></label>
+          <label class="kmt-modal__label"
+            ><span>Moduli</span>
+            <select class="kmt-select" id="kmtCatModule" name="moduleKey">
+              <option value="members">members</option>
+              <option value="events">events</option>
+              <option value="finance">finance</option>
+              <option value="attendance">attendance</option>
+              <option value="branches">branches</option>
+              <option value="leaders">leaders</option>
+              <option value="reports">reports</option>
+            </select>
+          </label>
+          <label class="kmt-modal__label"
+            ><span>Viperuzi maalum (hiari)</span><input class="kmt-input" id="kmtCatFields" name="fields" type="text" placeholder="Mfano: Makazi, Idara" autocomplete="off"
+          /></label>
+          <label class="kmt-modal__check" id="kmtCatActiveWrap"><input type="checkbox" id="kmtCatActive" checked /> Kundi linatumika</label>
+          <div class="kmt-modal__actions">
+            <button type="button" class="kmt-btn kmt-btn--ghost" id="kmtCatCancel">Ghairi</button>
+            <button type="submit" class="kmt-btn kmt-btn--gold" id="kmtCatSave">Hifadhi</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="kmt-modal" id="kmtCatDeleteModal" hidden aria-modal="true" role="dialog" aria-labelledby="kmtCatDelTitle">
+      <div class="kmt-modal__backdrop" data-kmt-close-del-modal tabindex="-1"></div>
+      <div class="kmt-modal__card kmt-modal__card--narrow">
+        <h3 id="kmtCatDelTitle">Futa kundi</h3>
+        <p class="kmt-modal__text" id="kmtCatDelMsg"></p>
+        <div class="kmt-modal__actions">
+          <button type="button" class="kmt-btn kmt-btn--ghost" id="kmtCatDelCancel">Ghairi</button>
+          <button type="button" class="kmt-btn kmt-btn--danger" id="kmtCatDelConfirm">Futa</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="kmt-toast-wrap" id="kmtToastWrap" aria-live="polite"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script defer src="assets/js/auth.js"></script>
+    <script type="module" src="assets/js/dashboard.js"></script>
+    <script src="global-back-button.js"></script>
+  </body>
+</html>

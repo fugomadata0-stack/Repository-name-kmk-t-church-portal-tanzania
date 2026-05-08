@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mali za Kanisa / Assets Register | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase25-assets-register.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div class="particles"></div>
+        <div class="hero-content">
+          <h1>Mali za Kanisa / Assets Register</h1>
+          <p>
+            Kituo hiki kinasimamia properties, equipment, buildings, vehicles, furniture, media tools, na school assets kwa ngazi ya Dayosisi, Jimbo,
+            na Tawi.
+          </p>
+          <div class="mini-modules" id="miniModules"></div>
+        </div>
+        <div class="hero-images">
+          <article class="image-pill jesus">Jesus Stewardship</article>
+          <article class="image-pill bible">Bible Integrity</article>
+          <article class="image-pill church">Church Building</article>
+        </div>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="kpi-grid" id="kpiGrid"></section>
+
+      <section class="card">
+        <h2 class="title">Orodha ya Mali za Kanisa</h2>
+        <div class="table-tools">
+          <button class="btn gold" data-action="addAsset">Add Asset</button>
+          <button class="btn" data-action="export">Export</button>
+          <button class="btn" data-action="print">Print</button>
+          <button class="btn" data-action="clearAssets">Clear</button>
+          <span class="status amber" id="liveBadge">Realtime: Syncing...</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Asset ID</th>
+                <th>Jina la Mali</th>
+                <th>Category</th>
+                <th>Dayosisi</th>
+                <th>Jimbo</th>
+                <th>Tawi</th>
+                <th>Location</th>
+                <th>Condition</th>
+                <th>Estimated Value</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="assetsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="title">Add / Update Asset</h2>
+        <form id="assetForm" class="form-grid">
+          <div class="field"><label for="assetName">Jina la Mali</label><input id="assetName" required /></div>
+          <div class="field"><label for="category">Category</label><select id="category"></select></div>
+          <div class="field span-2"><label for="description">Description</label><textarea id="description"></textarea></div>
+          <div class="field"><label for="serialNumber">Serial Number optional</label><input id="serialNumber" /></div>
+          <div class="field"><label for="dayosisi">Dayosisi</label><input id="dayosisi" /></div>
+          <div class="field"><label for="jimbo">Jimbo</label><input id="jimbo" /></div>
+          <div class="field"><label for="tawi">Tawi</label><input id="tawi" /></div>
+          <div class="field"><label for="location">Location</label><input id="location" /></div>
+          <div class="field"><label for="acquisitionDate">Acquisition Date</label><input id="acquisitionDate" type="date" /></div>
+          <div class="field"><label for="estimatedValue">Estimated Value</label><input id="estimatedValue" type="number" min="0" step="1000" /></div>
+          <div class="field"><label for="condition">Condition</label><select id="condition"></select></div>
+          <div class="field"><label for="responsiblePerson">Responsible Person</label><input id="responsiblePerson" /></div>
+          <div class="field span-2">
+            <label>Document upload placeholder</label>
+            <div class="upload-placeholder">Upload placeholder only: unaweza kuunganisha storage uploader ya Supabase hapa.</div>
+          </div>
+          <div class="field span-2"><label for="notes">Notes</label><textarea id="notes"></textarea></div>
+          <div class="field span-2"><label for="status">Status</label><select id="status"></select></div>
+          <div class="actions span-2">
+            <button type="submit" class="btn gold">Save Asset</button>
+            <button type="button" class="btn" data-action="clearAssets">Clear</button>
+            <button type="button" class="btn" data-action="export">Export</button>
+            <button type="button" class="btn" data-action="print">Print</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase25-assets-register-main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vyanzo vya Mapato Yote | KMK(T)</title>
+    <link rel="stylesheet" href="phase34-income-sources.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="card hero">
+        <h1>Vyanzo vya Mapato Yote</h1>
+        <p>Master module ya vyanzo vyote vya mapato • Submission + approval ready • Supabase-ready architecture.</p>
+        <div class="actions">
+          <a class="btn gold" href="finance-management.html">Rudi Fedha</a>
+          <button class="btn" onclick="window.print()">Print</button>
+        </div>
+      </section>
+
+      <section class="card kpis">
+        <article class="kpi">Total Sources <strong>14</strong></article>
+        <article class="kpi">Pending Approval <strong>3</strong></article>
+        <article class="kpi">Approved <strong>9</strong></article>
+        <article class="kpi">Needs Correction <strong>2</strong></article>
+      </section>
+
+      <section class="card">
+        <h2>Add New Source / Ongeza Chanzo</h2>
+        <form id="incomeSourceForm">
+          <label>Kategoria<select id="categoryOptions" name="kategoria"></select></label>
+          <label>Chanzo cha Mapato<input name="chanzo_cha_mapato" required /></label>
+          <label>Ngazi<input name="ngazi" value="Dayosisi" /></label>
+          <label>Dayosisi<input name="dayosisi" required /></label>
+          <label>Jimbo<input name="jimbo" required /></label>
+          <label>Tawi<input name="tawi" required /></label>
+          <label>Kiasi Kinachotarajiwa<input type="number" name="kiasi_kinachotarajiwa" required /></label>
+          <label>Kiasi Kilichopokelewa<input type="number" name="kiasi_kilichopokelewa" required /></label>
+          <label>Frequency<select id="frequencyOptions" name="frequency"></select></label>
+          <label>Status<select name="status"><option>Draft</option><option>In Progress</option><option>Submitted</option><option>Approved</option></select></label>
+        </form>
+        <div class="actions">
+          <button class="btn gold" id="saveIncomeSourceBtn">Save Source</button>
+          <button class="btn">Export CSV</button>
+          <button class="btn">Print</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Jedwali la Vyanzo vya Mapato</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Kategoria</th><th>Chanzo cha Mapato</th><th>Ngazi</th><th>Dayosisi</th><th>Jimbo</th><th>Tawi</th><th>Kiasi Kinachotarajiwa</th><th>Kiasi Kilichopokelewa</th><th>Frequency</th><th>Status</th><th>Last Updated</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="incomeSourcesBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="phase34-income-sources-main.js"></script>
+  </body>
+</html>

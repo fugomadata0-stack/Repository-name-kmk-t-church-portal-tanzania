@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+  <defs><linearGradient id="g" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="#0B1F3A"/><stop offset="100%" stop-color="#245A8F"/></linearGradient></defs>
+  <rect width="1600" height="900" fill="url(#g)"/>
+  <path d="M200 700 Q800 450 1400 700" stroke="#D4AF37" stroke-width="10" fill="none" opacity="0.7"/>
+  <text x="90" y="790" fill="#F8F6F0" font-size="72" font-family="Segoe UI, Arial" font-weight="700">Worship & Prayer</text>
+</svg>

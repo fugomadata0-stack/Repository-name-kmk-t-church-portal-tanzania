@@ -1,0 +1,32 @@
+{
+  "name": "kmt-church-tanzania-portal",
+  "private": true,
+  "description": "Monorepo: portal, Supabase migrations, app-next (Vite).",
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "scripts": {
+    "build": "run-s build:ci build:next",
+    "build:ci": "npm ci --prefix app-next",
+    "build:next": "npm run build --prefix app-next",
+    "supabase:login": "npx supabase login",
+    "supabase:link": "npx supabase link --project-ref tjtsrirwdssocaplsfql",
+    "db:push": "node scripts/db-push-pooler.cjs",
+    "db:push:safe": "node scripts/db-push-safe.cjs",
+    "db:doctor": "node scripts/db-doctor.cjs",
+    "db:push:dry": "node scripts/db-push-pooler.cjs --dry-run",
+    "db:push:help": "node scripts/db-push-pooler.cjs --help",
+    "db:push:cli": "npx supabase db push",
+    "build:app": "npm run build --prefix app-next",
+    "validate": "npm run validate --prefix app-next",
+    "lint": "npm run lint --prefix app-next"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.10.2",
+    "@supabase/supabase-js": "^2.104.1"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "supabase": "^2.98.0"
+  }
+}

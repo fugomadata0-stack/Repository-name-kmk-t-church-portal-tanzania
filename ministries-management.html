@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Library, Media, Events, Documents | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase7-ministries.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <div class="loading-bar" id="loadingBar">Inapakia taarifa za ministries...</div>
+      <header class="hero card">
+        <div>
+          <h1>KMK(T) Digital Library & Media Center</h1>
+          <p>Simamia Machapisho, Media/Gallery, Ratiba za Events/Makambi, Official Documents, na MWC Global Relations.</p>
+        </div>
+        <span class="mode-badge" id="modeBadge">Mode: loading...</span>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+      <section class="kpi-grid" id="kpiGrid"></section>
+      <section class="module-tabs" id="moduleTabs"></section>
+      <section class="ministry-cards" id="ministryCards"></section>
+
+      <section class="card">
+        <div class="table-head">
+          <div><h2>Orodha ya Digital Modules</h2><p>Advanced table, profile view, search na filters.</p></div>
+          <div class="actions" id="topActions"><button class="btn gold" data-action="add">Add Module</button><button class="btn" data-action="clear">Clear</button><button class="btn" data-action="export">Export</button><button class="btn" data-action="print">Print</button></div>
+        </div>
+        <div class="filters" id="filtersBar"></div>
+        <div class="table-wrap desktop-table"><table><thead><tr id="ministriesHead"></tr></thead><tbody id="ministriesBody"></tbody></table></div>
+        <div id="ministriesCardsMobile" class="cards-mobile"></div>
+        <div class="pagination"><span id="pageInfo"></span><div><button class="btn" id="prevBtn">Prev</button><button class="btn" id="nextBtn">Next</button></div></div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <div class="table-head mini"><h3>Media Feed / Announcements</h3><div class="actions"><button class="btn gold" data-members="add">Add Media</button><button class="btn" data-members="clear">Clear</button><button class="btn" data-members="export">Export</button></div></div>
+          <div class="table-wrap"><table><thead><tr><th>ID</th><th>Jina la Mshiriki</th><th>Idara</th><th>Role ndani ya Idara</th><th>Tawi</th><th>Simu</th><th>Tarehe ya Kujiunga</th><th>Status</th><th>Actions</th></tr></thead><tbody id="membersBody"></tbody></table></div>
+        </section>
+        <section class="card">
+          <div class="table-head mini"><h3>Partner Organizations</h3><div class="actions"><button class="btn gold" data-leaders="add">Add Partner</button><button class="btn" data-leaders="clear">Clear</button><button class="btn" data-leaders="export">Export</button></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Kiongozi</th><th>Idara</th><th>Cheo</th><th>Dayosisi</th><th>Jimbo</th><th>Tawi</th><th>Simu</th><th>Email</th><th>Status</th><th>Actions</th></tr></thead><tbody id="leadersBody"></tbody></table></div>
+        </section>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <div class="table-head mini"><h3>Ratiba / Events / Makambi</h3><div class="actions"><button class="btn gold" data-activities="add">Add Event</button><button class="btn" data-activities="clear">Clear</button><button class="btn" data-activities="export">Export</button><button class="btn" data-activities="print">Print</button></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Jina la Shughuli</th><th>Idara</th><th>Tarehe</th><th>Mahali</th><th>Msimamizi</th><th>Washiriki</th><th>Status</th><th>Actions</th></tr></thead><tbody id="activitiesBody"></tbody></table></div>
+        </section>
+        <section class="card">
+          <div class="table-head mini"><h3>Official Document Center</h3><div class="actions"><button class="btn gold" data-contributions="add">Add Document</button><button class="btn" data-contributions="clear">Clear</button><button class="btn" data-contributions="export">Export</button></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Idara</th><th>Aina ya Mchango</th><th>Kiasi</th><th>Mlipaji</th><th>Tarehe</th><th>Payment Method</th><th>Status</th><th>Actions</th></tr></thead><tbody id="contributionsBody"></tbody></table></div>
+        </section>
+      </section>
+
+      <section class="card">
+        <div class="table-head mini">
+          <h3>Ministry Reports</h3>
+          <p>Muhtasari wa utendaji wa idara kwa mwezi.</p>
+        </div>
+        <div class="kpi-grid reports-grid" id="reportsGrid"></div>
+      </section>
+    </main>
+
+    <div class="modal" id="ministryModal"><div class="modal-card"><h3 id="ministryModalTitle">Add/Edit Ministry</h3><form id="ministryForm" class="form-grid"></form><p class="error" id="ministryFormError"></p><div class="actions"><button class="btn" id="cancelMinistryBtn">Cancel</button><button class="btn gold" id="saveMinistryBtn">Save</button></div></div></div>
+    <div class="modal" id="entryModal"><div class="modal-card"><h3 id="entryModalTitle">Add Entry</h3><form id="entryForm" class="form-grid"></form><p class="error" id="entryFormError"></p><div class="actions"><button class="btn" id="cancelEntryBtn">Cancel</button><button class="btn gold" id="saveEntryBtn">Save</button></div></div></div>
+    <div class="modal" id="confirmModal"><div class="confirm-card"><h4 id="confirmTitle">Delete Confirmation</h4><p>Una uhakika unataka kufuta record hii?</p><div class="actions"><button class="btn" id="cancelDeleteBtn">Cancel</button><button class="btn danger" id="confirmDeleteBtn">Delete</button></div></div></div>
+
+    <aside class="profile-drawer" id="profileDrawer">
+      <div class="profile-drawer-card">
+        <div class="table-head mini">
+          <h3>Profile Page</h3>
+          <div class="actions">
+            <button class="btn" id="profilePrintBtn">Print Profile</button>
+            <button class="btn" id="profilePdfBtn">Export PDF</button>
+            <button class="btn" id="profileExcelBtn">Export Excel</button>
+            <button class="btn" id="closeProfileDrawerBtn">Close</button>
+          </div>
+        </div>
+        <div id="profileDrawerContent"></div>
+      </div>
+    </aside>
+    <div class="toast-wrap" id="toastWrap"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script type="module" src="phase7-ministries-main.js"></script>
+  </body>
+</html>

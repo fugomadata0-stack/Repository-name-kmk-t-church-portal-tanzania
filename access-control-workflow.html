@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Access Control & Workflow | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase16-access.css" />
+  </head>
+  <body data-back-fallback="dashboard.html">
+    <main class="layout">
+      <header class="hero card">
+        <div class="hero-content">
+          <h1>Access Control, Super Admin & Data Submission Workflow</h1>
+          <p>Mfumo rasmi wa udhibiti wa ruhusa, usajili maalum, ugawaji wa roles, uwasilishaji wa taarifa, uthibitishaji, audit logs, na notifications za KMK(T).</p>
+          <div class="hero-badges">
+            <span class="badge">Chief Admin Active</span>
+            <span class="badge">4 Super Admin Slots</span>
+            <span class="badge">Role-based Security</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+          <a class="back-btn" href="admin-invite-promote.html">Mialiko & Promotions</a>
+          <a class="back-btn" href="registration-requests-admin.html">Maombi ya Usajili</a>
+        </div>
+      </header>
+
+      <section class="card chief-card" id="chiefAdminCard"></section>
+
+      <section class="grid-2">
+        <section class="card">
+          <div class="section-head">
+            <h2>Eneo Maalum la Super Admin</h2>
+            <div class="actions">
+              <button class="btn gold" data-action="openSuperAdminRegistration">Usajili Maalum wa Super Admin</button>
+              <button class="btn" data-action="toggleSuperAdminLock">Lock/Unlock Registration</button>
+            </div>
+          </div>
+          <p class="subtitle">Only 4 active Super Admins are allowed. Slot status inaonekana hapa chini.</p>
+          <div id="slotStatus"></div>
+        </section>
+
+        <section class="card">
+          <div class="section-head">
+            <h2>Jiondoe kama Super Admin</h2>
+          </div>
+          <p class="subtitle">Kwa usalama, mfumo utaomba uthibitisho na password kabla ya kuachia slot.</p>
+          <form class="inline-form" id="resignForm">
+            <label>Super Admin ID<input type="number" name="admin_id" required /></label>
+            <label>Password Confirmation<input type="password" name="password" required /></label>
+            <button class="btn danger" type="submit">Jiondoe kama Super Admin</button>
+          </form>
+        </section>
+      </section>
+
+      <section class="card">
+        <h2 class="table-title t1">ORODHA YA SUPER ADMINS WA KMT</h2>
+        <p class="subtitle">Manage, replace, disable, remove, audit na kuona status za slots zote 4.</p>
+        <div class="table-tools">
+          <input type="search" id="superAdminSearch" placeholder="Search Full Name, Email, Phone..." />
+          <select id="superAdminStatusFilter"><option value="">Status zote</option><option>Active</option><option>Pending Approval</option><option>Resigned</option><option>Removed</option></select>
+          <select id="superAdminSort"><option value="slot">Sort by Slot</option><option value="name">Sort by Name</option><option value="date">Sort by Date</option></select>
+          <button class="btn" data-action="exportSuperAdminsPdf">Export PDF</button>
+          <button class="btn" data-action="exportSuperAdminsExcel">Export Excel</button>
+          <button class="btn" data-action="printSuperAdmins">Print</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>S/N</th><th>Full Name</th><th>Email</th><th>Phone</th><th>Slot Number</th><th>Status</th><th>Date Registered</th><th>Last Login</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="superAdminBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="superAdminPagination"></div>
+      </section>
+
+      <section class="card">
+        <h2 class="table-title t2">WATUMIAJI WENYE RUHUSA KWA KILA ENEO</h2>
+        <p class="subtitle">Default slots 3 kwa kila eneo. Assign, replace, remove, reset na view submitted data.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>S/N</th><th>Level</th><th>Unit Name</th><th>Slot 1 User</th><th>Slot 2 User</th><th>Slot 3 User</th><th>Access Status</th><th>Completion Status</th><th>Last Update</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="accessSlotsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="table-title t3">UFUATILIAJI WA UWASILISHAJI WA TAARIFA</h2>
+        <p class="subtitle">KPI za uwasilishaji, completion progress, filters, na actions za review/approve/reject/corrections.</p>
+        <div class="kpis" id="submissionKpis"></div>
+        <div class="progress-grid" id="progressBars"></div>
+        <div class="table-tools">
+          <select id="filterLevel"><option value="">Filter by Level</option></select>
+          <select id="filterStatus"><option value="">Filter by Status</option></select>
+          <select id="filterCompletion"><option value="">Filter by Completion</option><option>Imekamilika</option><option>Haijakamilika</option></select>
+          <input type="search" id="filterUser" placeholder="Filter by Assigned User" />
+          <button class="btn gold" data-action="applySubmissionFilters">Apply</button>
+          <button class="btn" data-action="exportSubmissionsPdf">Export PDF</button>
+          <button class="btn" data-action="exportSubmissionsExcel">Export Excel</button>
+          <button class="btn" data-action="printSubmissions">Print</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="bulkToggle" /></th>
+                <th>S/N</th><th>Level</th><th>Unit</th><th>Assigned User</th><th>Status</th><th>Completion</th><th>Date Submitted</th><th>Notes</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="submissionBody"></tbody>
+          </table>
+        </div>
+        <div class="actions">
+          <button class="btn" data-action="bulkApprove">Bulk Approve</button>
+          <button class="btn danger" data-action="bulkReject">Bulk Reject</button>
+          <button class="btn" data-action="bulkNeedsCorrection">Bulk Needs Correction</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="table-title t4">PERMISSIONS MATRIX</h2>
+        <p class="subtitle">Role vs capabilities matrix, with custom role, clone, disable, edit and reset controls.</p>
+        <div class="actions">
+          <button class="btn" data-action="addCustomRole">Add Custom Role</button>
+          <button class="btn" data-action="addPermissionGroup">Add Permission Group</button>
+          <button class="btn" data-action="addAccessSlotRule">Add Access Slot Rule</button>
+          <button class="btn" data-action="cloneRole">Clone Role</button>
+          <button class="btn" data-action="editPermission">Edit Permission</button>
+          <button class="btn" data-action="disableRole">Disable Role</button>
+          <button class="btn" data-action="resetPermissions">Reset Permissions</button>
+          <button class="btn" data-action="addCategory">Add Category</button>
+          <button class="btn" data-action="addType">Add Type</button>
+          <button class="btn" data-action="addCustomField">Add Custom Field</button>
+          <button class="btn" data-action="addCustomSection">Add Custom Section</button>
+          <button class="btn" data-action="addTag">Add Tag</button>
+          <button class="btn" data-action="addStatusLabel">Add Status Label</button>
+          <button class="btn" data-action="addDocumentType">Add Document Type</button>
+          <button class="btn" data-action="addAccessLevel">Add Access Level</button>
+          <button class="btn" data-action="addApprovalStage">Add Approval Stage</button>
+          <button class="btn" data-action="addReportTemplate">Add Report Template</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead id="permissionHead"></thead>
+            <tbody id="permissionBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="table-title t6">Usalama & Ruhusa / Security Mini Modules</h2>
+        <p class="subtitle">Roles Matrix, Permissions Matrix, Sessions, Login Attempts, Audit/Activity, Password Policies, 2FA placeholder, Access Scope, RLS placeholder, API Access placeholder, Security Alerts.</p>
+        <div class="actions">
+          <span class="badge">Roles Matrix</span>
+          <span class="badge">Permissions Matrix</span>
+          <span class="badge">Sessions Management</span>
+          <span class="badge">Login Attempts</span>
+          <span class="badge">Audit Logs</span>
+          <span class="badge">Activity Logs</span>
+          <span class="badge">Password Policies</span>
+          <span class="badge">2FA Placeholder</span>
+          <span class="badge">Access Scope Rules</span>
+          <span class="badge">RLS Policy Placeholder</span>
+          <span class="badge">API Access Placeholder</span>
+          <span class="badge">Security Alerts</span>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2 class="table-title t2">Sessions za Watumiaji</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>User</th><th>Role</th><th>Device</th><th>Browser</th><th>IP</th><th>Login Time</th><th>Last Activity</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="sessionsBody"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="card">
+          <h2 class="table-title t1">Login Attempts</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>User</th><th>Role</th><th>Attempt Time</th><th>Result</th><th>IP</th><th>Notes</th></tr></thead>
+              <tbody id="loginAttemptsBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2 class="table-title t3">Password Policies & Security Controls</h2>
+          <div class="kpis" id="securityPolicies"></div>
+        </section>
+        <section class="card">
+          <h2 class="table-title t5">Security Alerts</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Alert</th><th>Level</th><th>Module</th><th>Date/Time</th><th>Status</th></tr></thead>
+              <tbody id="securityAlertsBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2 class="table-title t5">HISTORIA YA MATENDO YA MFUMO / AUDIT LOGS</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>S/N</th><th>User</th><th>Role</th><th>Action</th><th>Module</th><th>Record</th><th>Old Value</th><th>New Value</th><th>Date/Time</th><th>IP/Device</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="auditBody"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="card">
+          <h2 class="table-title t6">NOTIFICATION CENTER</h2>
+          <p class="subtitle">In-app active now, Email/SMS/WhatsApp ready for future integration.</p>
+          <div class="actions">
+            <button class="btn" data-action="markNotificationsRead">Mark all read</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Title</th><th>Type</th><th>Channel</th><th>Date</th><th>Status</th></tr></thead>
+              <tbody id="notificationBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div class="modal" id="registrationModal">
+      <div class="modal-card">
+        <h3>Usajili Maalum wa Super Admin</h3>
+        <p class="subtitle">Chief Admin setup -> Super Admin registration -> role-based invitation -> local registration flow.</p>
+        <form class="form-grid" id="registrationForm">
+          <label>Full Name<input name="full_name" required /></label>
+          <label>Email<input type="email" name="email" required /></label>
+          <label>Phone<input name="phone" required /></label>
+          <label>Password<input type="password" name="password" required /></label>
+          <label>Confirm Password<input type="password" name="confirm_password" required /></label>
+          <label>Super Admin Slot Number<select name="slot_number" id="slotNumberSelect"></select></label>
+          <label>Security Question<input name="security_question" required /></label>
+          <label>Registration Status<select name="registration_status"><option>Pending Approval</option><option>Active</option></select></label>
+          <label class="check"><input type="checkbox" name="terms" required /> Nimekubali Terms za usalama wa KMT</label>
+          <div class="actions full"><button type="button" class="btn" data-action="closeRegistrationModal">Cancel</button><button class="btn gold" type="submit">Submit Registration</button></div>
+        </form>
+        <p class="error" id="registrationError"></p>
+      </div>
+    </div>
+
+    <div class="modal" id="confirmModal">
+      <div class="confirm-card">
+        <h4 id="confirmTitle">Thibitisha Hatua</h4>
+        <p id="confirmMessage">Una uhakika?</p>
+        <div class="actions"><button class="btn" id="cancelConfirmBtn">Cancel</button><button class="btn danger" id="okConfirmBtn">Endelea</button></div>
+      </div>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase16-access-main.js"></script>
+    <script src="global-back-button.js"></script>
+  </body>
+</html>

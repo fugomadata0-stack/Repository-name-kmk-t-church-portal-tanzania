@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quick System Test | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase17-super-admin.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <h1>Quick System Test / Jaribio la Haraka</h1>
+          <p>Smoke checks za login/logout, CRUD routes, Supabase read/write, dashboard cards, exports na responsiveness.</p>
+        </div>
+        <a class="back-btn" href="system-health.html">Rudi System Health</a>
+      </header>
+      <section class="card">
+        <div class="actions">
+          <button class="btn gold" id="runBtn">Run Quick Tests</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Test</th><th>Status</th><th>Detail</th></tr></thead>
+            <tbody id="testBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="quick-system-test-main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+# Siri / mazingira — usicommit
+supabase-config.local.js
+app-next/.env.local
+.env
+.env.local
+*.pem
+
+# Vite
+app-next/node_modules
+app-next/dist

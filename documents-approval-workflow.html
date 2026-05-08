@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nyaraka Rasmi & Approval Workflow | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase21-docs-workflow.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <h1>Nyaraka Rasmi & Approval Workflow</h1>
+          <p>Unda, pitisha, hifadhi na fuatilia nyaraka rasmi za Kanisa kwa mtiririko wa kitaasisi.</p>
+          <div class="hero-badges">
+            <span class="badge">Official Letters</span>
+            <span class="badge">Circulars & Policies</span>
+            <span class="badge">Approval Engine</span>
+          </div>
+        </div>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="kpi-grid" id="kpiGrid"></section>
+
+      <section class="card">
+        <h2>Orodha ya Nyaraka Rasmi</h2>
+        <div class="table-tools">
+          <button class="btn gold" data-action="createDocument">Create Document</button>
+          <button class="btn" data-action="clearDocuments">Clear</button>
+          <button class="btn" data-action="exportPdf">Export PDF</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Document ID</th><th>Title</th><th>Type</th><th>Module</th><th>Owner</th><th>Current Stage</th><th>Status</th><th>Last Updated</th><th>Expiry Date</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="documentsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Approval Workflow</h2>
+        <div class="table-tools">
+          <button class="btn" data-action="clearApprovals">Clear</button>
+          <button class="btn" data-action="exportApprovals">Export</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Request ID</th><th>Document</th><th>Submitted By</th><th>Current Reviewer</th><th>Approval Stage</th><th>Deadline</th><th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="approvalBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2>Templates za Nyaraka</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Template</th><th>Type</th><th>Version</th><th>Status</th></tr></thead>
+              <tbody id="templatesBody"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="card">
+          <h2>Historia ya Mabadiliko (Version History)</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Document</th><th>Version</th><th>Changed By</th><th>Date</th><th>Notes</th></tr></thead>
+              <tbody id="versionsBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase21-docs-workflow-main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,517 @@
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePortal } from "../../context/PortalContext";
+import { SettingsSupabaseBanner } from "./SettingsSupabaseBanner";
+import { uploadSitePublicAsset } from "../../lib/siteAssetsUpload";
+import {
+  emptyMasterSettings,
+  fetchMasterSettings,
+  normalizeSettingsError,
+  saveMasterSettings,
+  type MasterSettingsRow,
+  validateEmail,
+  validateHexColor,
+  validatePhone,
+} from "../../services/masterSettingsService";
+
+type TabKey =
+  | "identity"
+  | "branding"
+  | "theme"
+  | "exports"
+  | "email_templates"
+  | "sms_templates"
+  | "language"
+  | "dashboard"
+  | "footer";
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "identity", label: "Utambulisho wa KMK(T)" },
+  { key: "branding", label: "Logo & Branding" },
+  { key: "theme", label: "Theme Colors" },
+  { key: "exports", label: "PDF / Excel / Print Headers" },
+  { key: "email_templates", label: "Email Templates" },
+  { key: "sms_templates", label: "SMS Templates" },
+  { key: "language", label: "Language Settings" },
+  { key: "dashboard", label: "Dashboard Defaults" },
+  { key: "footer", label: "System Footer" },
+];
+
+const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
+const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
+
+export function MasterSettingsCenterPanel() {
+  const { pushToast, reportError, canPortalEditModule, role, logAudit } = usePortal();
+  const canEdit = canPortalEditModule("mipangilio") && role === "super_admin";
+
+  const [activeTab, setActiveTab] = useState<TabKey>("identity");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
+  const [form, setForm] = useState<MasterSettingsRow>(() => emptyMasterSettings());
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const row = await fetchMasterSettings();
+      setForm(row);
+    } catch (err) {
+      reportError(err, "Master Settings — pakua");
+      setForm(emptyMasterSettings());
+    } finally {
+      setLoading(false);
+    }
+  }, [reportError]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  function updateIdentity<K extends keyof MasterSettingsRow["identity"]>(key: K, value: MasterSettingsRow["identity"][K]) {
+    setForm((prev) => ({ ...prev, identity: { ...prev.identity, [key]: value } }));
+  }
+
+  function updateTheme<K extends keyof MasterSettingsRow["theme"]>(key: K, value: MasterSettingsRow["theme"][K]) {
+    setForm((prev) => ({ ...prev, theme: { ...prev.theme, [key]: value } }));
+  }
+
+  function updateTemplates<K extends keyof MasterSettingsRow["templates"]>(key: K, value: MasterSettingsRow["templates"][K]) {
+    setForm((prev) => ({ ...prev, templates: { ...prev.templates, [key]: value } }));
+  }
+
+  function validateBeforeSave(): string | null {
+    if (!form.identity.official_name.trim()) return "Official name ni lazima.";
+    if (!validateEmail(form.identity.email)) return "Barua pepe si sahihi.";
+    if (!validatePhone(form.identity.phone)) return "Namba ya simu si sahihi.";
+
+    const colors = [
+      form.theme.primary_color,
+      form.theme.secondary_color,
+      form.theme.accent_color,
+      form.theme.background_color,
+      form.theme.text_color,
+    ];
+    if (colors.some((c) => !validateHexColor(c))) return "Rangi zote lazima ziwe format ya HEX (#RRGGBB).";
+    if (form.identity.language_ratio_sw + form.identity.language_ratio_en !== 100) return "Uwiano wa lugha lazima uwe 100 kwa jumla.";
+    if (form.identity.dashboard_refresh_interval_sec < 15) return "Dashboard refresh interval lazima iwe angalau sekunde 15.";
+    if (form.identity.default_date_range_days < 1) return "Default date range lazima iwe angalau siku 1.";
+    return null;
+  }
+
+  async function onUploadThemeAsset(
+    key: "logo_url" | "favicon_url" | "letterhead_url" | "signature_image_url" | "seal_image_url",
+    path: string,
+    file: File | null
+  ) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      pushToast("Aina ya faili hairuhusiwi. Tumia picha tu.", "error");
+      return;
+    }
+    if (file.size > MAX_UPLOAD_SIZE) {
+      pushToast("Faili ni kubwa sana. Kikomo ni 5MB.", "error");
+      return;
+    }
+
+    setUploadingKey(key);
+    try {
+      const url = await uploadSitePublicAsset(path, file);
+      updateTheme(key, url);
+      pushToast("Picha imepakiwa kwenye Supabase Storage.", "success");
+    } catch (err) {
+      reportError(err, "Master Settings — upload");
+    } finally {
+      setUploadingKey(null);
+    }
+  }
+
+  async function onSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canEdit) return;
+
+    const validationError = validateBeforeSave();
+    if (validationError) {
+      pushToast(validationError, "error");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const saved = await saveMasterSettings(form);
+      setForm(saved);
+      await logAudit("master_settings_center_update", "portal_master_settings", undefined, {
+        tab: activeTab,
+      });
+
+      window.dispatchEvent(new CustomEvent("kmt-portal-settings-updated"));
+      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+
+      pushToast("Master Settings zimehifadhiwa.", "success");
+    } catch (err) {
+      pushToast(normalizeSettingsError(err), "error");
+      reportError(err, "Master Settings — hifadhi");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const previewStyle = useMemo(
+    () => ({
+      backgroundColor: form.theme.background_color,
+      color: form.theme.text_color,
+      borderColor: form.theme.primary_color,
+    }),
+    [form.theme.background_color, form.theme.text_color, form.theme.primary_color]
+  );
+
+  return (
+    <section className="space-y-4">
+      <SettingsSupabaseBanner />
+      <header className="rounded-2xl border border-[#D4AF37]/40 bg-gradient-to-r from-[#0B1F3A] to-[#123C69] p-6 text-white shadow-xl">
+        <p className="text-xs font-semibold uppercase tracking-widest text-amber-300">STEP 16</p>
+        <h2 className="mt-1 text-2xl font-bold">KMK(T) MASTER SETTINGS</h2>
+        <p className="mt-2 text-sm text-blue-100">Global identity, branding, theme, exports, templates, language na defaults za dashibodi.</p>
+      </header>
+
+      {!canEdit ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          Huna ruhusa ya kubadilisha mipangilio mikuu.
+        </div>
+      ) : null}
+
+      {loading ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-600">Inapakia master settings...</div>
+      ) : (
+        <form onSubmit={(e) => void onSave(e)} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow">
+          <div className="flex flex-wrap gap-2">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setActiveTab(t.key)}
+                className={`rounded-xl px-3 py-2 text-sm font-semibold ${
+                  activeTab === t.key ? "bg-[#0B1F3A] text-white" : "border border-slate-300 bg-white text-slate-700"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {activeTab === "identity" ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <Field label="Official Name *" value={form.identity.official_name} onChange={(v) => updateIdentity("official_name", v)} disabled={!canEdit} />
+              <Field label="Short Name" value={form.identity.short_name} onChange={(v) => updateIdentity("short_name", v)} disabled={!canEdit} />
+              <Field label="Motto" value={form.identity.motto} onChange={(v) => updateIdentity("motto", v)} disabled={!canEdit} />
+              <Field label="Address" value={form.identity.address} onChange={(v) => updateIdentity("address", v)} disabled={!canEdit} />
+              <Field label="Phone" value={form.identity.phone} onChange={(v) => updateIdentity("phone", v)} disabled={!canEdit} />
+              <Field label="Email" value={form.identity.email} onChange={(v) => updateIdentity("email", v)} disabled={!canEdit} />
+              <Field label="Website" value={form.identity.website} onChange={(v) => updateIdentity("website", v)} disabled={!canEdit} />
+              <Field label="Country" value={form.identity.country} onChange={(v) => updateIdentity("country", v)} disabled={!canEdit} />
+              <Field label="Timezone" value={form.identity.timezone} onChange={(v) => updateIdentity("timezone", v)} disabled={!canEdit} />
+              <Field label="Registration Info" value={form.identity.registration_info} onChange={(v) => updateIdentity("registration_info", v)} disabled={!canEdit} />
+              <Field label="Official Seal Text" value={form.identity.official_seal_text} onChange={(v) => updateIdentity("official_seal_text", v)} disabled={!canEdit} />
+            </div>
+          ) : null}
+
+          {activeTab === "branding" ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <UploadField
+                label="Logo"
+                accept={IMAGE_ACCEPT}
+                value={form.theme.logo_url}
+                busy={uploadingKey === "logo_url"}
+                onUpload={(f) => void onUploadThemeAsset("logo_url", "master/logo", f)}
+                onChangeValue={(v) => updateTheme("logo_url", v)}
+                disabled={!canEdit}
+              />
+              <UploadField
+                label="Favicon"
+                accept={IMAGE_ACCEPT}
+                value={form.theme.favicon_url}
+                busy={uploadingKey === "favicon_url"}
+                onUpload={(f) => void onUploadThemeAsset("favicon_url", "master/favicon", f)}
+                onChangeValue={(v) => updateTheme("favicon_url", v)}
+                disabled={!canEdit}
+              />
+              <UploadField
+                label="Letterhead Image"
+                accept={IMAGE_ACCEPT}
+                value={form.theme.letterhead_url}
+                busy={uploadingKey === "letterhead_url"}
+                onUpload={(f) => void onUploadThemeAsset("letterhead_url", "master/letterhead", f)}
+                onChangeValue={(v) => updateTheme("letterhead_url", v)}
+                disabled={!canEdit}
+              />
+              <UploadField
+                label="Signature Image"
+                accept={IMAGE_ACCEPT}
+                value={form.theme.signature_image_url}
+                busy={uploadingKey === "signature_image_url"}
+                onUpload={(f) => void onUploadThemeAsset("signature_image_url", "master/signature", f)}
+                onChangeValue={(v) => updateTheme("signature_image_url", v)}
+                disabled={!canEdit}
+              />
+              <UploadField
+                label="Official Stamp/Seal Image"
+                accept={IMAGE_ACCEPT}
+                value={form.theme.seal_image_url}
+                busy={uploadingKey === "seal_image_url"}
+                onUpload={(f) => void onUploadThemeAsset("seal_image_url", "master/seal", f)}
+                onChangeValue={(v) => updateTheme("seal_image_url", v)}
+                disabled={!canEdit}
+              />
+            </div>
+          ) : null}
+
+          {activeTab === "theme" ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <ColorField label="Primary Color" value={form.theme.primary_color} onChange={(v) => updateTheme("primary_color", v)} disabled={!canEdit} />
+              <ColorField label="Secondary Color" value={form.theme.secondary_color} onChange={(v) => updateTheme("secondary_color", v)} disabled={!canEdit} />
+              <ColorField label="Accent/Gold Color" value={form.theme.accent_color} onChange={(v) => updateTheme("accent_color", v)} disabled={!canEdit} />
+              <ColorField label="Background Color" value={form.theme.background_color} onChange={(v) => updateTheme("background_color", v)} disabled={!canEdit} />
+              <ColorField label="Text Color" value={form.theme.text_color} onChange={(v) => updateTheme("text_color", v)} disabled={!canEdit} />
+              <div className="rounded-xl border p-3" style={previewStyle}>
+                <p className="text-sm font-semibold">Theme Preview</p>
+                <p className="text-xs">Navy/Gold/White style ya KMK(T) inaonekana hapa.</p>
+              </div>
+            </div>
+          ) : null}
+
+          {activeTab === "exports" ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <Field label="PDF Header" value={form.theme.pdf_header_text} onChange={(v) => updateTheme("pdf_header_text", v)} disabled={!canEdit} />
+              <Field label="Excel Header" value={form.theme.excel_header_text} onChange={(v) => updateTheme("excel_header_text", v)} disabled={!canEdit} />
+              <Field label="Print Header" value={form.theme.print_header_text} onChange={(v) => updateTheme("print_header_text", v)} disabled={!canEdit} />
+              <Field label="System Footer" value={form.identity.system_footer} onChange={(v) => updateIdentity("system_footer", v)} disabled={!canEdit} />
+            </div>
+          ) : null}
+
+          {activeTab === "email_templates" ? (
+            <div className="grid gap-3">
+              <TextAreaField label="Email Welcome Template" value={form.templates.email_welcome} onChange={(v) => updateTemplates("email_welcome", v)} disabled={!canEdit} />
+              <TextAreaField label="Password/Reset Instruction Template" value={form.templates.email_password_reset} onChange={(v) => updateTemplates("email_password_reset", v)} disabled={!canEdit} />
+              <TextAreaField label="Signup Approval Template" value={form.templates.email_signup_approval} onChange={(v) => updateTemplates("email_signup_approval", v)} disabled={!canEdit} />
+              <TextAreaField label="Finance Receipt Template" value={form.templates.email_finance_receipt} onChange={(v) => updateTemplates("email_finance_receipt", v)} disabled={!canEdit} />
+              <TextAreaField label="Document Approval Template" value={form.templates.email_document_approval} onChange={(v) => updateTemplates("email_document_approval", v)} disabled={!canEdit} />
+            </div>
+          ) : null}
+
+          {activeTab === "sms_templates" ? (
+            <div className="grid gap-3">
+              <TextAreaField label="SMS Alert Template" value={form.templates.sms_alert} onChange={(v) => updateTemplates("sms_alert", v)} disabled={!canEdit} />
+              <TextAreaField label="Notification Message Template" value={form.templates.notification_message} onChange={(v) => updateTemplates("notification_message", v)} disabled={!canEdit} />
+            </div>
+          ) : null}
+
+          {activeTab === "language" ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <Field label="Language Primary" value={form.identity.language_primary} onChange={(v) => updateIdentity("language_primary", v)} disabled={!canEdit} />
+              <Field label="Language Secondary" value={form.identity.language_secondary} onChange={(v) => updateIdentity("language_secondary", v)} disabled={!canEdit} />
+              <NumberField label="Kiswahili Ratio (%)" value={form.identity.language_ratio_sw} onChange={(v) => updateIdentity("language_ratio_sw", v)} disabled={!canEdit} min={0} max={100} />
+              <NumberField label="English Ratio (%)" value={form.identity.language_ratio_en} onChange={(v) => updateIdentity("language_ratio_en", v)} disabled={!canEdit} min={0} max={100} />
+            </div>
+          ) : null}
+
+          {activeTab === "dashboard" ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-800">
+                <input
+                  type="checkbox"
+                  checked={form.identity.show_kpi_cards}
+                  onChange={(e) => updateIdentity("show_kpi_cards", e.target.checked)}
+                  disabled={!canEdit}
+                />
+                Show KPI Cards
+              </label>
+              <NumberField
+                label="Default Date Range (days)"
+                value={form.identity.default_date_range_days}
+                onChange={(v) => updateIdentity("default_date_range_days", v)}
+                disabled={!canEdit}
+                min={1}
+                max={3650}
+              />
+              <Field
+                label="Default Hierarchy Filter"
+                value={form.identity.default_hierarchy_filter}
+                onChange={(v) => updateIdentity("default_hierarchy_filter", v)}
+                disabled={!canEdit}
+              />
+              <NumberField
+                label="Dashboard Refresh Interval (sec)"
+                value={form.identity.dashboard_refresh_interval_sec}
+                onChange={(v) => updateIdentity("dashboard_refresh_interval_sec", v)}
+                disabled={!canEdit}
+                min={15}
+                max={86400}
+              />
+            </div>
+          ) : null}
+
+          {activeTab === "footer" ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <Field label="System Footer" value={form.identity.system_footer} onChange={(v) => updateIdentity("system_footer", v)} disabled={!canEdit} />
+              <Field label="Motto" value={form.identity.motto} onChange={(v) => updateIdentity("motto", v)} disabled={!canEdit} />
+            </div>
+          ) : null}
+
+          <div className="flex justify-end border-t border-slate-200 pt-3">
+            <button
+              type="submit"
+              disabled={!canEdit || saving}
+              className="rounded-xl bg-[#0B1F3A] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {saving ? "Inahifadhi..." : "Hifadhi Master Settings"}
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <label className="grid gap-1 text-sm font-medium text-slate-800">
+      {label}
+      <input
+        className="rounded-xl border border-slate-200 px-3 py-2"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+      />
+    </label>
+  );
+}
+
+function NumberField({
+  label,
+  value,
+  onChange,
+  disabled,
+  min,
+  max,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  disabled: boolean;
+  min?: number;
+  max?: number;
+}) {
+  return (
+    <label className="grid gap-1 text-sm font-medium text-slate-800">
+      {label}
+      <input
+        type="number"
+        min={min}
+        max={max}
+        className="rounded-xl border border-slate-200 px-3 py-2"
+        value={Number.isFinite(value) ? value : 0}
+        onChange={(e) => onChange(Number(e.target.value || 0))}
+        disabled={disabled}
+      />
+    </label>
+  );
+}
+
+function TextAreaField({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <label className="grid gap-1 text-sm font-medium text-slate-800">
+      {label}
+      <textarea
+        rows={3}
+        className="rounded-xl border border-slate-200 px-3 py-2"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+      />
+    </label>
+  );
+}
+
+function ColorField({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <label className="grid gap-1 text-sm font-medium text-slate-800">
+      {label}
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          disabled={disabled}
+          className="h-10 w-14 cursor-pointer rounded border border-slate-200 bg-white"
+        />
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          disabled={disabled}
+          className="flex-1 rounded-xl border border-slate-200 px-3 py-2"
+        />
+      </div>
+    </label>
+  );
+}
+
+function UploadField({
+  label,
+  accept,
+  value,
+  busy,
+  onUpload,
+  onChangeValue,
+  disabled,
+}: {
+  label: string;
+  accept: string;
+  value: string;
+  busy: boolean;
+  onUpload: (file: File | null) => void;
+  onChangeValue: (v: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <label className="grid gap-1 text-sm font-medium text-slate-800">
+      {label}
+      <input type="file" accept={accept} onChange={(e) => onUpload(e.target.files?.[0] ?? null)} disabled={disabled || busy} />
+      <input value={value} onChange={(e) => onChangeValue(e.target.value)} disabled={disabled} className="rounded-xl border border-slate-200 px-3 py-2" />
+      {busy ? <span className="text-xs text-slate-500">Inapakia...</span> : null}
+      {value ? (
+        <div className="mt-1 overflow-hidden rounded border border-slate-200 bg-slate-50 p-1">
+          <img src={value} alt={label} className="max-h-20 w-auto object-contain" loading="lazy" />
+        </div>
+      ) : null}
+    </label>
+  );
+}
+

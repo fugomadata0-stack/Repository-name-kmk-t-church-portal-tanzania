@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Huduma ya Kichungaji / Pastoral Care | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase22-pastoral-care.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div class="hero-content">
+          <h1>Huduma ya Kichungaji / Pastoral Care</h1>
+          <p>
+            Kituo hiki kinaunganisha spiritual care, counselling, prayer support, follow-up, na member welfare kwa Dayosisi, Jimbo, Tawi, na
+            Waumini kwa mtiririko wa kisasa.
+          </p>
+          <div class="mini-modules" id="miniModules"></div>
+        </div>
+        <div class="hero-images">
+          <article class="image-pill jesus">Jesus Care</article>
+          <article class="image-pill bible">Bible Guidance</article>
+          <article class="image-pill church">Church Community</article>
+        </div>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="kpi-grid" id="kpiGrid"></section>
+
+      <section class="card">
+        <h2 class="title">Orodha ya Huduma ya Kichungaji</h2>
+        <div class="table-tools">
+          <button class="btn gold" data-action="addCase">Add Case</button>
+          <button class="btn" data-action="export">Export</button>
+          <button class="btn" data-action="print">Print</button>
+          <button class="btn" data-action="clearCases">Clear</button>
+          <span class="status amber" id="liveBadge">Realtime: Syncing...</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Jina la Muumini</th>
+                <th>Aina ya Huduma</th>
+                <th>Dayosisi</th>
+                <th>Jimbo</th>
+                <th>Tawi</th>
+                <th>Mchungaji / Kiongozi</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Follow-up Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="pastoralBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2 class="title">Add / Update Pastoral Case</h2>
+          <form id="pastoralForm" class="form-grid">
+            <div class="field">
+              <label for="memberName">Chagua Muumini</label>
+              <input id="memberName" placeholder="Mfano: Neema Mwakipesile" required />
+            </div>
+            <div class="field">
+              <label for="hudumaType">Aina ya Huduma</label>
+              <select id="hudumaType" required></select>
+            </div>
+            <div class="field span-2">
+              <label for="description">Maelezo</label>
+              <textarea id="description" placeholder="Andika maelezo ya case, mazingira, na support inayohitajika."></textarea>
+            </div>
+            <div class="field">
+              <label for="priority">Priority</label>
+              <select id="priority"></select>
+            </div>
+            <div class="field">
+              <label for="status">Status</label>
+              <select id="status"></select>
+            </div>
+            <div class="field">
+              <label for="leaderName">Chagua Mchungaji / Kiongozi</label>
+              <input id="leaderName" placeholder="Mch. Daniel Mrema" />
+            </div>
+            <div class="field">
+              <label for="followupDate">Follow-up Date</label>
+              <input id="followupDate" type="date" />
+            </div>
+            <div class="field">
+              <label for="dayosisi">Dayosisi</label>
+              <input id="dayosisi" placeholder="Dayosisi ya Dar es Salaam" />
+            </div>
+            <div class="field">
+              <label for="jimbo">Jimbo</label>
+              <input id="jimbo" placeholder="Jimbo la Kati" />
+            </div>
+            <div class="field span-2">
+              <label for="tawi">Tawi</label>
+              <input id="tawi" placeholder="Tawi la Mikocheni" />
+            </div>
+            <div class="field span-2">
+              <label for="notes">Notes</label>
+              <textarea id="notes" placeholder="Spiritual notes / follow-up notes"></textarea>
+            </div>
+            <div class="field span-2">
+              <label class="toggle"><input id="confidentialToggle" type="checkbox" /> Confidential Toggle (private pastoral case)</label>
+            </div>
+            <div class="actions span-2">
+              <button type="submit" class="btn gold">Save Case</button>
+              <button type="button" class="btn" data-action="clearCases">Clear</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="card">
+          <h2 class="title">Actions Center</h2>
+          <div class="actions">
+            <button class="btn" data-action="addCase">Add Case</button>
+            <button class="btn" data-action="editCase">Edit</button>
+            <button class="btn" data-action="deleteCase">Delete</button>
+            <button class="btn" data-action="clearCases">Clear</button>
+            <button class="btn" data-action="viewDetails">View Details</button>
+            <button class="btn" data-action="assignPastor">Assign Pastor</button>
+            <button class="btn" data-action="markComplete">Mark Complete</button>
+            <button class="btn" data-action="export">Export</button>
+            <button class="btn" data-action="print">Print</button>
+          </div>
+          <p>
+            Mfumo huu ni role-aware: data inaonekana kwa scope ya Dayosisi, Jimbo, au Tawi kulingana na role ya mtumiaji. Cases confidential
+            zinafichwa kwa role zisizoidhinishwa.
+          </p>
+        </section>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase22-pastoral-care-main.js"></script>
+  </body>
+</html>

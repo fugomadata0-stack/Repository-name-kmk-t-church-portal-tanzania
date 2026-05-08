@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#d4af37" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#0b1f3a" />
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#g)" />
+  <rect x="770" y="220" width="60" height="420" fill="#ffffff" opacity="0.9" />
+  <rect x="650" y="340" width="300" height="60" fill="#ffffff" opacity="0.9" />
+  <text x="800" y="730" fill="#e5e7eb" text-anchor="middle" font-size="32" font-family="Arial">Picha ya muda " pakia cross-light.jpg</text>
+</svg>

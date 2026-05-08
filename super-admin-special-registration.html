@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Usajili Maalum wa Super Admin | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase2.css" />
+  </head>
+  <body class="auth-body">
+    <main class="state-wrap">
+      <section class="state-card" style="width:min(980px,100%);text-align:left;">
+        <span class="badge">Eneo Maalum la Super Admin</span>
+        <h2>Usajili Maalum wa Super Admin</h2>
+        <p class="muted">Usajili huu unaendeshwa kwa approval mode inayosanidiwa na Chief Admin.</p>
+        <p class="security" id="superAdminGuardBanner" style="display:none;"></p>
+        <p class="security" id="superAdminRegisterStatus">Slot status inapakiwa...</p>
+
+        <div class="slot-grid" id="slotCardsWrap"></div>
+
+        <form class="form-grid two-col" id="superAdminRegistrationForm">
+          <input name="full_name" placeholder="Full Name" required />
+          <input name="email" type="email" placeholder="Email" required />
+          <input name="phone" placeholder="Phone" required />
+          <input name="security_question" placeholder="Security Question" required />
+          <div class="password-wrap">
+            <input name="password" id="superAdminPassword" type="password" placeholder="Password" required />
+            <button type="button" class="btn secondary tiny" data-toggle-password="superAdminPassword">Show</button>
+          </div>
+          <div class="password-wrap">
+            <input name="confirm_password" id="superAdminConfirmPassword" type="password" placeholder="Confirm Password" required />
+            <button type="button" class="btn secondary tiny" data-toggle-password="superAdminConfirmPassword">Show</button>
+          </div>
+          <select name="preferred_slot" required>
+            <option value="">Preferred Slot (1-4)</option>
+            <option value="1">Slot 1</option>
+            <option value="2">Slot 2</option>
+            <option value="3">Slot 3</option>
+            <option value="4">Slot 4</option>
+          </select>
+          <select id="approvalMode">
+            <option value="chief_admin_only">Mode A: Chief Admin approval</option>
+            <option value="super_plus_chief">Mode B: Super Admin + Chief Admin confirmation</option>
+          </select>
+          <label style="grid-column:1/-1;"><input type="checkbox" required /> Nakubali sheria za usajili wa Super Admin</label>
+          <div style="grid-column:1/-1;display:flex;gap:.6rem;">
+            <button class="btn" type="submit">Submit Super Admin Registration</button>
+            <button class="btn secondary" type="reset">Cancel</button>
+          </div>
+        </form>
+      </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="phase2.js"></script>
+  </body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Jisajili kwenye mfumo rasmi wa KMK(T). Usajili unaohitaji idhini: taarifa binafsi, role, eneo la huduma, na nenosiri salama."
+    />
+    <meta name="theme-color" content="#07152b" />
+    <title>Jisajili | KMK(T) National Church Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase33-dynamic-signup.css" />
+  </head>
+  <body data-back-fallback="index.html">
+    <main class="layout">
+      <section class="hero card">
+        <div>
+          <h1>JISAJILI KWENYE MFUMO WA KMK(T)</h1>
+          <p class="subtitle">
+            Omba ruhusa ya kutumia mfumo rasmi wa Kanisa la Mennonite la Kiinjili Tanzania.
+            <span lang="en">Registration is approval-based and role-aware.</span>
+          </p>
+          <p class="note">
+            Baada ya kujisajili, ombi lako litawekwa kwenye hali ya <b>Inasubiri Kuidhinishwa</b>. Akaunti yako itaanza
+            kufanya kazi baada ya kuthibitishwa na msimamizi wa mfumo.
+          </p>
+        </div>
+        <div class="hero-images">
+          <img src="https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=900&q=80" alt="Church hero" />
+          <img src="https://images.unsplash.com/photo-1473177104440-ffee2f376098?auto=format&fit=crop&w=900&q=80" alt="Bible hero" />
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="stepper" id="stepper" role="list" aria-label="Hatua za usajili"></div>
+        <div class="progress"><span id="progressBar"></span></div>
+
+        <form id="dynamicSignupForm" novalidate>
+          <div class="step" data-step="1">
+            <h2>Hatua 1 — Taarifa binafsi</h2>
+            <div class="grid two">
+              <label>Full Name<input name="fullName" required /></label>
+              <label>Gender<select name="gender" required><option value="">Chagua</option><option>Male</option><option>Female</option></select></label>
+              <label>Phone Number<input name="phone" required placeholder="+255..." /></label>
+              <label>Email<input type="email" name="email" required /></label>
+              <label class="password-field-label">
+                Nenosiri
+                <span class="password-input-row">
+                  <input type="password" name="password" id="password" required autocomplete="new-password" placeholder="Weka nenosiri" />
+                  <button type="button" class="btn btn-toggle-pw" id="togglePasswordBtn" data-toggle-pw="password" aria-pressed="false" aria-label="Onyesha nenosiri">Onyesha</button>
+                </span>
+              </label>
+              <label class="password-field-label">
+                Rudia nenosiri
+                <span class="password-input-row">
+                  <input type="password" name="confirmPassword" id="confirmPassword" required autocomplete="new-password" placeholder="Rudia nenosiri" />
+                  <button type="button" class="btn btn-toggle-pw" id="toggleConfirmPasswordBtn" data-toggle-pw="confirmPassword" aria-pressed="false" aria-label="Onyesha rudia la nenosiri">Onyesha</button>
+                </span>
+              </label>
+            </div>
+            <div class="password-live" id="passwordLive" aria-live="polite">
+              <p class="password-live-title">Kigezo cha nenosiri</p>
+              <ul class="password-rule-list" id="passwordRuleList"></ul>
+              <div id="passwordMessage" class="password-summary" role="status"></div>
+              <p class="password-confirm-msg" id="confirmPasswordMsg"></p>
+            </div>
+          </div>
+
+          <div class="step" data-step="2" hidden>
+            <h2>Hatua 2 — Chagua role</h2>
+            <div class="grid one">
+              <label>Requested Role<select name="requestedRole" id="requestedRole" required></select></label>
+              <label>Reason for requesting access<textarea name="requestReason" rows="3" required></textarea></label>
+              <label>Previous church responsibility (optional)<textarea name="previousResponsibility" rows="2"></textarea></label>
+            </div>
+            <div class="role-cards" id="roleCards"></div>
+          </div>
+
+          <div class="step" data-step="3" hidden>
+            <h2>Hatua 3 — Chagua eneo la huduma</h2>
+            <div id="dynamicFields" class="grid two"></div>
+          </div>
+
+          <div class="step" data-step="4" hidden>
+            <h2>Hatua 4 — Thibitisha maombi</h2>
+            <div class="summary" id="reviewSummary"></div>
+            <label class="check"><input type="checkbox" name="termsAccepted" required /> Nimekubali terms za mfumo na privacy.</label>
+            <label class="check"><input type="checkbox" name="responsibilityDeclaration" required /> Natangaza taarifa hizi ni sahihi na nitatumia mfumo kwa uwajibikaji.</label>
+          </div>
+
+          <div class="step" data-step="5" hidden>
+            <h2>Hatua 5 — Umeisha wasilisha</h2>
+            <div class="success-box">
+              <p class="success-lead">Ombi lako limepokelewa kwa ufanisi.</p>
+              <p><b>Namba ya rejea:</b> <span id="requestRef" class="request-ref-code"></span></p>
+              <p class="muted success-hint">Subiri ujumbe kutoka kwa msimamizi (barua pepe / SMS / arifa ndani ya mfumo).</p>
+              <div class="success-actions">
+                <a class="btn secondary" href="index.html">Tovuti kuu</a>
+                <a class="btn gold" href="auth-login.html">Ingia kwenye mfumo</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button type="button" class="btn secondary" id="prevBtn">Rudi Nyuma</button>
+            <button type="button" class="btn" id="nextBtn">Endelea</button>
+            <button type="submit" class="btn gold" id="submitBtn" hidden>Wasilisha Ombi</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script type="module" src="phase33-dynamic-signup-main.js"></script>
+    <script src="global-back-button.js"></script>
+  </body>
+</html>

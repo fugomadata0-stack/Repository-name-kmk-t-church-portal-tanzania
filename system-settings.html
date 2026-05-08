@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mipangilio ya Mfumo | KMK(T) Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase15-settings.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div class="particles"></div>
+        <div class="hero-glass">
+          <h1>Mipangilio ya Mfumo</h1>
+          <p>Sanidi muonekano, utendaji, lugha, taarifa za Kanisa na tabia za msingi za mfumo.</p>
+          <div class="hero-visuals"><div class="visual jesus">Jesus</div><div class="visual bible">Bible</div><div class="visual church">Church</div></div>
+        </div>
+        <div class="hero-side"><span class="mode-badge" id="modeBadge">Mode...</span><a class="back-btn" href="dashboard.html">Rudi Dashibodi</a></div>
+      </header>
+
+      <section class="kpi-grid" id="kpiGrid"></section>
+
+      <section class="card">
+        <div class="tabs" id="tabsBar"></div>
+        <div id="tabContent" class="tab-content"></div>
+        <div class="actions"><button class="btn gold" id="saveSectionBtn">Save</button><button class="btn" id="resetSectionBtn">Reset</button><button class="btn" id="restoreDefaultsBtn">Restore Defaults</button></div>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script type="module" src="phase15-settings-main.js"></script>
+  </body>
+</html>

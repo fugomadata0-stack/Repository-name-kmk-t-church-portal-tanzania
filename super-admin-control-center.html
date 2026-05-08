@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Super Admin Control Center | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase17-super-admin.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <h1>Super Admin Control Center</h1>
+          <p>Fuatilia afya ya mfumo, huduma, performance, makosa, storage na zana za usimamizi wa kiwango cha juu.</p>
+          <div class="hero-badges">
+            <span class="badge">Enterprise Command Center</span>
+            <span class="badge">System Diagnostics</span>
+            <span class="badge">KMK(T) National Core</span>
+          </div>
+        </div>
+        <div style="z-index:2;display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end">
+          <a class="back-btn" href="dashboard-premium.html" style="background:rgba(0,0,0,.2)">Dashibodi Premium</a>
+          <a class="back-btn" href="dashboard.html">Dashibodi (data + charts)</a>
+        </div>
+      </header>
+
+      <section class="card integration-alerts" id="integrationAlertsCard" hidden></section>
+
+      <section class="kpi-grid" id="topKpis"></section>
+      <section class="kpi-grid" id="approvalSummaryCards"></section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>System Health Dashboard</h2>
+          <div class="actions">
+            <button class="btn gold" data-action="refreshDashboardMetrics">Refresh Dashboard Metrics</button>
+            <button class="btn" data-action="batchRefreshParallel" type="button" title="Dashboard + ripoti kwa wakati mmoja">
+              Sawisha vyote (parallel)
+            </button>
+          </div>
+        </div>
+        <div class="health-grid" id="healthCards"></div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2>Services Status</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Service</th><th>Status</th><th>Latency</th><th>Uptime</th><th>Actions</th></tr></thead>
+              <tbody id="servicesBody"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="card">
+          <h2>Module Status</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Module</th><th>Status</th><th>Last Sync</th><th>Coverage</th></tr></thead>
+              <tbody id="moduleStatusBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2>API Monitoring Placeholder</h2>
+          <div class="placeholder">API traffic graphs, route-level traces, na advanced monitor itawekwa hapa.</div>
+        </section>
+        <section class="card">
+          <h2>Realtime Status</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Node</th><th>Connections</th><th>Channel Health</th><th>Status</th></tr></thead>
+              <tbody id="realtimeBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Jedwali la Wamiliki wa Ngazi za Mfumo</h2>
+          <div class="actions">
+            <button class="btn gold" data-action="assignOwnership">Assign Ownership</button>
+            <button class="btn" data-action="exportOwnership">Export</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Ngazi</th><th>Jina la Ngazi</th><th>Assigned Primary</th><th>Assigned Secondary</th><th>Reviewer</th><th>Approver</th><th>Submission Status</th><th>Approval Status</th><th>Last Activity</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ownershipBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Submission + Approval Workflow Engine</h2>
+        <div class="table-tools">
+          <select id="workflowFilterModule" class="btn">
+            <option value="all">Module: All</option>
+            <option value="Finance">Finance</option>
+            <option value="Reports">Reports</option>
+          </select>
+          <select id="workflowFilterStatus" class="btn">
+            <option value="all">Status: All</option>
+            <option value="Draft">Draft</option>
+            <option value="Submitted">Submitted</option>
+            <option value="Under Review">Under Review</option>
+            <option value="Approved">Approved</option>
+            <option value="Rejected">Rejected</option>
+            <option value="Needs Correction">Needs Correction</option>
+            <option value="Locked">Locked</option>
+          </select>
+          <input id="workflowFilterLevel" class="btn" type="text" placeholder="Chuja Level..." />
+          <input id="workflowFilterSearch" class="btn" type="text" placeholder="Search..." />
+          <button class="btn" data-action="clearWorkflowFilters">Clear Filters</button>
+          <button class="btn" data-action="exportWorkflowFiltered">Export Filtered</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Module</th><th>Level</th><th>Status</th><th>Submitted By</th><th>Reviewed By</th><th>Approved By</th><th>Last Updated</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="workflowBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Ufuatiliaji wa Uwasilishaji na Ukamilifu wa Ngazi</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Ngazi</th><th>Jina la Eneo</th><th>Mmiliki wa Ngazi</th><th>Required Sections</th><th>Completed Sections</th><th>Completion %</th><th>Submission Status</th><th>Approval Status</th><th>Last Updated</th><th>Deadline</th><th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="complianceBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2>Report Center / Kituo cha Ripoti</h2>
+          <p class="subtitle">PDF, Excel, CSV, Print • Date filters • Role/Ngazi/Dayosisi/Jimbo/Tawi filters • Preview kabla export.</p>
+          <div class="table-tools">
+            <select id="reportType" class="btn">
+              <option value="workflow_pending">Orodha ya Pending (Workflow)</option>
+              <option value="workflow_approved">Orodha ya Approved (Workflow)</option>
+              <option value="workflow_rejected">Orodha ya Rejected (Workflow)</option>
+              <option value="compliance_incomplete">Orodha ya Incomplete Levels</option>
+              <option value="audit_logs">Orodha ya Activity Logs</option>
+            </select>
+            <select id="reportFormat" class="btn">
+              <option value="CSV">CSV</option>
+              <option value="Excel">Excel</option>
+              <option value="PDF">PDF</option>
+              <option value="Print">Print</option>
+            </select>
+            <input id="reportFromDate" class="btn" type="date" />
+            <input id="reportToDate" class="btn" type="date" />
+            <input id="reportSearch" class="btn" type="text" placeholder="Search..." />
+          </div>
+          <div class="actions" style="margin-top: 8px">
+            <button class="btn" data-action="previewReport">Preview</button>
+            <button class="btn gold" data-action="generateReportCenter">Generate Report</button>
+            <button class="btn" data-action="clearReportFilters">Clear Filters</button>
+          </div>
+          <div id="reportPreview" class="placeholder" style="margin-top: 10px">Preview ya report itaonekana hapa.</div>
+        </section>
+        <section class="card">
+          <h2>Visitors & Online Tracking</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Jina / Guest</th><th>Role</th><th>Device</th><th>Browser</th><th>Current Page</th><th>Login Time</th><th>Last Seen</th><th>Session Duration</th><th>Online Status</th><th>Location</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="visitorsBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="card">
+        <h2>Historia ya Mfumo / Audit Logs</h2>
+        <div class="table-tools">
+          <input id="auditFilterUser" class="btn" type="text" placeholder="User..." />
+          <input id="auditFilterRole" class="btn" type="text" placeholder="Role..." />
+          <input id="auditFilterModule" class="btn" type="text" placeholder="Module..." />
+          <input id="auditFilterAction" class="btn" type="text" placeholder="Action..." />
+          <select id="auditFilterStatus" class="btn">
+            <option value="all">Status: All</option>
+            <option value="success">Success</option>
+            <option value="failed">Failed</option>
+            <option value="warning">Warning</option>
+          </select>
+          <input id="auditFilterSearch" class="btn" type="text" placeholder="Search..." />
+          <button class="btn" data-action="clearAuditFilters">Clear Filters</button>
+          <button class="btn" data-action="exportAuditFiltered">Export Filtered</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th><th>User</th><th>Role</th><th>Module</th><th>Action</th><th>Record</th><th>Status</th><th>Device</th><th>Location</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="auditBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Error Center</h2>
+        <div class="table-tools">
+          <button class="btn" data-action="exportErrors">Export</button>
+          <button class="btn danger" data-action="clearErrors">Clear</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th><th>Severity</th><th>Module</th><th>Error Type</th><th>Message Preview</th><th>Status</th><th>Assigned To</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="errorBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Performance Metrics</h2>
+        <div class="metrics-grid" id="metricCards"></div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2>Storage Usage</h2>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Bucket</th><th>Used</th><th>Limit</th><th>Growth</th></tr></thead>
+              <tbody id="storageBody"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="card">
+          <h2>Queue Monitor Placeholder</h2>
+          <div class="placeholder">Queue depth, dead-letter, retry status itaonekana hapa.</div>
+        </section>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2>Background Jobs Placeholder</h2>
+          <div class="placeholder">Scheduled jobs, cron logs, na failures zitaonekana hapa.</div>
+        </section>
+        <section class="card">
+          <h2>Maintenance Mode</h2>
+          <div class="mini-kpis" id="maintenanceCard"></div>
+        </section>
+      </section>
+
+      <section class="card">
+        <h2>Admin Utilities</h2>
+        <div class="utility-grid">
+          <button class="btn" data-action="clearCache">Clear Cache Placeholder</button>
+          <button class="btn" data-action="rebuildIndex">Rebuild Index Placeholder</button>
+          <button class="btn gold" data-action="refreshDashboardMetrics">Refresh Dashboard Metrics</button>
+          <button class="btn" data-action="recalculateSummaries">Recalculate Summaries</button>
+          <button class="btn" data-action="rerunReports">Re-run Reports</button>
+          <button class="btn gold" data-action="openSystemHealth">Open System Health</button>
+          <button class="btn" data-action="openQuickTest">Open Quick System Test</button>
+          <button class="btn gold" data-action="openLiveValidation">Open Live Validation</button>
+          <button class="btn" data-action="openDocsWorkflow">Open Nyaraka Workflow</button>
+          <button class="btn" data-action="toggleMaintenance">Maintenance Toggle</button>
+          <button class="btn danger" data-action="emergencyLogout">Emergency Logout All Sessions</button>
+          <button class="btn" data-action="backupTrigger">Backup Trigger Placeholder</button>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2>Debug Mode</h2>
+          <p class="subtitle">Debug controls kwa mazingira ya admin. Enable/disable kwa uthibitisho wa usalama.</p>
+          <div class="actions">
+            <button class="btn" data-action="toggleDebugMode">Toggle Debug Mode</button>
+          </div>
+        </section>
+        <section class="card">
+          <h2>Emergency Tools</h2>
+          <div class="actions">
+            <button class="btn danger" data-action="panicLockdown">Panic Lockdown</button>
+            <button class="btn" data-action="runDiagnostics">Run Diagnostics</button>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase17-super-admin-main.js"></script>
+  </body>
+</html>

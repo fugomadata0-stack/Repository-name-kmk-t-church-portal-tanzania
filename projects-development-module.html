@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Miradi & Maendeleo | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase26-projects-development.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div class="particles"></div>
+        <div class="hero-content">
+          <h1>Miradi & Maendeleo</h1>
+          <p>
+            Kituo hiki kinafuatilia church construction, fundraising, school projects, outreach projects, na development plans kwa Dayosisi, Jimbo,
+            na Tawi.
+          </p>
+          <div class="mini-modules" id="miniModules"></div>
+          <span class="live-badge" id="liveBadge">Realtime: checking...</span>
+        </div>
+        <div class="hero-images">
+          <article class="image-pill jesus">Jesus Vision</article>
+          <article class="image-pill bible">Bible Direction</article>
+          <article class="image-pill church">Church Project</article>
+        </div>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="kpi-grid" id="kpiGrid"></section>
+
+      <section class="card">
+        <h2 class="title">Project Progress Cards</h2>
+        <div class="progress-grid" id="progressCards"></div>
+      </section>
+
+      <section class="card">
+        <h2 class="title">Orodha ya Miradi</h2>
+        <div class="table-tools">
+          <button class="btn gold" data-action="addProject">Add Project</button>
+          <button class="btn" data-action="export">Export</button>
+          <button class="btn" data-action="print">Print</button>
+          <button class="btn" data-action="clearProjects">Clear</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Project ID</th>
+                <th>Jina la Mradi</th>
+                <th>Category</th>
+                <th>Dayosisi</th>
+                <th>Jimbo</th>
+                <th>Tawi</th>
+                <th>Target Amount</th>
+                <th>Collected</th>
+                <th>Progress</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="projectsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="title">Add / Update Project</h2>
+        <form id="projectForm" class="form-grid">
+          <div class="field"><label for="projectTitle">Project Title</label><input id="projectTitle" required /></div>
+          <div class="field"><label for="category">Category</label><select id="category"></select></div>
+          <div class="field span-2"><label for="description">Description</label><textarea id="description"></textarea></div>
+          <div class="field"><label for="dayosisi">Dayosisi</label><input id="dayosisi" /></div>
+          <div class="field"><label for="jimbo">Jimbo</label><input id="jimbo" /></div>
+          <div class="field"><label for="tawi">Tawi</label><input id="tawi" /></div>
+          <div class="field"><label for="startDate">Start Date</label><input id="startDate" type="date" /></div>
+          <div class="field"><label for="endDate">End Date</label><input id="endDate" type="date" /></div>
+          <div class="field"><label for="targetAmount">Target Amount</label><input id="targetAmount" type="number" min="0" step="1000" /></div>
+          <div class="field"><label for="responsibleLeader">Responsible Leader</label><input id="responsibleLeader" /></div>
+          <div class="field span-2">
+            <label for="projectImage">Project Image placeholder</label>
+            <input id="projectImage" placeholder="project-image.jpg" />
+          </div>
+          <div class="field span-2"><label for="status">Status</label><select id="status"></select></div>
+          <div class="field span-2"><label for="notes">Notes</label><textarea id="notes"></textarea></div>
+          <div class="actions span-2">
+            <button type="submit" class="btn gold">Save Project</button>
+            <button type="button" class="btn" data-action="clearProjects">Clear</button>
+            <button type="button" class="btn" data-action="export">Export</button>
+            <button type="button" class="btn" data-action="print">Print</button>
+          </div>
+        </form>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase26-projects-development-main.js"></script>
+  </body>
+</html>

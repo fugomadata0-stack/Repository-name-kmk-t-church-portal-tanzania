@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AFYA YA MFUMO | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase17-super-admin.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+          <h1>AFYA YA MFUMO / SYSTEM HEALTH</h1>
+          <p>Kagua Supabase, modules, dashboard calculations, permissions na sync status ya mfumo mzima.</p>
+        </div>
+        <a class="back-btn" href="super-admin-control-center.html">Rudi Control Center</a>
+      </header>
+
+      <section class="card">
+        <div class="actions">
+          <button class="btn gold" data-action="runFull">Run Full System Check</button>
+          <button class="btn" data-action="runModule">Run Module Check</button>
+          <button class="btn" data-action="runSupabase">Run Supabase Check</button>
+          <button class="btn" data-action="runDashboard">Run Dashboard Calculation Check</button>
+          <button class="btn" data-action="runPermissions">Run Permissions Check</button>
+          <button class="btn" data-action="export">Export Health Report</button>
+          <button class="btn danger" data-action="fixSafe">Fix Safe Issues Automatically</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>System Health Results</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead>
+            <tbody id="healthBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script type="module" src="system-health-main.js"></script>
+  </body>
+</html>

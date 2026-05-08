@@ -1,0 +1,23 @@
+@mixin card-surface {
+  background: linear-gradient(160deg, #12345f, #081a33);
+  border: 1px solid $line;
+  border-radius: $radius-lg;
+}
+
+@mixin field-base {
+  width: 100%;
+  padding: 9px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+@mixin action-btn {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 9px 12px;
+  cursor: pointer;
+}

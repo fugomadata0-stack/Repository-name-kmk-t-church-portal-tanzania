@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Validation Center | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase17-super-admin.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="card hero">
+        <div class="hero-content">
+          <h1>Live Data Validation Center</h1>
+          <p>Ukaguzi wa connectivity, module tables, relations na dashboard data readiness kwa Supabase live mode.</p>
+          <div class="hero-badges">
+            <span class="badge">Supabase Connectivity</span>
+            <span class="badge">Table Access Check</span>
+            <span class="badge">Relation Smoke Test</span>
+          </div>
+        </div>
+        <a class="back-btn" href="super-admin-control-center.html">Rudi Control Center</a>
+      </header>
+
+      <section class="card">
+        <div class="section-head">
+          <h2>Validation Runner</h2>
+          <div class="actions">
+            <button class="btn gold" id="runValidationBtn">Run Live Validation</button>
+            <button class="btn" id="exportValidationBtn">Export CSV</button>
+            <button class="btn" id="clearValidationBtn">Clear Result</button>
+          </div>
+        </div>
+        <div class="kpi-grid" id="validationKpis"></div>
+      </section>
+
+      <section class="card">
+        <h2>Validation Results</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Check</th><th>Status</th><th>Detail</th></tr></thead>
+            <tbody id="validationBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Validation Run History</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Run Time</th><th>PASS</th><th>WARN</th><th>FAIL</th><th>Total</th><th>Mode</th></tr></thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script type="module" src="phase-live-validation-main.js"></script>
+  </body>
+</html>

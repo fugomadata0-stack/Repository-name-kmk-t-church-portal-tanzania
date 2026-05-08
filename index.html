@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="KMK(T) National Church Portal — Kanisa la Mennonite la Kiinjili Tanzania: huduma kidigitali, uongozi, matukio, na taarifa rasmi."
+    />
+    <meta name="theme-color" content="#061634" />
+    <meta name="color-scheme" content="dark light" />
+    <meta property="og:title" content="KMK(T) National Church Portal" />
+    <meta
+      property="og:description"
+      content="Huduma rasmi ya kidigitali ya Kanisa la Mennonite la Kiinjili Tanzania — KMK(T)."
+    />
+    <meta property="og:type" content="website" />
+    <title>KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="icon" href="assets/images/jesus-premium.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/images/jesus-premium.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="dns-prefetch" href="https://images.unsplash.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Historia ya Kanisa: glass premium (kamili, hakuna framework) -->
+    <link rel="stylesheet" href="about-historia-premium.css" />
+    <link rel="stylesheet" href="church-photo.css" />
+    <link rel="stylesheet" href="portal-premium-enhancements.css" />
+    <link rel="stylesheet" href="assets/css/home-premium-sliders.css" />
+  </head>
+  <body data-back-fallback="index.html">
+    <div class="site-bg"></div>
+    <header class="top-nav glass premium-nav">
+      <div class="brand">
+        <div class="brand-mark-slot" id="brandMarkSlot" aria-label="Nembo ya KMK(T)">
+          <span class="brand-mark">✝</span>
+        </div>
+        <div>
+          <h1>KMK(T) NATIONAL CHURCH PORTAL</h1>
+          <p>Serving the Church Through Digital Excellence</p>
+        </div>
+      </div>
+      <button class="menu-toggle" id="menuToggle">Menu</button>
+      <nav id="mainNav">
+        <a href="#home">Nyumbani / Home</a>
+        <a href="#migration">Mfumo Mpya / New Portal</a>
+        <a href="#about">Kuhusu KMK(T)</a>
+        <a href="#structure">Muundo wa Kanisa</a>
+        <a href="#dayosisi">Dayosisi</a>
+        <a href="#majimbo">Majimbo</a>
+        <a href="#matawi">Matawi</a>
+        <a href="#viongozi">Viongozi</a>
+        <a href="#ministries">Idara & Huduma</a>
+        <a href="#events">Matukio & Makambi</a>
+        <a href="#modules">Modules Center</a>
+        <a href="#media">Mahubiri & Media</a>
+        <a href="#contact">Mawasiliano</a>
+        <a href="request-elevated-access.html" class="nav-chip" title="Lazima uingie kwanza; si usajili wa umma">Omba Ruhusa ya Juu</a>
+        <a href="admin-invite-promote.html" class="nav-chip" title="Chief/Super Admin module">Mialiko & Promotions</a>
+        <a href="website-analytics.html" class="nav-chip" title="Website visitors analytics">Website Analytics</a>
+        <a href="auth-login.html" class="login-link">Ingia / Login</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero section" id="home">
+        <div class="cross-watermark">✝</div>
+        <div class="hero-content">
+          <p class="eyebrow">Karibu kwenye National Church Digital Portal</p>
+          <h2>Karibu KMK(T) National Church Portal</h2>
+          <p>
+            Mfumo rasmi wa kidigitali unaounganisha huduma, uongozi, mawasiliano,
+            taarifa na usimamizi wa Kanisa la Mennonite la Kiinjili Tanzania - KMK(T) kwa utukufu wa Mungu.
+          </p>
+          <div class="hero-cta">
+            <button type="button" onclick="window.location.href='https://portal-next.kmt.or.tz'">Fungua Mfumo Mpya (React)</button>
+            <button type="button" onclick="window.location.href='church-structure.html'">Karibu Uone Zaidi</button>
+            <button type="button" onclick="window.location.href='events-camps-management.html'">Tazama Matukio</button>
+            <button type="button" onclick="window.location.href='payments-gateway.html'">Toa Mchango</button>
+            <button type="button" onclick="window.location.href='auth-login.html'">Ingia Kwenye Mfumo</button>
+            <button type="button" onclick="window.location.href='dashboard-premium.html'">Dashibodi (Premium)</button>
+          </div>
+          <p class="hero-sub muted">
+            <a href="request-elevated-access.html">Omba Ruhusa ya Juu</a>
+            <span> / </span>
+            <a href="admin-invite-promote.html">Mialiko & Promotions (Admin)</a>
+            <span> / </span>
+            <a href="dashboard-premium.html">Dashibodi Premium</a>
+            <span> / </span>
+            <a href="dashboard.html">Dashibodi (mfumo + Supabase)</a>
+            <span> — </span>
+            <span lang="en">For approved officers only; si usajili wa umma.</span>
+          </p>
+          <div class="hero-metrics">
+            <article class="hero-metric-card">
+              <strong>24/7</strong>
+              <span>Digital Church Access</span>
+            </article>
+            <article class="hero-metric-card">
+              <strong>National</strong>
+              <span>Unified Ministry Operations</span>
+            </article>
+            <article class="hero-metric-card">
+              <strong>Secure</strong>
+              <span>Role-based Access Control</span>
+            </article>
+          </div>
+        </div>
+        <div class="hero-visual hero-showcase">
+          <img
+            id="heroMainImage"
+            src="assets/images/jesus-premium.svg"
+            alt="KMK(T) — picha ya imani: Yesu na Neno la Mungu"
+            width="600"
+            height="400"
+            loading="eager"
+            decoding="async"
+          />
+        </div>
+      </section>
+
+      <section class="section quick-actions" id="quick-actions">
+        <div class="quick-actions-grid">
+          <article class="quick-card purple"><span>⛪</span><h4>Fungua Mfumo Mpya</h4><p>Nenda kwenye portal mpya ya KMK(T)</p></article>
+          <article class="quick-card blue"><span>📖</span><h4>Soma Biblia</h4><p>Soma na tafakari Neno la Mungu</p></article>
+          <article class="quick-card green"><span>📅</span><h4>Matukio</h4><p>Tazama matukio na makambi yajayo</p></article>
+          <article class="quick-card orange"><span>👥</span><h4>Idara & Huduma</h4><p>Fahamu idara na huduma zote</p></article>
+          <article class="quick-card teal"><span>▶</span><h4>Mawasiliano</h4><p>Wasiliana nasi kwa urahisi</p></article>
+          <article class="quick-card redgold"><span>❤</span><h4>Omba / Maombi</h4><p>Omba nasi na tujengeke katika maombi</p></article>
+        </div>
+      </section>
+
+      <section class="section" id="migration">
+        <div class="card">
+          <h3>Mfumo Mpya Rasmi wa KMK(T) (React Enterprise)</h3>
+          <p>
+            Hii `index.html` sasa ni landing ya mpito. Mfumo kamili wa modules zote za premium
+            unaendeshwa kwenye app mpya ya React + TypeScript kwa usalama, scalability, na quality ya production.
+          </p>
+          <div class="hero-cta">
+            <button type="button" id="openNewPortalBtn">Ingia Mfumo Mpya Sasa</button>
+            <button type="button" id="stayLegacyBtn">Baki Legacy kwa Sasa</button>
+          </div>
+          <p class="muted" id="migrationStatus">
+            Chagua kitufe hapo juu kuingia mfumo mpya au kubaki kwenye tovuti hii. Hakuna uelekezaji kiotomatiki.
+          </p>
+        </div>
+      </section>
+
+      <section class="section verse-feature verse-premium-section" id="verse">
+        <div class="verse-card verse-card-premium glass">
+          <div class="verse-head">
+            <p class="label">Maneno ya Mungu</p>
+            <span class="verse-countdown" id="verseCountdown">10 sekunde</span>
+          </div>
+          <blockquote id="verseText" class="verse-quote-text">
+            “Ninaweza mambo yote katika yeye anitiaye nguvu. — Wafilipi 4:13”
+          </blockquote>
+        </div>
+      </section>
+
+      <section class="section image-area-section" id="image-sections">
+        <h3>Picha za Imani <span class="muted" style="font-weight: 600">/ Image Areas</span></h3>
+        <div class="grid-4 image-grid premium-slider-grid">
+          <!-- Yesu — sliders 4 -->
+          <article class="premium-slider-card" data-premium-slider aria-label="Jesus imagery slider">
+            <div class="premium-slider-viewport">
+              <div class="premium-slider-stack">
+                <div
+                  class="premium-slider-slide is-active"
+                  data-title="Mwanga wa Neno"
+                  data-sub="Yesu ni mwanga wa ulimwengu — Yohana 8:12"
+                >
+                  <img
+                    src="https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/jesus-1.jpg"
+                    alt="Mwanga wa Neno: Yesu na nuru ya imani"
+                    loading="eager"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    decoding="async"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+                <div class="premium-slider-slide" data-title="Kimya cha Maombi" data-sub="Tulia moyoni — maombi yaponya na kuinuua roho.">
+                  <img
+                    src="https://images.unsplash.com/photo-1507692049950-688933896935?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/jesus-2.jpg"
+                    alt="Kimya cha maombi na utulivu moyoni"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+                <div class="premium-slider-slide" data-title="Mafundisho ya Uzima" data-sub="Njoo kwangu nyote mliochoka — Mathayo 11:28">
+                  <img
+                    src="https://images.unsplash.com/photo-1511632765296-ebab23f1fa7b?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/jesus-3.jpg"
+                    alt="Mafundisho ya uzima na Biblia"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+                <div class="premium-slider-slide" data-title="Msalaba wa Upendo" data-sub="Kuishi maisha ya kusifu na kutumaini Yesu.">
+                  <img
+                    src="https://images.unsplash.com/photo-1438232992991-995b7058bbb3?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/jesus-4.jpg"
+                    alt="Msalaba na mazingira ya imani"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+              </div>
+              <div class="premium-slider-gradient" aria-hidden="true"></div>
+              <div class="premium-slider-caption" aria-live="polite">
+                <span class="premium-slider-accent" aria-hidden="true"></span>
+                <h4 class="premium-slider-title">Mwanga wa Neno</h4>
+                <p class="premium-slider-sub">Yesu ni mwanga wa ulimwengu — Yohana 8:12</p>
+              </div>
+            </div>
+            <p class="premium-slider-meta">Jesus · Picha 4</p>
+          </article>
+
+          <!-- Biblia -->
+          <article class="premium-slider-card" data-premium-slider aria-label="Bible imagery slider">
+            <div class="premium-slider-viewport">
+              <div class="premium-slider-stack">
+                <div
+                  class="premium-slider-slide is-active"
+                  data-title="Nuru ya Kimya"
+                  data-sub="Neno lake ni taa kwa miguu yetu."
+                >
+                  <img
+                    src="https://images.unsplash.com/photo-1473081556163-4a00159ddf7b?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/bible-1.jpg"
+                    alt="Biblia wazi na nuru ya Neno"
+                    loading="eager"
+                    decoding="async"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+                <div class="premium-slider-slide" data-title="Ukweli Usiobadilika" data-sub="Mbingu na dunia yapita; ahadi zake zadumu milele.">
+                  <img
+                    src="https://images.unsplash.com/photo-1529070538774-1843cb3265df?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/bible-2.jpg"
+                    alt="Biblia na taa — somo la scriptura"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+                <div class="premium-slider-slide" data-title="Mikono yenye Imani" data-sub="Soma, tumika, jenga Kanisa kwa upendo.">
+                  <img
+                    src="https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/bible-3.jpg"
+                    alt="Mikono inayoshika Biblia kwa imani"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+                <div class="premium-slider-slide" data-title="Mapya Kila Asubuhi" data-sub="Huruma zake haziishi; ni mpya kila asubuhi.">
+                  <img
+                    src="https://images.unsplash.com/photo-1473177104440-ffee2f376098?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/bible-4.jpg"
+                    alt="Maandiko na utukufu wa Neno"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+              </div>
+              <div class="premium-slider-gradient" aria-hidden="true"></div>
+              <div class="premium-slider-caption" aria-live="polite">
+                <span class="premium-slider-accent" aria-hidden="true"></span>
+                <h4 class="premium-slider-title">Nuru ya Kimya</h4>
+                <p class="premium-slider-sub">Neno lake ni taa kwa miguu yetu.</p>
+              </div>
+            </div>
+            <p class="premium-slider-meta">Bible · Picha 4</p>
+          </article>
+
+          <!-- Kanisa -->
+          <article class="premium-slider-card" data-premium-slider aria-label="Church imagery slider">
+            <div class="premium-slider-viewport">
+              <div class="premium-slider-stack">
+                <div
+                  class="premium-slider-slide is-active"
+                  data-title="Nyumba ya Mungu"
+                  data-sub="Mahali pa kuhamasisha, kuomba, na kuimarisha imani."
+                >
+                  <img
+                    src="https://images.unsplash.com/photo-1438032005730-c779502df21b?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/church-1.jpg"
+                    alt="Jengo la kanisa — nyumba ya Mungu"
+                    loading="eager"
+                    decoding="async"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+                <div class="premium-slider-slide" data-title="Mwanga wa Ibada" data-sub="Pamoja tunaiinua sifa kwa Baba.">
+                  <img
+                    src="https://images.unsplash.com/photo-1598550487868-e7469b671994?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/church-2.jpg"
+                    alt="Kanisa cha kisasa na mwanga wa ibada"
+                    loading="lazy"
+                    decoding="async"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+                <div class="premium-slider-slide" data-title="Mwanga wa Ndani" data-sub="Vitanda vya rangi — sala na utulivu moyoni.">
+                  <img
+                    src="https://images.unsplash.com/photo-1548625149-fc4a29cf7092?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/church-3.jpg"
+                    alt="Ndani ya kanisa — dirisha la rangi na utukufu"
+                    loading="lazy"
+                    decoding="async"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+                <div class="premium-slider-slide" data-title="Mnara wa Tumaini" data-sub="Msalaba na mnara — alama za amani na neema.">
+                  <img
+                    src="https://images.unsplash.com/photo-1438232992991-995b7058bbb3?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/church-4.jpg"
+                    alt="Msalaba na mnara — tumaini na amani"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+              </div>
+              <div class="premium-slider-gradient" aria-hidden="true"></div>
+              <div class="premium-slider-caption" aria-live="polite">
+                <span class="premium-slider-accent" aria-hidden="true"></span>
+                <h4 class="premium-slider-title">Nyumba ya Mungu</h4>
+                <p class="premium-slider-sub">Mahali pa kuhamasisha, kuomba, na kuimarisha imani.</p>
+              </div>
+            </div>
+            <p class="premium-slider-meta">Church · Picha 4</p>
+          </article>
+
+          <!-- Ibada / Msalaba -->
+          <article class="premium-slider-card" data-premium-slider aria-label="Worship and cross slider">
+            <div class="premium-slider-viewport">
+              <div class="premium-slider-stack">
+                <div
+                  class="premium-slider-slide is-active"
+                  data-title="Msalaba Juu ya Vilima"
+                  data-sub="Ushindi tulio nao katika Kristo Yesu."
+                >
+                  <img
+                    src="https://images.unsplash.com/photo-1461773518188-b3e86f98242f?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/worship-1.jpg"
+                    alt="Msalaba juu ya vilima wakati wa machweo"
+                    loading="eager"
+                    decoding="async"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+                <div class="premium-slider-slide" data-title="Mikono Iliyoinuliwa" data-sub="Sifa, heshima, na utukufu kwa Muumba.">
+                  <img
+                    src="https://images.unsplash.com/photo-1511632765296-ebab23f1fa7b?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/worship-2.jpg"
+                    alt="Mikono ya kuabudu na maombi"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+                <div class="premium-slider-slide" data-title="Ibada ya Pamoja" data-sub="Pamoja katika Roho na kweli — Yohana 4:24">
+                  <img
+                    src="https://images.unsplash.com/photo-1529070538774-1843cb3265df?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/worship-3.jpg"
+                    alt="Mwanga wa ibada na taa ya uvumi"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+                <div class="premium-slider-slide" data-title="Utukufu Usioisha" data-sub="Mwangaza wa ufalme unaanza moyoni mwetu.">
+                  <img
+                    src="https://images.unsplash.com/photo-1438232992991-995b7058bbb3?auto=format&amp;fit=crop&amp;w=1200&amp;q=82"
+                    data-local="assets/images/sliders/worship-4.jpg"
+                    alt="Msalaba na mwanga wa ufalme"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade"
+                    width="1200"
+                    height="800"
+                  />
+                </div>
+              </div>
+              <div class="premium-slider-gradient" aria-hidden="true"></div>
+              <div class="premium-slider-caption" aria-live="polite">
+                <span class="premium-slider-accent" aria-hidden="true"></span>
+                <h4 class="premium-slider-title">Msalaba Juu ya Vilima</h4>
+                <p class="premium-slider-sub">Ushindi tulio nao katika Kristo Yesu.</p>
+              </div>
+            </div>
+            <p class="premium-slider-meta">Worship / Cross · Picha 4</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- Historia ya Kanisa — Premium Glass: muundo ule ule, miundo ya CSS iko about-historia-premium.css -->
+      <section class="section about-premium-section" id="about" aria-labelledby="about-heading">
+        <div class="about-fx-particles" aria-hidden="true">
+          <span class="about-particle"></span>
+          <span class="about-particle"></span>
+          <span class="about-particle"></span>
+          <span class="about-particle"></span>
+          <span class="about-particle"></span>
+          <span class="about-particle"></span>
+          <span class="about-particle"></span>
+          <span class="about-particle"></span>
+          <span class="about-particle"></span>
+          <span class="about-particle"></span>
+          <span class="about-particle"></span>
+          <span class="about-particle"></span>
+        </div>
+        <span class="about-cross-watermark" aria-hidden="true">✝</span>
+        <h3 id="about-heading" class="about-section-title">Kuhusu KMK(T) / About KMK(T)</h3>
+        <div class="about-verse-line">
+          <p id="aboutVerseLine">
+            Bwana ndiye mchungaji wangu, sitapungukiwa na kitu – Zaburi 23:1
+          </p>
+        </div>
+        <div class="about-cards-grid">
+          <article class="about-card active">
+            <div class="about-card-head">
+              <span class="about-icon">📖</span>
+              <h4>HISTORIA YA KANISA</h4>
+            </div>
+            <p>
+              KMK(T) ilianza kama huduma ya kueneza Injili na kuimarisha udugu wa waumini, na imekua kuwa kanisa la kitaifa
+              lenye mizizi ya imani, nidhamu ya Neno la Mungu, na moyo wa huduma kwa jamii.
+            </p>
+          </article>
+          <article class="about-card">
+            <div class="about-card-head">
+              <span class="about-icon">👁️</span>
+              <h4>VISION</h4>
+            </div>
+            <p>
+              Kuona jamii iliyobadilishwa na Injili ya Yesu Kristo, ambapo waumini wanakua kiroho, wanaishi katika upendo wa
+              Mungu, na kuwa mashahidi wa tumaini duniani kote.
+            </p>
+          </article>
+          <article class="about-card">
+            <div class="about-card-head">
+              <span class="about-icon">🎯</span>
+              <h4>MISSION</h4>
+            </div>
+            <p>
+              Kuhubiri Injili kwa uaminifu, kulea wanafunzi wa Kristo, kuimarisha familia na vijana, na kusimamia huduma za
+              kanisa kwa ubora, uwajibikaji, na maadili ya Ufalme wa Mungu.
+            </p>
+          </article>
+          <article class="about-card">
+            <div class="about-card-head">
+              <span class="about-icon">💎</span>
+              <h4>CORE VALUES</h4>
+            </div>
+            <p>
+              Uaminifu wa Kibiblia, Maombi, Upendo, Uadilifu, Uwajibikaji, Uongozi wa Kutumikia, na Umoja wa mwili wa Kristo
+              ndiyo msingi wa maamuzi na huduma zetu.
+            </p>
+          </article>
+          <article class="about-card">
+            <div class="about-card-head">
+              <span class="about-icon">✝️</span>
+              <h4>MOTTO</h4>
+            </div>
+            <p>
+              “Katika Kristo tuna tumaini, katika Neno tuna mwongozo, na katika huduma tuna utume.” Kauli hii inatuunganisha
+              kwenye mwito wa kuishi kwa utukufu wa Mungu kila siku.
+            </p>
+          </article>
+          <article class="about-card">
+            <div class="about-card-head">
+              <span class="about-icon">👤</span>
+              <h4>LEADERSHIP MESSAGE</h4>
+            </div>
+            <p>
+              Uongozi wa KMK(T) unawahimiza waumini wote kudumu katika imani, kufanya kazi kwa umoja, na kutumia vipawa vyao
+              kwa hekima. Tukiwa pamoja katika Kristo, tunajenga kanisa lenye afya, nguvu, na mwelekeo wa baadaye.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="structure">
+        <h3>Muundo wa Kanisa / Church Structure</h3>
+        <div class="grid-3">
+          <article class="card">Ofisi Kuu</article>
+          <article class="card">Dayosisi</article>
+          <article class="card" id="majimbo">Majimbo</article>
+          <article class="card" id="matawi">Matawi</article>
+          <article class="card">Idara</article>
+          <article class="card">Huduma</article>
+        </div>
+        <div class="hierarchy card">
+          <strong>Hierarchy Preview:</strong> Ofisi Kuu → Dayosisi → Majimbo →
+          Matawi → Waumini
+        </div>
+      </section>
+
+      <section class="section" id="dayosisi">
+        <h3>Orodha ya Dayosisi</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Jina la Dayosisi</th>
+                <th>Askofu wa Dayosisi</th>
+                <th>Mkoa</th>
+                <th>Idadi ya Majimbo</th>
+                <th>Idadi ya Matawi</th>
+                <th>Mawasiliano</th>
+                <th>Hali</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Dayosisi ya Dar es Salaam</td>
+                <td>Askofu A. Mwangalizi</td>
+                <td>Dar es Salaam</td>
+                <td>14</td>
+                <td>62</td>
+                <td>dayosisi.dar@kmt.or.tz</td>
+                <td><span class="status active">Active</span></td>
+                <td>
+                  <button type="button" data-route="church-structure.html">View</button>
+                  <button type="button" data-route="leadership-management.html">Details</button>
+                </td>
+              </tr>
+              <tr>
+                <td>Dayosisi ya Mwanza</td>
+                <td>Askofu J. Simbila</td>
+                <td>Mwanza</td>
+                <td>10</td>
+                <td>49</td>
+                <td>dayosisi.mwanza@kmt.or.tz</td>
+                <td><span class="status active">Active</span></td>
+                <td>
+                  <button type="button" data-route="church-structure.html">View</button>
+                  <button type="button" data-route="leadership-management.html">Details</button>
+                </td>
+              </tr>
+              <tr>
+                <td>Dayosisi ya Arusha</td>
+                <td>Askofu E. Nyaribo</td>
+                <td>Arusha</td>
+                <td>8</td>
+                <td>35</td>
+                <td>dayosisi.arusha@kmt.or.tz</td>
+                <td><span class="status planning">Planning</span></td>
+                <td>
+                  <button type="button" data-route="church-structure.html">View</button>
+                  <button type="button" data-route="leadership-management.html">Details</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="viongozi">
+        <h3>Viongozi wa Kanisa</h3>
+        <div class="grid-4">
+          <article class="card">
+            <h4>Maaskofu</h4>
+            <p>Orodha ya maaskofu wa ngazi mbalimbali za uongozi.</p>
+            <button type="button" onclick="window.location.href='maaskofu.html'">Fungua Maaskofu</button>
+          </article>
+          <article class="card">
+            <h4>Wachungaji</h4>
+            <p>Usimamizi wa wachungaji na maeneo wanayohudumia.</p>
+            <button type="button" onclick="window.location.href='wachungaji.html'">Fungua Wachungaji</button>
+          </article>
+          <article class="card">
+            <h4>Wainjilisti</h4>
+            <p>Taarifa za wainjilisti wa kitaifa, dayosisi, na majimbo.</p>
+            <button type="button" onclick="window.location.href='wainjilisti.html'">Fungua Wainjilisti</button>
+          </article>
+          <article class="card">
+            <h4>Wazee na Mashemasi</h4>
+            <p>Muhtasari wa wazee wa kanisa na mashemasi katika matawi.</p>
+            <button type="button" onclick="window.location.href='wazee-wa-kanisa.html'">Fungua Wazee</button>
+            <button type="button" style="margin-top:8px" onclick="window.location.href='mashemasi.html'">Fungua Mashemasi</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="ministries">
+        <h3>Idara & Huduma / Ministries</h3>
+        <div class="grid-4">
+          <article class="card">Vijana</article>
+          <article class="card">Wanawake</article>
+          <article class="card">Wanaume</article>
+          <article class="card">Kwaya / Worship</article>
+          <article class="card">Sunday School</article>
+          <article class="card">Maombi</article>
+          <article class="card">Media</article>
+          <article class="card">Outreach</article>
+        </div>
+      </section>
+
+      <section class="section" id="events">
+        <h3>Matukio & Makambi</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Jina la Tukio</th>
+                <th>Aina</th>
+                <th>Tarehe</th>
+                <th>Mahali</th>
+                <th>Mhubiri / Mfundishaji</th>
+                <th>Theme / Scripture</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Kambi ya Vijana Taifa</td>
+                <td>Makambi</td>
+                <td>12-18 Aug 2026</td>
+                <td>Dodoma</td>
+                <td>Mch. Daniel Msangi</td>
+                <td>Joshua 1:9</td>
+                <td><span class="status active">Open</span></td>
+              </tr>
+              <tr>
+                <td>Mkutano wa Viongozi</td>
+                <td>Leadership</td>
+                <td>04 Jul 2026</td>
+                <td>Dar es Salaam</td>
+                <td>Askofu Mkuu</td>
+                <td>Proverbs 3:5-6</td>
+                <td><span class="status planning">Upcoming</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="section" id="modules">
+        <h3>Modules & Submodules Center</h3>
+        <p class="muted">Hapa tunaweka muundo wa modules zote kwanza kabla ya kuanza data generation. Bofya module kwenda ukurasa wake.</p>
+        <div class="featured-modules">
+          <article class="module-color-card purple-card">
+            <span class="module-icon">🛡️</span>
+            <h4>Security Center</h4>
+            <p>Roles, permissions, na workflow za usalama.</p>
+          </article>
+          <article class="module-color-card blue-card">
+            <span class="module-icon">📊</span>
+            <h4>Analytics Hub</h4>
+            <p>Dashboards, reports, na decision insights.</p>
+          </article>
+          <article class="module-color-card green-card">
+            <span class="module-icon">👥</span>
+            <h4>Members Core</h4>
+            <p>Waumini, familia, na huduma ya ufuatiliaji.</p>
+          </article>
+          <article class="module-color-card orange-card">
+            <span class="module-icon">🗓️</span>
+            <h4>Events Planner</h4>
+            <p>Matukio, makambi, na ratiba za kitaifa.</p>
+          </article>
+          <article class="module-color-card teal-card">
+            <span class="module-icon">🤝</span>
+            <h4>Ministry Care</h4>
+            <p>Huduma za kichungaji na volunteer workflows.</p>
+          </article>
+          <article class="module-color-card red-gold-card">
+            <span class="module-icon">💳</span>
+            <h4>Finance & Giving</h4>
+            <p>Michango, bajeti, approvals, na malipo.</p>
+          </article>
+        </div>
+        <div class="grid-3">
+          <article class="card">
+            <h4>DASHIBODI KUU</h4>
+            <p>Main Dashboard (premium UI + navigation), na dashibodi ya mfumo yenye Supabase + charts.</p>
+            <button type="button" onclick="window.location.href='dashboard-premium.html'">Fungua Dashibodi Premium</button>
+            <button type="button" style="margin-top:8px" onclick="window.location.href='dashboard.html'">Fungua Dashibodi (legacy + data)</button>
+          </article>
+          <article class="card">
+            <h4>MUUNDO WA KANISA</h4>
+            <p>HQ, Dayosisi, Majimbo, Matawi / Parokia / Vituo</p>
+            <button onclick="window.location.href='church-structure.html'">Fungua Muundo</button>
+          </article>
+          <article class="card">
+            <h4>UONGOZI</h4>
+            <p>National Leaders, Viongozi wa Dayosisi, Maaskofu, Wachungaji, Wainjilisti, Wazee, Mashemasi</p>
+            <button onclick="window.location.href='leadership-management.html'">Fungua Uongozi</button>
+          </article>
+          <article class="card">
+            <h4>WAUMINI NA HUDUMA</h4>
+            <p>Waumini, Families, Katekisimu, Jumuiya, Idara, Kwaya</p>
+            <button onclick="window.location.href='members-management.html'">Fungua Waumini</button>
+          </article>
+          <article class="card">
+            <h4>HUDUMA YA KICHUNGAJI</h4>
+            <p>Spiritual care, counselling, prayer support, follow-up, welfare, hospital na home visits</p>
+            <button onclick="window.location.href='pastoral-care-module.html'">Fungua Pastoral Care</button>
+          </article>
+          <article class="card">
+            <h4>WAGENI & FOLLOW-UP</h4>
+            <p>First-time visitors, guest registration, follow-up calls, SMS welcome, na conversion kuwa waumini</p>
+            <button onclick="window.location.href='visitor-management-module.html'">Fungua Wageni</button>
+          </article>
+          <article class="card">
+            <h4>RATIBA ZA HUDUMA & VOLUNTEERS</h4>
+            <p>Volunteer directory, duty rosters, choir/media/prayer schedules, na service planning reports</p>
+            <button onclick="window.location.href='volunteer-scheduling-module.html'">Fungua Ratiba</button>
+          </article>
+          <article class="card">
+            <h4>MALI ZA KANISA / ASSETS REGISTER</h4>
+            <p>Church properties, vehicles, buildings, equipment, maintenance, asset documents, na audit reports</p>
+            <button onclick="window.location.href='assets-register-module.html'">Fungua Assets</button>
+          </article>
+          <article class="card">
+            <h4>MIRADI & MAENDELEO</h4>
+            <p>Construction, fundraising, school projects, outreach plans, progress tracking, na project reports</p>
+            <button onclick="window.location.href='projects-development-module.html'">Fungua Miradi</button>
+          </article>
+          <article class="card">
+            <h4>ELIMU & MAFUNZO</h4>
+            <p>Bible classes, leadership seminars, discipleship courses, trainers, materials, na training reports</p>
+            <button onclick="window.location.href='education-training-center.html'">Fungua Elimu</button>
+          </article>
+          <article class="card">
+            <h4>NATIONAL CALENDAR / KALENDA KUU</h4>
+            <p>Synchronize events, camps, meetings, trainings, deadlines across Dayosisi, Majimbo, na Matawi</p>
+            <button onclick="window.location.href='national-calendar-master.html'">Fungua Kalenda</button>
+          </article>
+          <article class="card">
+            <h4>AI SMART ASSISTANT / MSAIDIZI MWEREVU</h4>
+            <p>Smart insights, duplicate alerts, summaries, predictions, recommendations, na decision support placeholders</p>
+            <button onclick="window.location.href='ai-smart-assistant.html'">Fungua AI Assistant</button>
+          </article>
+          <article class="card">
+            <h4>PHASE 30 UNIFIED PLATFORM</h4>
+            <p>Global reusable components, role guards, route protection, Supabase-ready architecture, and enterprise UI consistency</p>
+            <button onclick="window.location.href='phase30-unified-platform.html'">Fungua Unified Platform</button>
+          </article>
+          <article class="card">
+            <h4>MATUKIO NA RATIBA</h4>
+            <p>Events, Makambi, Mikutano, Seminars</p>
+            <button onclick="window.location.href='events-camps-management.html'">Fungua Events</button>
+          </article>
+          <article class="card">
+            <h4>MEDIA, MACHAPISHO, NYARAKA</h4>
+            <p>Publications, Documents, Media, News, Gallery</p>
+            <button onclick="window.location.href='documents-approval-workflow.html'">Fungua Nyaraka</button>
+          </article>
+          <article class="card">
+            <h4>FINANCE & PAYMENTS</h4>
+            <p>Income, Expense, Budgets, Approvals, Payment Gateway</p>
+            <button onclick="window.location.href='finance-management.html'">Fungua Finance</button>
+          </article>
+          <article class="card">
+            <h4>RIPOTI NA UCHAMBUZI</h4>
+            <p>Reports, Analytics, Print Center, Export Center</p>
+            <button onclick="window.location.href='reports-analytics.html'">Fungua Reports</button>
+          </article>
+          <article class="card">
+            <h4>OMBA RUHUSA YA JUU / ELEVATED ACCESS</h4>
+            <p>
+              Maombi ya role za juu, permission layers, muda mfupi / acting access — workflow ya kitaifa, audit na
+              approvals.
+            </p>
+            <button type="button" onclick="window.location.href='request-elevated-access.html'">Fungua Maombi</button>
+          </article>
+          <article class="card">
+            <h4>MIALIKO, UPANDISHAJI & RUHUSA ZA ZIADA (ADMIN)</h4>
+            <p>
+              Usajili wa mialiko ya watumiaji, promote existing user, permission layers (Approver/Reviewer/Finance),
+              replacement flow, audit logs, na approvals za usalama wa juu.
+            </p>
+            <button type="button" onclick="window.location.href='admin-invite-promote.html'">Fungua Invite & Promote</button>
+          </article>
+          <article class="card">
+            <h4>JISAJILI KWENYE MFUMO WA KMK(T)</h4>
+            <p>
+              Public dynamic sign-up: role-aware, scope-aware, na approval-based. High roles hazionyeshwi kwenye usajili wa umma.
+            </p>
+            <button type="button" onclick="window.location.href='auth-register.html'">Fungua Dynamic Sign-up</button>
+          </article>
+          <article class="card">
+            <h4>USALAMA NA MFUMO</h4>
+            <p>Users, Roles, Permissions, Access Slots, Audit Logs, Notifications, System Health</p>
+            <button onclick="window.location.href='super-admin-control-center.html'">Fungua Control Center</button>
+          </article>
+          <article class="card">
+            <h4>USIMAMIZI WA WATUMIAJI WA MFUMO</h4>
+            <p>User Management Center, Role Assignment Engine, Permission Matrix, na Access Slot Manager ya ngazi zote.</p>
+            <button onclick="window.location.href='phase12-user-management-center.html'">Fungua User Management</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="media">
+        <h3>Mahubiri & Media</h3>
+        <div class="grid-5">
+          <article class="card">Video Mahubiri</article>
+          <article class="card">Audio Mahubiri</article>
+          <article class="card">Picha za Kanisa</article>
+          <article class="card">Nyaraka</article>
+          <article class="card">Downloads</article>
+        </div>
+      </section>
+
+      <section class="section gallery-news" id="gallery">
+        <div class="gallery-panel">
+          <h3>KMK(T) kwa Picha</h3>
+          <div class="gallery-grid">
+            <article class="gallery-card"><img src="assets/images/gallery-church-1.svg" alt="Traditional church style" /></article>
+            <article class="gallery-card"><img src="assets/images/gallery-church-2.svg" alt="Modern church style" /></article>
+            <article class="gallery-card"><img src="assets/images/gallery-church-3.svg" alt="Urban worship center style" /></article>
+            <article class="gallery-card"><img src="assets/images/gallery-church-4.svg" alt="Classic worship hall style" /></article>
+          </div>
+        </div>
+        <aside class="news-panel card">
+          <div class="news-head">
+            <h3>Habari & Matukio</h3>
+            <a href="events-camps-management.html">Tazama Zote</a>
+          </div>
+          <article class="news-item">
+            <img src="assets/images/gallery-church-2.svg" alt="Mkutano Mkuu wa KMK(T)" />
+            <div>
+              <strong>Mkutano Mkuu wa KMK(T) 2026</strong>
+              <p>30 Aprili - 04 Mei, 2026</p>
+              <small>Makao Makuu, Dar es Salaam</small>
+            </div>
+          </article>
+          <article class="news-item">
+            <img src="assets/images/gallery-church-4.svg" alt="Semina ya Uongozi wa Vijana" />
+            <div>
+              <strong>Semina ya Uongozi wa Vijana</strong>
+              <p>15 - 18 Mei, 2026</p>
+              <small>Kambi ya Vijana, Morogoro</small>
+            </div>
+          </article>
+          <article class="news-item">
+            <img src="assets/images/gallery-church-1.svg" alt="Wiki ya Maombi ya Taifa" />
+            <div>
+              <strong>Wiki ya Maombi ya Taifa</strong>
+              <p>01 - 07 Juni, 2026</p>
+              <small>Dayosisi zote za KMK(T)</small>
+            </div>
+          </article>
+        </aside>
+      </section>
+
+      <section class="section" id="gallery-archive">
+        <h3>Church Gallery Archive</h3>
+        <div class="gallery-grid">
+          <article class="gallery-card"><img src="assets/images/gallery-church-1.svg" alt="Traditional church style archive" /></article>
+          <article class="gallery-card"><img src="assets/images/gallery-church-2.svg" alt="Modern church style archive" /></article>
+          <article class="gallery-card"><img src="assets/images/gallery-church-3.svg" alt="Urban worship center style archive" /></article>
+          <article class="gallery-card"><img src="assets/images/gallery-church-4.svg" alt="Classic worship hall style archive" /></article>
+        </div>
+      </section>
+
+      <section class="section" id="michango">
+        <h3>Michango / Giving</h3>
+        <div class="grid-5">
+          <article class="card">Sadaka</article>
+          <article class="card">Zaka</article>
+          <article class="card">Miradi</article>
+          <article class="card">Makambi</article>
+          <article class="card cta-card">
+            Donation CTA
+            <button type="button" data-route="payments-gateway.html">Toa Mchango Sasa</button>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" id="contact">
+        <h3>Mawasiliano / Contact</h3>
+        <div class="contact-grid">
+          <article class="card">
+            <p><strong>Phone:</strong> +255 624 683 622</p>
+            <p><strong>Email:</strong> info@kmt.or.tz</p>
+            <p><strong>Address:</strong> KMK(T) HQ, Dar es Salaam, Tanzania</p>
+            <div class="map-placeholder">Map Placeholder / Ramani Eneo</div>
+          </article>
+          <form class="card contact-form" id="contactForm">
+            <input type="text" placeholder="Jina Kamili / Full Name" required />
+            <input type="email" placeholder="Barua Pepe / Email" required />
+            <textarea placeholder="Ujumbe wako / Your Message" required></textarea>
+            <button type="submit">Tuma Ujumbe</button>
+          </form>
+        </div>
+      </section>
+
+      <section class="section" id="login">
+        <h3>Premium Login Frame Preview</h3>
+        <div class="login-preview card">
+          <h4>Ingia / Login</h4>
+          <input type="email" placeholder="Email Address" />
+          <input type="password" placeholder="Password" />
+          <label><input type="checkbox" /> Remember me</label>
+          <a href="auth-forgot-password.html">Forgot password?</a>
+          <button type="button" onclick="window.location.href='auth-login.html'">Login</button>
+          <p>New user? <a href="auth-register.html">Sign up</a></p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <h4>KANISA LA MENNONITE LA KIINJILI TANZANIA - KMK(T)</h4>
+      <p>Serving the Church Through Digital Excellence</p>
+      <p>“I can do all things through Christ.” — Philippians 4:13</p>
+      <p class="footer-links">
+        Quick links:
+        <a href="#home">Nyumbani</a> ·
+        <a href="dashboard-premium.html">Dashibodi Premium</a> ·
+        <a href="dashboard.html">Dashibodi (data)</a> ·
+        <a href="request-elevated-access.html">Omba Ruhusa ya Juu</a> ·
+        <a href="admin-invite-promote.html">Mialiko & Promotions</a> ·
+        <a href="website-analytics.html">Website Analytics</a> ·
+        <a href="auth-login.html">Login</a> ·
+        <a href="#dayosisi">Dayosisi</a> ·
+        <a href="#media">Mahubiri</a> ·
+        <a href="#michango">Michango</a> ·
+        <a href="#contact">Mawasiliano</a>
+      </p>
+      <p>Softdeveloper: MR Fugo</p>
+      <p>Phone: 0624683622</p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script type="module" src="assets/js/public-site-branding.js"></script>
+
+    <script src="script.js"></script>
+    <script src="global-back-button.js"></script>
+    <script src="assets/js/home-premium-sliders.js" defer></script>
+    <script>
+      (function () {
+        var NEW_PORTAL_URL = "https://portal-next.kmt.or.tz";
+        var statusEl = document.getElementById("migrationStatus");
+        var openBtn = document.getElementById("openNewPortalBtn");
+        var stayBtn = document.getElementById("stayLegacyBtn");
+
+        if (openBtn) {
+          openBtn.addEventListener("click", function () {
+            window.location.href = NEW_PORTAL_URL;
+          });
+        }
+
+        if (stayBtn) {
+          stayBtn.addEventListener("click", function () {
+            if (statusEl) {
+              statusEl.textContent =
+                "Umechagua kubaki kwenye tovuti hii. Unaweza kufungua mfumo mpya wakati wowote kwa kitufe cha juu.";
+            }
+          });
+        }
+      })();
+    </script>
+    <script src="portal-premium-enhancements.js"></script>
+  </body>
+</html>

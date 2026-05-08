@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ingia | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase2.css" />
+  </head>
+  <body class="auth-body" data-back-fallback="index.html">
+    <main class="auth-wrap">
+      <section class="showcase">
+        <h1>KMK(T) NATIONAL CHURCH PORTAL</h1>
+        <p>Karibu kwenye mfumo salama wa huduma, taarifa na uongozi wa Kanisa. Login yako inalindwa kwa security standards za kisasa.</p>
+        <div class="image-grid">
+          <div class="img-box"><img src="https://images.unsplash.com/photo-1461773518188-b3e86f98242f?auto=format&fit=crop&w=900&q=80" alt="Jesus inspired image" /></div>
+          <div class="img-box"><img src="https://images.unsplash.com/photo-1504052434569-70ad5836ab65?auto=format&fit=crop&w=900&q=80" alt="Church altar image" /></div>
+          <div class="img-box"><img src="https://images.unsplash.com/photo-1473177104440-ffee2f376098?auto=format&fit=crop&w=900&q=80" alt="Bible image" /></div>
+        </div>
+      </section>
+
+      <section class="auth-card">
+        <span class="badge">Secure Access / Ufikiaji Salama</span>
+        <h2>KARIBU KWENYE MFUMO RASMI WA KMK(T)</h2>
+        <p class="muted">Ingiza taarifa zako ili kuingia kwenye mfumo wa usimamizi wa Kanisa la Mennonite la Kiinjili Tanzania.</p>
+        <p class="security" id="authStatusAlert">Security ready: session persistence + role-aware redirect + audit logging.</p>
+        <form class="form-grid" id="loginForm">
+          <input type="text" name="identifier" placeholder="Email / Simu" required />
+          <div class="password-wrap">
+            <input type="password" name="password" id="loginPassword" placeholder="Password / Nenosiri" required />
+            <button type="button" class="btn secondary tiny" data-toggle-password="loginPassword">Show</button>
+          </div>
+          <label><input type="checkbox" name="remember" /> Remember me / Nikumbuke</label>
+          <div class="links-row">
+            <a href="auth-forgot-password.html">Forgot password?</a>
+            <a href="auth-register.html">Jisajili / Sign up</a>
+            <a href="request-elevated-access.html">Omba Ruhusa ya Juu (baada ya login)</a>
+          </div>
+          <button class="btn" id="loginSubmitBtn" type="submit">Ingia kwenye Mfumo</button>
+          <a class="btn secondary" href="index.html">Rudi kwenye Tovuti ya Umma</a>
+        </form>
+        <p class="muted" id="sessionExpiredBanner" style="display:none;">Session yako iliisha. Tafadhali ingia tena.</p>
+      </section>
+    </main>
+    <div class="modal" id="roleSwitchModal">
+      <div class="modal-card">
+        <h3>Chagua Role ya Kufanyia Kazi / Role Switch</h3>
+        <p class="muted">Akaunti yako ina roles nyingi. Chagua role ya sasa kuendelea.</p>
+        <div class="form-grid" id="roleSwitchOptions"></div>
+        <div style="display:flex;gap:.6rem;margin-top:1rem;">
+          <button class="btn" id="roleSwitchContinueBtn" type="button">Endelea</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal" id="chiefOnboardingModal">
+      <div class="modal-card">
+        <h3>Chief Admin Onboarding</h3>
+        <p class="muted">Karibu Mkuu wa Mfumo. Tafadhali badilisha nenosiri la awali kwa usalama zaidi.</p>
+        <div style="display:flex;gap:.6rem;margin-top:1rem;">
+          <button class="btn" id="chiefOnboardingContinueBtn" type="button">Endelea</button>
+        </div>
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script src="phase2.js"></script>
+    <script src="global-back-button.js"></script>
+  </body>
+</html>

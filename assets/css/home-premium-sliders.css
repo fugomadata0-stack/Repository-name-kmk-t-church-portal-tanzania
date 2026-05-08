@@ -1,0 +1,284 @@
+/**
+ * Image Areas — sliders + Maneno ya Mungu (glass, blue/gold, sekunde 10).
+ */
+
+/* Funga mandhari ya zamani ya .verse-feature (bible SVG) kwa muonekano laini */
+.verse-premium-section.verse-feature {
+  border-radius: 22px;
+  padding: 1rem;
+  background-image: linear-gradient(155deg, rgba(4, 18, 48, 0.92), rgba(7, 32, 72, 0.88));
+  border: 1px solid rgba(245, 198, 86, 0.32);
+  box-shadow: 0 14px 40px rgba(2, 10, 35, 0.4);
+}
+
+/* —— Mistari ya Biblia (juu) —— */
+.verse-premium-section .verse-card-premium {
+  position: relative;
+  border-radius: 20px;
+  padding: 1.35rem 1.5rem 1.45rem;
+  max-width: min(920px, 100%);
+  margin: 0 auto;
+  background: rgba(6, 22, 52, 0.42);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border: 1px solid rgba(245, 198, 86, 0.42);
+  box-shadow:
+    0 16px 48px rgba(2, 10, 35, 0.45),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+    0 0 36px rgba(212, 167, 57, 0.15);
+  transition: box-shadow 0.35s ease, transform 0.35s ease;
+}
+
+.verse-premium-section .verse-card-premium:hover {
+  box-shadow:
+    0 22px 56px rgba(2, 10, 35, 0.52),
+    0 0 0 1px rgba(250, 214, 120, 0.2) inset,
+    0 0 44px rgba(212, 167, 57, 0.22);
+  transform: translateY(-2px);
+}
+
+.verse-premium-section .verse-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.verse-premium-section .verse-head .label {
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  color: rgba(250, 214, 120, 0.95);
+}
+
+.verse-premium-section .verse-countdown {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: rgba(180, 210, 255, 0.9);
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(5, 32, 80, 0.35);
+  border: 1px solid rgba(245, 198, 86, 0.22);
+}
+
+#verseText.verse-quote-text {
+  margin: 0;
+  font-size: clamp(1.05rem, 2.8vw, 1.35rem);
+  font-weight: 600;
+  line-height: 1.55;
+  color: #f8fafc;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.35);
+  transition: opacity 0.3s ease;
+}
+
+/* —— Image grid sliders —— */
+.premium-slider-grid.image-grid {
+  gap: 1.15rem;
+}
+
+.premium-slider-card {
+  position: relative;
+  border-radius: 20px;
+  overflow: visible;
+  background: rgba(6, 22, 52, 0.38);
+  backdrop-filter: blur(16px) saturate(145%);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
+  border: 1px solid rgba(245, 198, 86, 0.38);
+  box-shadow:
+    0 12px 36px rgba(2, 10, 35, 0.5),
+    0 0 0 1px rgba(245, 198, 86, 0.1),
+    0 0 28px rgba(212, 167, 57, 0.2);
+  transition: box-shadow 0.4s ease, transform 0.4s ease;
+}
+
+.premium-slider-card:hover {
+  box-shadow:
+    0 22px 52px rgba(2, 10, 35, 0.58),
+    0 0 0 1px rgba(250, 214, 120, 0.38),
+    0 0 44px rgba(212, 167, 57, 0.35);
+  transform: scale(1.05);
+  z-index: 2;
+}
+
+.premium-slider-viewport {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  aspect-ratio: 16 / 11;
+  min-height: clamp(180px, 26vw, 240px);
+}
+
+.premium-slider-stack {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: clamp(180px, 26vw, 240px);
+}
+
+.premium-slider-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1s ease;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.premium-slider-slide.is-active {
+  opacity: 1;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+.premium-slider-slide:not(.is-active) img {
+  animation: none;
+  transform: scale(1.09);
+  filter: brightness(0.92);
+}
+
+/* Zoom-in + glow wakati slide inapoingia (inalingana na fade ya uk.p ~1s) */
+.premium-slider-slide.is-active img {
+  animation: kmt-slide-glow-zoom 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.premium-slider-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transform-origin: center center;
+  transition: transform 0.55s ease, filter 0.55s ease;
+}
+
+@keyframes kmt-slide-glow-zoom {
+  0% {
+    transform: scale(1.12);
+    filter: brightness(1.08)
+      drop-shadow(0 0 28px rgba(250, 204, 21, 0.45))
+      drop-shadow(0 0 56px rgba(59, 130, 246, 0.18));
+  }
+  55% {
+    filter: brightness(1.03)
+      drop-shadow(0 0 20px rgba(250, 204, 21, 0.28))
+      drop-shadow(0 0 40px rgba(120, 170, 255, 0.1));
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1)
+      drop-shadow(0 0 14px rgba(250, 204, 21, 0.22))
+      drop-shadow(0 0 28px rgba(59, 130, 246, 0.08));
+  }
+}
+
+.premium-slider-card:hover .premium-slider-slide.is-active img {
+  transform: scale(1.06);
+  filter: brightness(1.03)
+    drop-shadow(0 0 22px rgba(250, 204, 21, 0.38))
+    drop-shadow(0 0 44px rgba(250, 204, 21, 0.12))
+    drop-shadow(0 0 36px rgba(96, 165, 250, 0.12));
+}
+
+/* Gradient: dark blue → transparent */
+.premium-slider-gradient {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  background: linear-gradient(
+    to top,
+    rgba(5, 32, 80, 0.94) 0%,
+    rgba(8, 40, 95, 0.55) 35%,
+    rgba(11, 55, 110, 0.18) 62%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+.premium-slider-caption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1rem 1.1rem 1rem;
+  z-index: 3;
+  text-align: left;
+}
+
+.premium-slider-accent {
+  display: block;
+  width: min(72px, 32%);
+  height: 3px;
+  border-radius: 999px;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(90deg, #facc15, rgba(250, 204, 21, 0.45), transparent);
+  box-shadow: 0 0 14px rgba(250, 204, 21, 0.45);
+}
+
+.premium-slider-caption .premium-slider-title {
+  margin: 0 0 0.28rem;
+  font-size: clamp(1rem, 2.8vw, 1.15rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff9ec;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.65);
+}
+
+.premium-slider-caption .premium-slider-sub {
+  margin: 0;
+  font-size: clamp(0.78rem, 2vw, 0.88rem);
+  line-height: 1.45;
+  color: rgba(255, 245, 224, 0.9);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
+  max-width: 42ch;
+}
+
+.premium-slider-meta {
+  margin: 0;
+  padding: 0.55rem 0.75rem 0.65rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 229, 166, 0.9);
+  text-align: center;
+  background: rgba(5, 20, 48, 0.5);
+  backdrop-filter: blur(8px);
+  border-radius: 0 0 18px 18px;
+}
+
+@media (max-width: 1020px) {
+  .premium-slider-viewport,
+  .premium-slider-stack {
+    aspect-ratio: 16 / 11;
+    min-height: clamp(200px, 42vw, 280px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-slider-slide {
+    transition: none;
+  }
+  .premium-slider-slide img {
+    transition: none;
+    animation: none !important;
+    filter: none !important;
+    transform: none !important;
+  }
+  .premium-slider-slide:not(.is-active) img {
+    transform: none;
+    filter: none;
+  }
+  .premium-slider-card:hover .premium-slider-slide.is-active img {
+    transform: none;
+    filter: none;
+  }
+  .premium-slider-card:hover {
+    transform: none;
+  }
+  #verseText.verse-quote-text {
+    transition: none;
+  }
+}

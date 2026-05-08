@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Website Analytics | KMK(T)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #071125;
+        --card: #0f1f3d;
+        --line: #2a3e6d;
+        --txt: #e8ecf7;
+        --muted: #a8b3cc;
+        --gold: #d4b14a;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, sans-serif;
+        background: radial-gradient(circle at top, #163468, var(--bg));
+        color: var(--txt);
+        min-height: 100vh;
+      }
+      .wrap { width: min(1200px, 96%); margin: 20px auto; display: grid; gap: 14px; }
+      .card {
+        background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px;
+      }
+      .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .btn {
+        border: 1px solid rgba(212,177,74,.5);
+        background: linear-gradient(180deg, #1b3f73, #0a1f3e);
+        color: #fff;
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+      .kpi h3 { margin: 4px 0; font-size: 1.4rem; color: var(--gold); }
+      .kpi p { margin: 0; color: var(--muted); font-size: .85rem; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border-bottom: 1px solid var(--line); padding: 8px; font-size: .88rem; text-align: left; }
+      th { color: #cfe0ff; }
+      .muted { color: var(--muted); font-size: .85rem; }
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body data-back-fallback="dashboard.html">
+    <main class="wrap">
+      <section class="card top">
+        <div>
+          <h2 style="margin:0">Website Analytics (Live)</h2>
+          <p class="muted" id="lastRefresh">Last refresh: -</p>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap">
+          <button class="btn" id="refreshBtn" type="button">Refresh Now</button>
+          <a class="btn" href="dashboard.html" style="text-decoration:none">Rudi Dashboard</a>
+        </div>
+      </section>
+
+      <section class="kpis">
+        <article class="card kpi"><p>Total Visits</p><h3 id="kTotal">0</h3></article>
+        <article class="card kpi"><p>Unique Visitors</p><h3 id="kUnique">0</h3></article>
+        <article class="card kpi"><p>Online Sasa</p><h3 id="kOnline">0</h3></article>
+        <article class="card kpi"><p>Pages Tracked</p><h3 id="kPages">0</h3></article>
+      </section>
+
+      <section class="grid-2">
+        <article class="card">
+          <h3 style="margin-top:0">Online Sessions</h3>
+          <div class="muted">Nani yuko online, yuko wapi, na page gani.</div>
+          <div style="overflow:auto; max-height:320px;">
+            <table>
+              <thead><tr><th>Name</th><th>Role</th><th>Country/City</th><th>Page</th></tr></thead>
+              <tbody id="onlineBody"></tbody>
+            </table>
+          </div>
+        </article>
+
+        <article class="card">
+          <h3 style="margin-top:0">Page Hits</h3>
+          <div class="muted">Kurasa zilizoangaliwa zaidi.</div>
+          <div style="overflow:auto; max-height:320px;">
+            <table>
+              <thead><tr><th>Page</th><th>Hits</th></tr></thead>
+              <tbody id="pagesBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section class="card">
+        <h3 style="margin-top:0">Latest Visits</h3>
+        <div style="overflow:auto; max-height:320px;">
+          <table>
+            <thead><tr><th>Time</th><th>Name</th><th>Role</th><th>Location</th><th>Page</th><th>Referrer</th></tr></thead>
+            <tbody id="latestBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+    <script src="global-back-button.js"></script>
+    <script src="website-analytics-main.js"></script>
+  </body>
+</html>

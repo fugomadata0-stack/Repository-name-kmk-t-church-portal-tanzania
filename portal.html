@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portal Dashboard | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase2.css" />
+  </head>
+  <body class="portal-page">
+    <main class="portal-shell">
+      <aside class="sidebar">
+        <h3>KMK(T) Portal Menu</h3>
+        <nav id="sidebarMenu"></nav>
+      </aside>
+
+      <section class="content">
+        <header class="topbar">
+          <div>
+            <h2 style="margin: 0">Karibu kwenye User Access Management</h2>
+            <p class="muted" style="margin: 0.2rem 0 0">Simamia akaunti, roles na ruhusa kwa usalama wa kanisa.</p>
+          </div>
+          <div>
+            <a class="btn secondary" href="request-elevated-access.html" style="text-decoration: none; display: inline-block">Omba Ruhusa ya Juu</a>
+            <span class="badge role-badge" id="roleBadge"></span>
+            <button class="btn secondary" id="switchRoleBtn">Badili Role</button>
+            <button class="btn secondary" id="logoutBtn">Logout</button>
+          </div>
+        </header>
+
+        <section class="panel" data-protected="user_access">
+          <div class="panel-head">
+            <h3 style="margin: 0">Jedwali la Watumiaji wa Mfumo</h3>
+            <p class="muted" style="margin: 0.3rem 0 0">Simamia akaunti, roles, ruhusa na hali ya watumiaji wa KMK(T) Portal.</p>
+          </div>
+
+          <div class="toolbar">
+            <input type="search" id="searchInput" placeholder="Tafuta jina, email, Dayosisi..." />
+            <select id="roleFilter">
+              <option value="">Filter Role</option>
+              <option>super_admin</option>
+              <option>admin</option>
+              <option>askofu_mkuu</option>
+              <option>askofu_dayosisi</option>
+              <option>mchungaji</option>
+              <option>kiongozi_idara</option>
+              <option>finance_officer</option>
+              <option>media_admin</option>
+              <option>member</option>
+            </select>
+            <select id="statusFilter">
+              <option value="">Filter Status</option>
+              <option>active</option>
+              <option>inactive</option>
+            </select>
+            <button class="btn" id="addUserBtn">Add User</button>
+            <button class="btn secondary" id="exportBtn">Export</button>
+            <button class="btn secondary" id="clearBtn">Clear</button>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Jina Kamili</th>
+                  <th>Email</th>
+                  <th>Simu</th>
+                  <th>Role</th>
+                  <th>Dayosisi</th>
+                  <th>Jimbo</th>
+                  <th>Tawi</th>
+                  <th>Status</th>
+                  <th>Last Login</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="userTableBody"></tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <span id="paginationInfo"></span>
+            <div>
+              <button class="btn secondary" id="prevPage">Prev</button>
+              <button class="btn secondary" id="nextPage">Next</button>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div class="modal" id="modalWrap">
+      <div class="modal-card">
+        <h3 id="modalTitle">Form</h3>
+        <form class="form-grid two-col" id="modalForm"></form>
+        <div style="display: flex; gap: 0.6rem; margin-top: 0.9rem">
+          <button class="btn" id="saveModalBtn" type="button">Save</button>
+          <button class="btn secondary" id="closeModalBtn" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawer" id="drawerWrap">
+      <div class="drawer-card">
+        <h3 id="drawerTitle">User Details</h3>
+        <div id="drawerContent"></div>
+        <button class="btn secondary" style="margin-top: 1rem" id="closeDrawerBtn">Close</button>
+      </div>
+    </div>
+    <div class="modal" id="roleSwitchModal">
+      <div class="modal-card">
+        <h3>Chagua Role ya Kufanyia Kazi / Role Switch</h3>
+        <p class="muted">Chagua role ya sasa kwa session hii.</p>
+        <div class="form-grid" id="roleSwitchOptions"></div>
+        <div style="display:flex;gap:.6rem;margin-top:1rem;">
+          <button class="btn" id="roleSwitchContinueBtn" type="button">Endelea</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="phase2.js"></script>
+  </body>
+</html>

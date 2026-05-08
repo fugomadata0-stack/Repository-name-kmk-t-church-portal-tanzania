@@ -1,0 +1,24 @@
+{
+  "name": "KMK(T) Internal Portal",
+  "short_name": "KMK(T) Portal",
+  "description": "Portal ya ndani ya Kanisa la Mennonite la Kiinjili Tanzania.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B1F3A",
+  "theme_color": "#0B1F3A",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/pwa-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

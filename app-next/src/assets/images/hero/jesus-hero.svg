@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0b1f3a" />
+      <stop offset="100%" stop-color="#123c69" />
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#g)" />
+  <circle cx="800" cy="340" r="180" fill="#d4af37" opacity="0.2" />
+  <text x="800" y="430" fill="#ffffff" text-anchor="middle" font-size="64" font-family="Arial" font-weight="700">JESUS HERO</text>
+  <text x="800" y="500" fill="#e5e7eb" text-anchor="middle" font-size="30" font-family="Arial">Picha ya muda " pakia jesus-hero.jpg</text>
+</svg>

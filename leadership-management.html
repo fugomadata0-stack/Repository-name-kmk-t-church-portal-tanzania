@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Viongozi wa Kanisa | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase5-leadership.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div>
+          <h1>Dashibodi ya Viongozi wa Kanisa</h1>
+          <p>Muhtasari wa viongozi wa KMK(T) kuanzia Ngazi Kuu, Dayosisi, Majimbo, Matawi na vitengo vya huduma.</p>
+        </div>
+        <span class="mode-badge" id="modeBadge">Mode: loading...</span>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="kpi-grid" id="kpiGrid"></section>
+      <section class="card">
+        <div class="actions">
+          <a class="btn" href="viongozi-ngazi-kuu.html">Viongozi wa Ngazi Kuu</a>
+          <a class="btn" href="viongozi-dayosisi.html">Viongozi wa Dayosisi</a>
+          <a class="btn" href="maaskofu.html">Maaskofu</a>
+          <a class="btn" href="wachungaji.html">Wachungaji</a>
+          <a class="btn" href="wainjilisti.html">Wainjilisti</a>
+          <a class="btn" href="wazee-wa-kanisa.html">Wazee wa Kanisa</a>
+          <a class="btn" href="mashemasi.html">Mashemasi</a>
+          <a class="btn" href="waongozi-matawi.html">Waongozi wa Matawi</a>
+          <a class="btn" href="nafasi-zilizo-wazi.html">Nafasi Zilizo Wazi</a>
+          <a class="btn" href="historia-ya-viongozi.html">Historia ya Viongozi</a>
+          <a class="btn" href="uhamisho-assignments.html">Uhamisho / Assignments</a>
+          <a class="btn" href="ripoti-za-viongozi.html">Ripoti za Viongozi</a>
+        </div>
+      </section>
+      <section class="tabs card" id="moduleTabs"></section>
+
+      <section class="card">
+        <div class="table-head">
+          <div>
+            <h2>Viongozi wa Kanisa</h2>
+            <p>Angalia, ongeza, hariri na simamia taarifa za viongozi kwa workflow ya Submit, Review, Approve, Reject.</p>
+          </div>
+          <div class="actions" id="topActions">
+            <button class="btn gold" data-action="add">Ongeza Kiongozi</button>
+            <button class="btn" data-action="add_position">Add Position</button>
+            <button class="btn" data-action="add_category">Add Category</button>
+            <button class="btn" data-action="add_type">Add Type</button>
+            <button class="btn" data-action="add_custom_field">Add Custom Field</button>
+            <button class="btn" data-action="clear">Clear</button>
+            <button class="btn" data-action="export">Export</button>
+            <button class="btn" data-action="print">Print</button>
+          </div>
+        </div>
+
+        <div class="filters" id="filtersBar"></div>
+
+        <div class="table-wrap desktop-table">
+          <table>
+            <thead><tr id="leadersHead"></tr></thead>
+            <tbody id="leadersBody"></tbody>
+          </table>
+        </div>
+        <div id="leadersCards" class="cards-mobile"></div>
+        <div class="pagination">
+          <span id="pageInfo"></span>
+          <div>
+            <button class="btn" id="prevBtn">Prev</button>
+            <button class="btn" id="nextBtn">Next</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <div class="table-head mini">
+            <h3>Historia ya Uongozi</h3>
+            <div class="actions">
+              <button class="btn gold" data-history="add">Add History</button>
+              <button class="btn" data-history="clear">Clear</button>
+              <button class="btn" data-history="export">Export</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kiongozi</th><th>Cheo</th><th>Eneo la Huduma</th><th>Tarehe ya Kuanza</th><th>Tarehe ya Kumaliza</th><th>Status</th><th>Notes</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="table-head mini">
+            <h3>Nyaraka za Viongozi</h3>
+            <div class="actions">
+              <button class="btn gold" data-doc="upload">Upload</button>
+              <button class="btn" data-doc="clear">Clear</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Jina la Kiongozi</th><th>Aina ya Nyaraka</th><th>File Name</th><th>Uploaded By</th><th>Uploaded Date</th><th>Visibility</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="docsBody"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <aside class="drawer" id="detailDrawer">
+      <div class="drawer-card">
+        <h3>Leader Detail</h3>
+        <div id="detailContent"></div>
+        <div class="actions">
+          <button class="btn" id="detailEditBtn">Edit</button>
+          <button class="btn danger" id="detailDeleteBtn">Delete</button>
+          <button class="btn" id="detailPrintBtn">Print Profile</button>
+          <button class="btn" id="detailExportBtn">Export PDF</button>
+          <button class="btn" id="detailUploadBtn">Upload Document</button>
+          <button class="btn" id="closeDrawerBtn">Close</button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="modal" id="leaderModal">
+      <div class="modal-card">
+        <h3 id="leaderModalTitle">Add/Edit Leader</h3>
+        <form id="leaderForm" class="form-grid"></form>
+        <p class="error" id="leaderFormError"></p>
+        <div class="actions">
+          <button class="btn" id="cancelLeaderBtn">Cancel</button>
+          <button class="btn gold" id="saveLeaderBtn">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="confirmModal">
+      <div class="confirm-card">
+        <h4>Delete Confirmation</h4>
+        <p>Una uhakika unataka kufuta record hii?</p>
+        <div class="actions">
+          <button class="btn" id="cancelDeleteBtn">Cancel</button>
+          <button class="btn danger" id="confirmDeleteBtn">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="metaModal">
+      <div class="modal-card">
+        <h3 id="metaModalTitle">Manage Meta</h3>
+        <form id="metaForm" class="form-grid">
+          <div>
+            <label>Jina</label>
+            <input name="name" id="metaNameInput" placeholder="Weka jina" />
+          </div>
+          <div>
+            <label>Status</label>
+            <select name="status" id="metaStatusInput">
+              <option>active</option>
+              <option>inactive</option>
+              <option>archived</option>
+            </select>
+          </div>
+        </form>
+        <p class="error" id="metaFormError"></p>
+        <div class="actions">
+          <button class="btn" id="cancelMetaBtn">Cancel</button>
+          <button class="btn gold" id="saveMetaBtn">Save</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="metaBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <input type="file" id="leaderPhotoInput" accept="image/*" hidden />
+    <input type="file" id="leaderDocInput" accept=".pdf,.doc,.docx,.jpg,.png" hidden />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script type="module" src="phase5-leadership-main.js"></script>
+  </body>
+</html>

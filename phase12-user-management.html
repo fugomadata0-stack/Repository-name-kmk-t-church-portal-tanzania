@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>USIMAMIZI WA WATUMIAJI WA MFUMO | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase12-user-management.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <h1>USIMAMIZI WA WATUMIAJI WA MFUMO</h1>
+        <p>Premium User Management Center, Engine ya Mgawanyo wa Role, Permission Matrix, na Access Slots kwa ngazi zote za kanisa.</p>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="kpis" id="kpiGrid"></section>
+
+      <section class="card">
+        <h2 class="title">Orodha ya Watumiaji</h2>
+        <p class="sub">All users, role assignments, multi-role support, filters, na bulk actions.</p>
+        <div class="tools">
+          <input id="searchInput" placeholder="Search Full Name, Email, Unit..." />
+          <select id="statusFilter">
+            <option value="">Filter Status</option>
+            <option value="active">active</option>
+            <option value="inactive">inactive</option>
+            <option value="pending">pending</option>
+            <option value="suspended">suspended</option>
+            <option value="locked">locked</option>
+          </select>
+          <select id="levelFilter">
+            <option value="">Filter Level</option>
+            <option>National HQ</option>
+            <option>Dayosisi</option>
+            <option>Jimbo</option>
+            <option>Tawi</option>
+            <option>Department</option>
+            <option>Choir</option>
+            <option>Institution</option>
+          </select>
+          <button class="btn" id="bulkActivateBtn">Bulk Activate</button>
+          <button class="btn danger" id="bulkSuspendBtn">Bulk Suspend</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th></th>
+                <th>S/N</th><th>Full Name</th><th>Email</th><th>Phone</th><th>Primary Role</th><th>Assigned Level</th><th>Assigned Unit</th><th>Status</th><th>Last Login</th><th>Created Date</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2 class="title">ENGINE YA MGAWANYO WA ROLE</h2>
+          <p class="sub">Assign single/multiple role, primary role, temporary/acting concept, expiry-ready, custom role, clone role.</p>
+          <div class="tools">
+            <button class="btn" id="addCustomRoleBtn">Add Custom Role</button>
+            <button class="btn" id="cloneRoleBtn">Clone Role</button>
+          </div>
+          <div class="chips" id="rolesWrap"></div>
+        </section>
+        <section class="card">
+          <h2 class="title">USER PROFILE PANEL</h2>
+          <div id="profilePanel"></div>
+        </section>
+      </section>
+
+      <section class="card">
+        <h2 class="title">WATUMIAJI WENYE RUHUSA KWA KILA ENEO</h2>
+        <p class="sub">Default Slot 1-3 kwa Dayosisi/Jimbo/Tawi. Supports lock/unlock, replace, reset, na custom slot growth.</p>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>S/N</th><th>Level</th><th>Unit</th><th>Slot</th><th>Assigned User</th><th>Role</th><th>Status</th><th>Last Activity</th><th>Completion %</th><th>Submission Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="slotsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="title">JEDWALI LA RUHUSA ZA ROLE</h2>
+        <p class="sub">Toggle permissions, reset default, clone permissions, permission groups by module (ready).</p>
+        <div class="table-wrap">
+          <table>
+            <thead id="permHead"></thead>
+            <tbody id="permBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase12-user-management-main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digital Library Center | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase19-library.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div>
+          <h1>CENTRE YA MAKTABA YA KIDIGITALI NA NYARAKA</h1>
+          <p>Machapisho ya Kanisa, Katiba, Katekisimu, Tenzi, Vitabu, Miongozo, Media/News/Gallery, na Official Documents kwa usimamizi wa versioning, preview, na public/private separation.</p>
+        </div>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="card">
+        <h2 class="title">Digital Modules</h2>
+        <div class="module-grid" id="moduleGrid"></div>
+      </section>
+
+      <section class="card">
+        <h2 class="title">ORODHA YA MAKTABA NA NYARAKA</h2>
+        <p class="subtitle">Search, filter, versioning, download counter, PDF preview, na publication workflow.</p>
+        <div class="tools">
+          <input id="searchInput" placeholder="Search title, tags, category..." />
+          <select id="categoryFilter"><option value="">Category zote</option></select>
+          <select id="visibilityFilter"><option value="">Access level zote</option><option>Public</option><option>Internal</option><option>Restricted</option></select>
+          <select id="stageFilter"><option value="">Stage zote</option><option>Draft</option><option>Review</option><option>Publish</option></select>
+          <button class="btn" data-action="addCategory">Add Category</button>
+          <button class="btn" data-action="addType">Add Type</button>
+          <button class="btn" data-action="addTag">Add Tag</button>
+          <button class="btn" data-action="addAccessLevel">Add Access Level</button>
+          <button class="btn gold" data-action="exportPdf">Export PDF</button>
+          <button class="btn" data-action="exportExcel">Export Excel</button>
+          <button class="btn" data-action="print">Print</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th><th>Category</th><th>Type</th><th>Tags</th><th>Access</th><th>Stage</th><th>Version</th><th>Downloads</th><th>Updated</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="docBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2 class="title">Media / News / Gallery</h2>
+          <div class="gallery" id="gallery"></div>
+        </section>
+        <section class="card">
+          <h2 class="title">PDF Preview</h2>
+          <div class="preview" id="pdfPreview">Chagua document uone preview hapa.</div>
+        </section>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase19-library-main.js"></script>
+  </body>
+</html>

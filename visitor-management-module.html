@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wageni & Follow-up | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase23-visitor-management.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div class="particles"></div>
+        <div class="hero-content">
+          <h1>Wageni & Follow-up</h1>
+          <p>
+            Kituo hiki kinasimamia first-time visitors, guest records, outreach follow-up, na conversion kuwa Waumini kwa ngazi ya Dayosisi, Jimbo,
+            na Tawi.
+          </p>
+          <div class="mini-modules" id="miniModules"></div>
+        </div>
+        <div class="hero-images">
+          <article class="image-pill jesus">Jesus Welcome</article>
+          <article class="image-pill bible">Bible Hope</article>
+          <article class="image-pill church">Church Family</article>
+        </div>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="kpi-grid" id="kpiGrid"></section>
+
+      <section class="card">
+        <h2 class="title">Orodha ya Wageni</h2>
+        <div class="table-tools">
+          <button class="btn gold" data-action="addVisitor">Add Visitor</button>
+          <button class="btn" data-action="export">Export</button>
+          <button class="btn" data-action="print">Print</button>
+          <button class="btn" data-action="clearVisitors">Clear</button>
+          <span class="status amber" id="liveBadge">Realtime: Syncing...</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Jina la Mgeni</th>
+                <th>Simu</th>
+                <th>Email</th>
+                <th>Dayosisi</th>
+                <th>Jimbo</th>
+                <th>Tawi</th>
+                <th>Tarehe ya Kutembelea</th>
+                <th>Source</th>
+                <th>Follow-up Status</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="visitorsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2 class="title">Guest Registration / Follow-up Form</h2>
+          <form id="visitorForm" class="form-grid">
+            <div class="field">
+              <label for="visitorName">Jina la Mgeni</label>
+              <input id="visitorName" placeholder="Mfano: Grace Mollel" required />
+            </div>
+            <div class="field">
+              <label for="phone">Simu</label>
+              <input id="phone" placeholder="+2557..." />
+            </div>
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" type="email" placeholder="guest@email.com" />
+            </div>
+            <div class="field">
+              <label for="address">Anwani</label>
+              <input id="address" placeholder="Mtaa, Mkoa" />
+            </div>
+            <div class="field">
+              <label for="dayosisi">Dayosisi</label>
+              <input id="dayosisi" placeholder="Dayosisi ya Dar es Salaam" />
+            </div>
+            <div class="field">
+              <label for="jimbo">Jimbo</label>
+              <input id="jimbo" placeholder="Jimbo la Kati" />
+            </div>
+            <div class="field">
+              <label for="tawi">Tawi</label>
+              <input id="tawi" placeholder="Tawi la Mikocheni" />
+            </div>
+            <div class="field">
+              <label for="invitedBy">Aliyealikwa na nani</label>
+              <input id="invitedBy" placeholder="Jina la mwalikaji / team" />
+            </div>
+            <div class="field">
+              <label for="source">Source</label>
+              <select id="source"></select>
+            </div>
+            <div class="field">
+              <label for="visitDate">Tarehe ya Kutembelea</label>
+              <input id="visitDate" type="date" />
+            </div>
+            <div class="field">
+              <label for="followupDate">Follow-up Date</label>
+              <input id="followupDate" type="date" />
+            </div>
+            <div class="field">
+              <label for="followupStatus">Follow-up Status</label>
+              <select id="followupStatus"></select>
+            </div>
+            <div class="field span-2">
+              <label for="notes">Notes</label>
+              <textarea id="notes" placeholder="Andika maelezo ya follow-up, outreach, au prayer support."></textarea>
+            </div>
+            <div class="field span-2">
+              <label for="status">Status</label>
+              <select id="status"></select>
+            </div>
+            <div class="actions span-2">
+              <button type="submit" class="btn gold">Save Visitor</button>
+              <button type="button" class="btn" data-action="clearVisitors">Clear</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="card">
+          <h2 class="title">Actions Center</h2>
+          <div class="actions">
+            <button class="btn" data-action="addVisitor">Add Visitor</button>
+            <button class="btn" data-action="editVisitor">Edit</button>
+            <button class="btn" data-action="deleteVisitor">Delete</button>
+            <button class="btn" data-action="clearVisitors">Clear</button>
+            <button class="btn" data-action="viewVisitor">View</button>
+            <button class="btn" data-action="sendSms">Send Welcome SMS</button>
+            <button class="btn" data-action="convertMember">Convert to Member</button>
+            <button class="btn" data-action="export">Export</button>
+            <button class="btn" data-action="print">Print</button>
+          </div>
+          <p>
+            Mfumo ni role-aware: wafanyakazi wa Dayosisi/Jimbo/Tawi wanafuatilia wageni kwa scope yao, na conversion process inaendelea kwa hatua
+            salama.
+          </p>
+        </section>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase23-visitor-management-main.js"></script>
+  </body>
+</html>

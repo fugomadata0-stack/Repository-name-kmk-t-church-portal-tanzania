@@ -1,0 +1,45 @@
+@import "variables";
+@import "mixins";
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Inter, system-ui, sans-serif;
+  color: $text;
+  background: radial-gradient(circle at 20% 0%, #1b3f73, $bg);
+}
+
+.layout { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; gap: 14px; }
+
+.card {
+  @include card-surface;
+  padding: 16px;
+}
+
+.hero { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; align-items: center; }
+.subtitle { color: $muted; margin: 0 0 8px; line-height: 1.55; }
+.note {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: $radius-md;
+  padding: 10px;
+  font-size: 13px;
+}
+
+input, select, textarea { @include field-base; }
+.btn { @include action-btn; }
+.btn.gold {
+  background: linear-gradient(180deg, #ebd28a, #caa33a);
+  color: #2a1b03;
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+.toast.error {
+  border-color: rgba(239, 68, 68, 0.6);
+  background: $danger;
+}
+
+@media (max-width: 840px) {
+  .hero { grid-template-columns: 1fr; }
+}

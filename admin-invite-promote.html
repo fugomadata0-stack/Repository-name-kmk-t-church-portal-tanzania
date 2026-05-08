@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Usajili wa Mialiko, Upandishaji wa Role, na Ruhusa za Ziada | KMK(T)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase32-invite-promote.css" />
+  </head>
+  <body data-back-fallback="dashboard.html">
+    <main class="layout">
+      <header class="card hero">
+        <div>
+          <h1>USAJILI WA MIALIKO, UPANDISHAJI WA ROLE, NA RUHUSA ZA ZIADA</h1>
+          <p>
+            <strong>Mfumo salama wa Chief / Super Admin</strong> (na National Admin / Office Admin ikiwa
+            wameruhusiwa): mialiko ya watumiaji, upandishaji wa role, ruhusa za ziada (Approver, Reviewer, Finance
+            Access, n.k.), na badilishaji bila usajili wa umma. <span lang="en">Premium admin workflow — production UI shell with local persistence.</span>
+          </p>
+          <p style="margin-top: 8px">
+            <span class="badge badge-role" id="actorRoleBadge">Role</span>
+            <span class="badge badge-secure" id="accessLevelBadge">Access</span>
+          </p>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <a class="btn" href="dashboard.html">Rudi Dashibodi</a>
+          <a class="btn" href="access-control-workflow.html">Usalama / Access</a>
+        </div>
+      </header>
+
+      <section class="card" id="settingsCard">
+        <h2 class="section-title">Mipangilio ya Mialiko ya Super Admin / Super invite policy</h2>
+        <p class="muted" style="color: var(--muted); font-size: 13px; margin: 0 0 10px">
+          Chief Admin anaweza kuwezesha Super Admin kutuma mialiko ya Super. Slot za Super Admin ni
+          <strong>4 pekee</strong> — zinaunganishwa na <code>kmt_super_admin_slots</code>.
+        </p>
+        <div class="settings-grid">
+          <label
+            ><input type="checkbox" id="chkSuperCanInvite" /> Ruhusu Super Admin atume “Super Admin Invite” (Chief
+            approval)</label
+          >
+          <label
+            ><input type="checkbox" id="chkNationalCanModule" /> National Admin aweze kutumia moduli hii (Chief/Super
+            grant)</label
+          >
+          <label
+            ><input type="checkbox" id="chkOfficeLimited" checked /> Office Admin — matumizi ya chini (limited)</label
+          >
+        </div>
+        <div id="superSlotsSummary" class="profile-mini" style="margin-top: 12px"></div>
+      </section>
+
+      <section class="card" id="profileIntegrationCard">
+        <h2 class="section-title">Muunganisho wa wasifu / User profile integration</h2>
+        <div id="profileIntegrationBody" class="profile-mini"></div>
+        <div class="timeline" id="profileTimeline" style="margin-top: 10px"></div>
+      </section>
+
+      <section class="card">
+        <nav class="tabs" id="mainTabs" aria-label="Sehemu za moduli">
+          <button type="button" class="tab active" data-tab="invite">Mialiko / Invites</button>
+          <button type="button" class="tab" data-tab="promote">Upandishaji / Promotions</button>
+          <button type="button" class="tab" data-tab="layer">Ruhusa za ziada / Layers</button>
+          <button type="button" class="tab" data-tab="replace">Badilishaji / Replacement</button>
+        </nav>
+        <div class="panels">
+          <div class="panel" data-panel="invite" id="panelInvite">
+            <h2 class="section-title">MTUMIE MWALIKO MTUMIAJI / Invite user</h2>
+            <form id="formInvite" class="form-grid">
+              <label class="span-2"
+                >Jina kamili / Full name<input name="fullName" required placeholder="Mfano: Neema Chuwa"
+              /></label>
+              <label>Barua pepe / Email<input type="email" name="email" required /></label>
+              <label>Simu / Phone<input name="phone" placeholder="+255…" /></label>
+              <label
+                >Aina ya mwaliko / Invite type<select name="inviteType" id="inviteTypeSelect"></select
+              ></label>
+              <label>Role ya kukabidhi / Role to assign<select name="roleToAssign" id="roleToAssignSelect"></select></label>
+              <label>Role kuu / Primary role<select name="primaryRole" id="primaryRoleSelect"></select></label>
+              <label class="span-2"
+                >Roles za ziada / Additional roles (optional)<input name="additionalRoles" placeholder="Comma-separated"
+              /></label>
+              <label>Level / Assigned level<select name="assignedLevel" id="assignedLevelSelect"></select></label>
+              <label>Kitengo / Assigned unit<input name="assignedUnit" placeholder="Dayosisi / Jimbo / Tawi" /></label>
+              <label id="slotFieldLabel"
+                >Nambari ya slot (Super Admin 1–4)<input name="slotNumber" type="number" min="1" max="4" placeholder="1"
+              /></label>
+              <label>Tarehe ya kuanza / Start date<input type="date" name="startDate" id="inviteStartDate" /></label>
+              <label>Tarehe ya mwisho / End date (optional)<input type="date" name="endDate" /></label>
+              <label
+                >Muda / Temporary or Permanent<select name="tempOrPermanent">
+                  <option value="Permanent">Permanent / Kudumu</option>
+                  <option value="Temporary">Temporary / Ya muda</option>
+                </select></label
+              >
+              <label>Invitation expiry date<input type="date" name="inviteExpiry" id="inviteExpiry" required /></label>
+              <label class="span-4"
+                >Maelezo / Notes<textarea name="notes" rows="2" placeholder="Maelezo ya ndani…"></textarea></label
+              >
+              <label class="span-2 check" style="display: flex; align-items: center; gap: 8px"
+                ><input type="checkbox" name="saveAsDraft" value="1" /> Hifadhi rasimu tu / Save as draft</label
+              >
+              <div class="span-2" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: end">
+                <button type="submit" class="btn gold">Unda mwaliko / Create invite</button>
+                <button type="button" class="btn" id="btnCopyInviteTemplate">Nakili template ya barua pepe</button>
+              </div>
+            </form>
+            <h3 class="section-title">ORODHA YA MIALIKO YA WATUMIAJI</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>S/N</th>
+                    <th>Mtumiaji</th>
+                    <th>Barua pepe</th>
+                    <th>Aina</th>
+                    <th>Role</th>
+                    <th>Level</th>
+                    <th>Kitengo</th>
+                    <th>Hali</th>
+                    <th>Token</th>
+                    <th>Vitendo</th>
+                  </tr>
+                </thead>
+                <tbody id="tblInvites"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="promote" id="panelPromote" hidden>
+            <h2 class="section-title">MPANDISHE MTUMIAJI ROLE YA JUU / Promote user</h2>
+            <form id="formPromote" class="form-grid">
+              <label class="span-2">Chagua mtumiaji / User name<input name="userName" required /></label>
+              <label>Barua pepe (optional, kwa muunganisho) / User email<input type="email" name="userEmail" /></label>
+              <label>Role za sasa / Current roles<input name="currentRoles" required /></label>
+              <label>Role mpya / New role<select name="newRole" id="promoteNewRoleSelect"></select></label>
+              <label
+                >Aina ya upandishaji / Promotion type<select name="promotionType">
+                  <option value="permanent">Permanent</option>
+                  <option value="temporary">Temporary</option>
+                  <option value="acting">Acting / Mkuu wa muda</option>
+                </select></label
+              >
+              <label>Level<select name="assignedLevel" class="promote-level"></select></label>
+              <label>Kitengo / Unit<input name="assignedUnit" /></label>
+              <label>Start date<input type="date" name="startDate" class="promote-start" /></label>
+              <label>End date (temporary)<input type="date" name="endDate" /></label>
+              <label class="span-2">Sababu / Reason<textarea name="reason" rows="2" required></textarea></label>
+              <label class="span-2">Notes<textarea name="notes" rows="1"></textarea></label>
+              <label class="check" style="display: flex; align-items: center; gap: 8px"
+                ><input type="checkbox" name="approvalNeeded" value="1" checked /> Approval needed / Inahitaji
+                idhini</label
+              >
+              <label class="check" style="display: flex; align-items: center; gap: 8px"
+                ><input type="checkbox" name="saveAsDraft" value="1" /> Rasimu / Draft</label
+              >
+              <div class="span-4" style="display: flex; flex-wrap: wrap; gap: 8px">
+                <button type="submit" class="btn gold">Wasilisha upandishaji / Submit promotion</button>
+              </div>
+            </form>
+            <h3 class="section-title">ORODHA YA UPANDISHAJI WA ROLE</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>S/N</th>
+                    <th>Mtumiaji</th>
+                    <th>Role za sasa</th>
+                    <th>Role mpya</th>
+                    <th>Level</th>
+                    <th>Hali</th>
+                    <th>Tarehe</th>
+                    <th>Vitendo</th>
+                  </tr>
+                </thead>
+                <tbody id="tblPromotions"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="layer" id="panelLayer" hidden>
+            <h2 class="section-title">ONGEZA RUHUSA YA ZIADA / Add permission layer</h2>
+            <p style="color: var(--muted); font-size: 13px; margin: 0 0 10px">
+              Approver, Reviewer, Finance Access — zikiwa <strong>ruhusa za ziada</strong> juu ya role ya msingi, sio
+              usajili wa umma.
+            </p>
+            <form id="formLayer" class="form-grid">
+              <label>Mtumiaji / User<input name="userName" required /></label>
+              <label>User email (optional)<input type="email" name="userEmail" /></label>
+              <label>Role kuu / Primary role<input name="primaryRole" required /></label>
+              <label>Ruhusa ya ziada / Layer<select name="layer" id="layerSelect"></select></label>
+              <label
+                >Scope<select name="scope">
+                  <option>global</option>
+                  <option>diocese</option>
+                  <option>jimbo</option>
+                  <option>branch</option>
+                  <option>module</option>
+                </select></label
+              >
+              <label>Kitengo / Module<input name="unit" /></label>
+              <label>Start date<input type="date" name="startDate" class="layer-start" /></label>
+              <label>End date (optional)<input type="date" name="endDate" /></label>
+              <label
+                ><select name="tempOrPermanent">
+                  <option value="Permanent">Permanent</option>
+                  <option value="Temporary">Temporary</option>
+                </select></label
+              >
+              <label class="span-2">Sababu / Reason<textarea name="reason" rows="2"></textarea></label>
+              <label class="span-2">Notes<textarea name="notes" rows="1"></textarea></label>
+              <label class="check" style="display: flex; gap: 8px; align-items: center"
+                ><input type="checkbox" name="saveAsDraft" value="1" /> Rasimu</label
+              >
+              <div class="span-4"><button type="submit" class="btn gold">Wasilisha ombi la ruhusa</button></div>
+            </form>
+            <h3 class="section-title">ORODHA YA RUHUSA ZA ZIADA</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>S/N</th>
+                    <th>Mtumiaji</th>
+                    <th>Role</th>
+                    <th>Layer</th>
+                    <th>Scope</th>
+                    <th>Hali</th>
+                    <th>Vitendo</th>
+                  </tr>
+                </thead>
+                <tbody id="tblLayers"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="replace" id="panelReplace" hidden>
+            <h2 class="section-title">BADILISHA MTUMIAJI ALIYEPO / Replace user</h2>
+            <form id="formReplace" class="form-grid">
+              <label>Mtumiaji wa sasa / Current user<input name="currentUser" required /></label>
+              <label>Mbadala / Replacement user or invite<input name="replacementUser" required /></label>
+              <label class="check" style="display: flex; gap: 8px; align-items: center"
+                ><input type="checkbox" name="replacementIsInvite" value="1" /> Mbadala ni mwaliko mpya / Replacement is
+                new invite</label
+              >
+              <label>Effective date<input type="date" name="effectiveDate" id="repEffective" /></label>
+              <label class="check" style="display: flex; gap: 8px; align-items: center"
+                ><input type="checkbox" name="immediate" value="1" checked /> Badili mara moja / Immediate switch</label
+              >
+              <label class="check" style="display: flex; gap: 8px; align-items: center"
+                ><input type="checkbox" name="transferPendingTasks" value="1" /> Hamisha majukumu yanayosubiri /
+                Transfer pending tasks</label
+              >
+              <label class="span-4">Sababu<textarea name="reason" rows="2" required></textarea></label>
+              <label class="span-4">Notes<textarea name="notes" rows="1"></textarea></label>
+              <div class="span-4"><button type="submit" class="btn gold">Wasilisha badilishaji</button></div>
+            </form>
+            <h3 class="section-title">Orodha ya badilishaji</h3>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>S/N</th>
+                    <th>Aliyepo</th>
+                    <th>Mbadala</th>
+                    <th>Tarehe</th>
+                    <th>Hali</th>
+                    <th>Vitendo</th>
+                  </tr>
+                </thead>
+                <tbody id="tblReplacements"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">RUHUSA ZA JUU ZILIZO HAI / Active elevated assignments</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px">
+          <button type="button" class="btn" id="btnExportActive">Export CSV</button>
+          <button type="button" class="btn" id="btnPrintActive">Print</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>S/N</th>
+                <th>User</th>
+                <th>Current Role</th>
+                <th>Requested / Assigned Role</th>
+                <th>Permission Layer</th>
+                <th>Scope</th>
+                <th>Unit</th>
+                <th>Status</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Temp/Perm</th>
+                <th>Approved By</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tblActive"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <div class="card" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+        <div>
+          <h2 class="section-title">Historia ya ukaguzi / Audit log</h2>
+          <div class="timeline" id="auditTimeline"></div>
+        </div>
+        <div>
+          <h2 class="section-title">Arifa / Notifications</h2>
+          <div class="timeline" id="notifyTimeline"></div>
+        </div>
+      </div>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+
+    <div class="confirm-backdrop" id="confirmBackdrop" aria-hidden="true">
+      <div class="confirm-dialog" role="dialog" aria-modal="true">
+        <h3 id="confirmTitle">Thibitisha</h3>
+        <p id="confirmMessage"></p>
+        <div class="confirm-actions">
+          <button type="button" class="btn" id="confirmCancelBtn">Ghairi</button>
+          <button type="button" class="btn gold" id="confirmOkBtn">Ndio, endelea</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="detailModal" aria-hidden="true">
+      <div class="modal-card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px">
+          <h3 style="margin: 0; color: #ffe9b8">Maelezo / Detail</h3>
+          <button type="button" class="btn" id="detailCloseBtn">Funga</button>
+        </div>
+        <pre id="detailModalBody"></pre>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-config.local.js"></script>
+    <script src="supabase-config.js"></script>
+    <script type="module" src="phase32-invite-promote-main.js"></script>
+    <script src="global-back-button.js"></script>
+  </body>
+</html>

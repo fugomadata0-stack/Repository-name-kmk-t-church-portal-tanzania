@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KMT CHURCH TANZANIA PORTAL</title>
+    <meta
+      name="description"
+      content="Official Digital Platform for KMT Church Tanzania - Serving the Church Through Digital Excellence."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="#home" class="brand">
+          <span class="brand-mark">KMT</span>
+          <span class="brand-text">CHURCH TANZANIA PORTAL</span>
+        </a>
+        <button class="menu-toggle" aria-label="Toggle menu" id="menuToggle">Menu</button>
+        <nav class="top-nav" id="topNav">
+          <a href="#home">Home</a>
+          <a href="#about">About KMT</a>
+          <a href="#structure">Church Structure</a>
+          <a href="#leadership">Leadership</a>
+          <a href="#branches">Branches</a>
+          <a href="#ministries">Ministries</a>
+          <a href="#events">Events & Camps</a>
+          <a href="#media">Media & Sermons</a>
+          <a href="#donations">Donations</a>
+          <a href="#contact">Contact</a>
+          <a href="#" class="btn btn-outline">Login</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section id="home" class="hero reveal">
+        <div class="container hero-grid">
+          <div>
+            <p class="eyebrow">Official Digital Platform for KMT Church Tanzania</p>
+            <h1>Karibu KMT Church Tanzania Portal</h1>
+            <p class="hero-subtitle">
+              Mfumo rasmi wa kidigitali unaounganisha huduma, uongozi, mawasiliano na utendaji wa
+              Kanisa la KMT Tanzania kwa utukufu wa Mungu.
+            </p>
+            <p class="verse">“For with God nothing shall be impossible.” — Luke 1:37</p>
+            <div class="cta-row">
+              <a href="#about" class="btn">Explore Church</a>
+              <a href="#events" class="btn btn-soft">View Events</a>
+              <a href="#donations" class="btn btn-gold">Donate Now</a>
+              <a href="#" class="btn btn-outline">Login Portal</a>
+            </div>
+          </div>
+          <div class="hero-cards">
+            <article class="panel">
+              <h3>KMT Logo Area</h3>
+              <p>Official identity crest and ministry seal placeholder.</p>
+            </article>
+            <article class="panel image-placeholder">
+              <h3>Jesus / Church Image Area</h3>
+              <p>Respectful faith-centered visual space for Christian imagery.</p>
+            </article>
+            <article class="panel verse-card">
+              <h3>Bible Verse Card</h3>
+              <p>Faith inspiration for every visitor and believer.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="container stats-grid">
+          <article class="stat-card"><h3>120+</h3><p>Branches / Matawi</p></article>
+          <article class="stat-card"><h3>40+</h3><p>Major Ministries</p></article>
+          <article class="stat-card"><h3>300+</h3><p>Leaders Nationwide</p></article>
+          <article class="stat-card"><h3>52</h3><p>Annual Events & Camps</p></article>
+        </div>
+      </section>
+
+      <section class="section reveal">
+        <div class="container two-col">
+          <article class="card">
+            <h2>Announcements Preview</h2>
+            <ul>
+              <li>National prayer week preparations in progress.</li>
+              <li>Youth convention registration opens this month.</li>
+              <li>Regional leadership briefing scheduled on Friday.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h2>Upcoming Events Preview</h2>
+            <ul>
+              <li>KMT Easter Revival Camp - Dar es Salaam.</li>
+              <li>Women ministry discipleship summit - Arusha.</li>
+              <li>Choir and worship encounter night - Mwanza.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section id="about" class="section reveal">
+        <div class="container">
+          <h2>About KMT</h2>
+          <p class="section-intro">Church identity, history, and mission foundation.</p>
+          <div class="card-grid">
+            <article class="card"><h3>History</h3><p>Origin story and growth testimony of KMT Church Tanzania.</p></article>
+            <article class="card"><h3>Vision</h3><p>To raise Christ-centered communities that transform nations.</p></article>
+            <article class="card"><h3>Mission</h3><p>Evangelize, disciple, equip leaders, and expand kingdom impact.</p></article>
+            <article class="card"><h3>Core Values</h3><p>Holiness, integrity, excellence, unity, and service.</p></article>
+            <article class="card"><h3>Motto</h3><p>Serving the Church Through Digital Excellence.</p></article>
+            <article class="card"><h3>Timeline & Message</h3><p>Milestones and leadership message for this digital era.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section id="structure" class="section reveal">
+        <div class="container">
+          <h2>Church Structure</h2>
+          <p class="section-intro">Organizational hierarchy and ministry map.</p>
+          <div class="card-grid">
+            <article class="card"><h3>National Office</h3><p>Central administration and strategic direction.</p></article>
+            <article class="card"><h3>Dioceses</h3><p>Regional episcopal leadership units.</p></article>
+            <article class="card"><h3>Districts / Jimbo</h3><p>District faith governance and church oversight.</p></article>
+            <article class="card"><h3>Branches</h3><p>Matawi network across Tanzania and beyond.</p></article>
+            <article class="card"><h3>Departments & Ministries</h3><p>Service arms and specialized Christian missions.</p></article>
+            <article class="card"><h3>Search Structure</h3><p>Placeholder for quick structure discovery tools.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section id="leadership" class="section reveal">
+        <div class="container">
+          <h2>Leadership</h2>
+          <div class="card-grid">
+            <article class="card"><h3>National Bishop</h3><p>Spiritual covering and national leadership anchor.</p></article>
+            <article class="card"><h3>Diocesan Bishops</h3><p>Regional shepherding and accountability.</p></article>
+            <article class="card"><h3>District Leaders</h3><p>Operational leadership at district level.</p></article>
+            <article class="card"><h3>Pastors & Elders</h3><p>Local church care, discipleship, and teaching.</p></article>
+            <article class="card"><h3>Youth & Women Leaders</h3><p>Community guidance for key church groups.</p></article>
+            <article class="card"><h3>Department Leaders</h3><p>Functional ministry leadership and execution.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section id="branches" class="section reveal">
+        <div class="container">
+          <h2>Branches / Matawi</h2>
+          <div class="toolbar">
+            <input type="text" placeholder="Search branch..." />
+            <select><option>Filter by Region</option></select>
+            <select><option>Filter by District</option></select>
+          </div>
+          <div class="card-grid">
+            <article class="card"><h3>Branch Profile</h3><p>Overview, pastor in charge, and service details.</p></article>
+            <article class="card"><h3>Contacts</h3><p>Phone and email contact placeholders.</p></article>
+            <article class="card"><h3>Map Placeholder</h3><p>Future branch location map integration area.</p></article>
+            <article class="card"><h3>Service Schedule</h3><p>Sunday and weekday worship timetable preview.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section id="ministries" class="section reveal">
+        <div class="container">
+          <h2>Ministries</h2>
+          <div class="card-grid">
+            <article class="card"><h3>Youth Ministry</h3><p>Mentorship, outreach, and discipleship programs.</p></article>
+            <article class="card"><h3>Women Ministry</h3><p>Faith-building and family empowerment initiatives.</p></article>
+            <article class="card"><h3>Men Ministry</h3><p>Leadership, integrity, and kingdom service.</p></article>
+            <article class="card"><h3>Choir / Worship</h3><p>Praise and worship excellence platform.</p></article>
+            <article class="card"><h3>Sunday School</h3><p>Biblical formation for children and young believers.</p></article>
+            <article class="card"><h3>Prayer & Outreach</h3><p>Intercession and mission outreach initiatives.</p></article>
+            <article class="card"><h3>Media Ministry</h3><p>Digital broadcasting and content evangelism.</p></article>
+            <article class="card"><h3>Department Collaboration</h3><p>Connected operations across church teams.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section id="events" class="section reveal">
+        <div class="container">
+          <h2>Events & Camps</h2>
+          <div class="card-grid">
+            <article class="card"><h3>Upcoming Events</h3><p>Revivals, conferences, and ministry meetings.</p></article>
+            <article class="card"><h3>Camps / Makambi</h3><p>Faith camps for all ages and ministry groups.</p></article>
+            <article class="card"><h3>Calendar Preview</h3><p>Future events calendar integration placeholder.</p></article>
+            <article class="card"><h3>Theme & Scripture</h3><p>Prophetic themes and anchor verses.</p></article>
+            <article class="card"><h3>Preachers / Teachers</h3><p>Guest speakers and internal ministry hosts.</p></article>
+            <article class="card"><h3>Location & Participants</h3><p>Venue details and participation insights.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section id="media" class="section reveal">
+        <div class="container">
+          <h2>Media & Sermons</h2>
+          <div class="card-grid">
+            <article class="card"><h3>Sermon Videos</h3><p>Video teachings and live service recordings.</p></article>
+            <article class="card"><h3>Audio Sermons</h3><p>Podcast-ready audio sermon library.</p></article>
+            <article class="card"><h3>Photo Gallery</h3><p>Church and camp photo collections.</p></article>
+            <article class="card"><h3>Church Documents</h3><p>Digital documents and downloadable notices.</p></article>
+            <article class="card"><h3>Worship Videos</h3><p>Praise sessions and worship moments archive.</p></article>
+            <article class="card"><h3>Download Center</h3><p>Public resources and ministry content hub.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section id="donations" class="section reveal">
+        <div class="container">
+          <h2>Donations / Support</h2>
+          <div class="two-col">
+            <article class="card">
+              <h3>Giving Channels</h3>
+              <ul>
+                <li>Sadaka</li>
+                <li>Zaka</li>
+                <li>Project Contributions</li>
+                <li>Camp Contributions</li>
+              </ul>
+            </article>
+            <article class="card">
+              <h3>Donation Form Placeholder</h3>
+              <p>Payment methods placeholder, receipt note, and transparency statement.</p>
+              <a class="btn btn-gold" href="#">Start Giving</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="contact" class="section reveal">
+        <div class="container">
+          <h2>Contact</h2>
+          <div class="two-col">
+            <article class="card">
+              <h3>Reach KMT Office</h3>
+              <p>Phone: +255 XXX XXX XXX</p>
+              <p>Email: info@kmtchurch.or.tz</p>
+              <p>Address: Tanzania National Office Placeholder</p>
+              <p>Office Hours: Mon - Fri, 08:00 - 17:00</p>
+              <p>Social Links: Facebook, YouTube, Instagram (placeholder)</p>
+            </article>
+            <article class="card">
+              <h3>Contact Form</h3>
+              <form>
+                <input type="text" placeholder="Full Name" />
+                <input type="email" placeholder="Email Address" />
+                <textarea rows="4" placeholder="Your Message"></textarea>
+                <button type="button" class="btn">Send Message</button>
+              </form>
+              <p class="small-note">Map placeholder and quick support channel coming next phase.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container">
+        <h3>KMT Church Tanzania Portal</h3>
+        <p>Serving the Church Through Digital Excellence</p>
+        <p>“For with God nothing shall be impossible.” — Luke 1:37</p>
+        <p>Softdeveloper: MR Fugo</p>
+        <p>Phone: 0624683622</p>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

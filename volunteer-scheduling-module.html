@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="sw">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ratiba za Huduma & Volunteers | KMK(T) NATIONAL CHURCH PORTAL</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="phase24-volunteer-scheduling.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <header class="hero card">
+        <div class="hero-content">
+          <h1>Ratiba za Huduma & Volunteers</h1>
+          <p>
+            Kituo hiki kinasimamia assignments za church workers, ushers, choir, media team, prayer team, na event helpers kwa Dayosisi, Jimbo, na
+            Tawi.
+          </p>
+          <div class="mini-modules" id="miniModules"></div>
+        </div>
+        <div class="hero-images">
+          <article class="image-pill jesus">Jesus Service</article>
+          <article class="image-pill bible">Bible Order</article>
+          <article class="image-pill church">Church Planning</article>
+        </div>
+        <a class="back-btn" href="dashboard.html">Rudi Dashibodi</a>
+      </header>
+
+      <section class="kpi-grid" id="kpiGrid"></section>
+
+      <section class="card">
+        <h2 class="title">Service Calendar / Schedule Cards</h2>
+        <div class="calendar-grid" id="scheduleCards"></div>
+      </section>
+
+      <section class="card">
+        <h2 class="title">Orodha ya Volunteers</h2>
+        <div class="table-tools">
+          <button class="btn gold" data-action="addVolunteer">Add Volunteer</button>
+          <button class="btn" data-action="export">Export</button>
+          <button class="btn" data-action="print">Print</button>
+          <button class="btn" data-action="clearVolunteers">Clear</button>
+          <span class="status amber" id="liveBadge">Realtime: Syncing...</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Jina</th>
+                <th>Simu</th>
+                <th>Team / Huduma</th>
+                <th>Dayosisi</th>
+                <th>Jimbo</th>
+                <th>Tawi</th>
+                <th>Availability</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="volunteersBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="title">Ratiba za Huduma</h2>
+        <div class="table-tools">
+          <button class="btn gold" data-action="addSchedule">Add Schedule</button>
+          <button class="btn" data-action="export">Export</button>
+          <button class="btn" data-action="print">Print</button>
+          <button class="btn" data-action="clearSchedules">Clear</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tarehe</th>
+                <th>Aina ya Huduma</th>
+                <th>Team</th>
+                <th>Volunteer</th>
+                <th>Role</th>
+                <th>Location</th>
+                <th>Time</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="schedulesBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="grid-2">
+        <section class="card">
+          <h2 class="title">Add / Update Volunteer</h2>
+          <form id="volunteerForm" class="form-grid">
+            <div class="field"><label for="volunteerName">Jina</label><input id="volunteerName" required /></div>
+            <div class="field"><label for="volunteerPhone">Simu</label><input id="volunteerPhone" /></div>
+            <div class="field"><label for="team">Team / Huduma</label><select id="team"></select></div>
+            <div class="field"><label for="availability">Availability</label><select id="availability"></select></div>
+            <div class="field"><label for="dayosisi">Dayosisi</label><input id="dayosisi" /></div>
+            <div class="field"><label for="jimbo">Jimbo</label><input id="jimbo" /></div>
+            <div class="field"><label for="tawi">Tawi</label><input id="tawi" /></div>
+            <div class="field"><label for="volunteerStatus">Status</label><select id="volunteerStatus"></select></div>
+            <div class="actions span-2">
+              <button type="submit" class="btn gold">Save Volunteer</button>
+              <button type="button" class="btn" data-action="clearVolunteers">Clear</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="card">
+          <h2 class="title">Add / Update Schedule</h2>
+          <form id="scheduleForm" class="form-grid">
+            <div class="field"><label for="scheduleDate">Tarehe</label><input id="scheduleDate" type="date" /></div>
+            <div class="field"><label for="scheduleHudumaType">Aina ya Huduma</label><select id="scheduleHudumaType"></select></div>
+            <div class="field"><label for="scheduleTeam">Team</label><select id="scheduleTeam"></select></div>
+            <div class="field"><label for="scheduleVolunteer">Volunteer</label><input id="scheduleVolunteer" /></div>
+            <div class="field"><label for="scheduleRole">Role</label><input id="scheduleRole" /></div>
+            <div class="field"><label for="scheduleLocation">Location</label><input id="scheduleLocation" /></div>
+            <div class="field"><label for="scheduleTime">Time</label><input id="scheduleTime" type="time" /></div>
+            <div class="field"><label for="scheduleStatus">Status</label><select id="scheduleStatus"></select></div>
+            <div class="actions span-2">
+              <button type="submit" class="btn gold">Save Schedule</button>
+              <button type="button" class="btn" data-action="clearSchedules">Clear</button>
+            </div>
+          </form>
+        </section>
+      </section>
+    </main>
+
+    <div class="toast-wrap" id="toastWrap"></div>
+    <script type="module" src="phase24-volunteer-scheduling-main.js"></script>
+  </body>
+</html>
