@@ -141,6 +141,14 @@ const LOGIN_FAIL_STORAGE_KEY = "kmkt_auth_failures_v1";
 const LOGIN_BLOCK_UNTIL_KEY = "kmkt_auth_block_until_v1";
 const SESSION_ACTIVITY_KEY = "kmkt_last_activity_v1";
 const SESSION_IDLE_LIMIT_MS = 30 * 60 * 1000;
+let initialSessionPromise: Promise<Session | null> | null = null;
+
+async function getInitialSessionOnce(client: NonNullable<ReturnType<typeof getSupabase>>): Promise<Session | null> {
+  if (!initialSessionPromise) {
+    initialSessionPromise = client.auth.getSession().then(({ data }) => data.session ?? null);
+  }
+  return initialSessionPromise;
+}
 
 function isInvalidRefreshTokenError(err: unknown): boolean {
   const msg = String((err as { message?: unknown } | null)?.message ?? err ?? "").toLowerCase();
@@ -458,6 +466,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string): Promise<string | null> => {
       const client = getSupabase();
       if (!client) return "Supabase haijasanidiwa.";
+      if (authBusy) return "Tafadhali subiri, ombi lingine la kuingia linaendelea.";
       const normalizedEmail = email.trim().toLowerCase();
       const serverRate = await checkAndIncrementRateLimit("login", normalizedEmail, 5, 300, 300);
       if (serverRate && !serverRate.allowed) {
@@ -531,7 +540,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         setAuthBusy(false);
       }
     },
-    []
+    [authBusy]
   );
 
   const signOut = useCallback(async () => {
@@ -560,6 +569,34 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   loadPortalAccessRef.current = loadPortalAccess;
   const clearPortalAccessRef = useRef(clearPortalAccess);
   clearPortalAccessRef.current = clearPortalAccess;
+  const runPortalAccessRef = useRef<(user: User | null | undefined) => Promise<void>>(async () => undefined);
+  const portalAccessInflightRef = useRef<{ userId: string | null; promise: Promise<void> | null }>({
+    userId: null,
+    promise: null,
+  });
+  const runPortalAccess = useCallback(async (user: User | null | undefined) => {
+    const userId = user?.id ?? null;
+    if (!userId) {
+      portalAccessInflightRef.current = { userId: null, promise: null };
+      clearPortalAccessRef.current();
+      return;
+    }
+    const inFlight = portalAccessInflightRef.current;
+    if (inFlight.promise && inFlight.userId === userId) {
+      await inFlight.promise;
+      return;
+    }
+    const nextPromise = loadPortalAccessRef.current(user);
+    portalAccessInflightRef.current = { userId, promise: nextPromise };
+    try {
+      await nextPromise;
+    } finally {
+      if (portalAccessInflightRef.current.promise === nextPromise) {
+        portalAccessInflightRef.current.promise = null;
+      }
+    }
+  }, []);
+  runPortalAccessRef.current = runPortalAccess;
 
   const canPortalViewModule = useCallback(
     (moduleKey: string) => !!matrixByModule.get(moduleKey)?.can_view,
@@ -617,14 +654,13 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
 
-    void client.auth
-      .getSession()
-      .then(({ data: { session: s } }) => {
+    void getInitialSessionOnce(client)
+      .then((s) => {
         if (cancelled) return;
         setSession(s ?? null);
         setAuthUser(s?.user ?? null);
         setAuthInitialized(true);
-        if (s?.user) void loadPortalAccessRef.current(s.user);
+        if (s?.user) void runPortalAccessRef.current(s.user);
         else clearPortalAccessRef.current();
       })
       .catch((e) => {
@@ -642,10 +678,11 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         clearPortalAccessRef.current();
       });
 
-    const { data: sub } = client.auth.onAuthStateChange((_event, s) => {
+    const { data: sub } = client.auth.onAuthStateChange((event, s) => {
+      if (event === "INITIAL_SESSION") return;
       setSession(s ?? null);
       setAuthUser(s?.user ?? null);
-      if (s?.user) void loadPortalAccessRef.current(s.user);
+      if (s?.user) void runPortalAccessRef.current(s.user);
       else clearPortalAccessRef.current();
     });
 
@@ -719,9 +756,9 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const client = getSupabase();
-    if (!client) return;
+    if (!client || !authInitialized || !authUser) return;
     const ch = client
-      .channel("site-settings")
+      .channel("site-settings-live")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "site_settings" },
@@ -731,7 +768,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     return () => {
       void client.removeChannel(ch);
     };
-  }, [refreshSite]);
+  }, [refreshSite, authInitialized, authUser]);
 
   const saveSite = useCallback(
     async (patch: Partial<SiteSettingsState>) => {

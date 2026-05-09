@@ -1,4 +1,5 @@
 import { formatPostgrestError } from "../lib/supabaseErrors";
+import { getCurrentUserId } from "../lib/supabaseAuthSession";
 import { getSupabase } from "../lib/supabaseClient";
 import type { PortalNotificationPriority, PortalNotificationRow, PortalNotificationType } from "../types";
 
@@ -40,7 +41,7 @@ function rowToNotification(r: Record<string, unknown>, readByMe: boolean): Porta
 /** Orodha ya taarifa zinazoonekana kwa mtumiaji + hali ya kusoma. */
 export async function fetchNotificationsWithReadState(): Promise<PortalNotificationRow[]> {
   const c = clientOrThrow();
-  const uid = (await c.auth.getUser()).data.user?.id;
+  const uid = await getCurrentUserId();
   if (!uid) return [];
 
   const [{ data: notifs, error: e1 }, { data: reads, error: e2 }] = await Promise.all([
@@ -61,7 +62,7 @@ export async function fetchUnreadNotificationCount(): Promise<number> {
 
 export async function markNotificationRead(notificationId: string): Promise<void> {
   const c = clientOrThrow();
-  const uid = (await c.auth.getUser()).data.user?.id;
+  const uid = await getCurrentUserId();
   if (!uid) throw new Error("Hujajiunga.");
   const { error } = await c.from("notification_reads").upsert(
     { notification_id: notificationId, user_id: uid },
@@ -72,7 +73,7 @@ export async function markNotificationRead(notificationId: string): Promise<void
 
 export async function markNotificationUnread(notificationId: string): Promise<void> {
   const c = clientOrThrow();
-  const uid = (await c.auth.getUser()).data.user?.id;
+  const uid = await getCurrentUserId();
   if (!uid) throw new Error("Hujajiunga.");
   const { error } = await c.from("notification_reads").delete().eq("notification_id", notificationId).eq("user_id", uid);
   if (error) throw new Error(formatPostgrestError(error, "notification_reads.delete"));
@@ -83,7 +84,7 @@ export async function markAllNotificationsRead(): Promise<void> {
   const unread = rows.filter((r) => !r.read_by_me);
   if (unread.length === 0) return;
   const c = clientOrThrow();
-  const uid = (await c.auth.getUser()).data.user?.id;
+  const uid = await getCurrentUserId();
   if (!uid) throw new Error("Hujajiunga.");
   const payload = unread.map((r) => ({ notification_id: r.id, user_id: uid }));
   const { error } = await c.from("notification_reads").upsert(payload, { onConflict: "notification_id,user_id" });
@@ -102,7 +103,7 @@ export async function createNotification(input: {
   action_url?: string | null;
 }): Promise<PortalNotificationRow> {
   const c = clientOrThrow();
-  const uid = (await c.auth.getUser()).data.user?.id ?? null;
+  const uid = await getCurrentUserId();
   const payload = {
     module: input.module?.trim() || "general",
     title: input.title.trim(),
@@ -147,7 +148,7 @@ export async function updateNotification(
   if (patch.action_url !== undefined) payload.action_url = patch.action_url?.trim() || null;
   const { data, error } = await c.from("notifications").update(payload).eq("id", id).select("*").single();
   if (error) throw new Error(formatPostgrestError(error, "notifications.update"));
-  const uid = (await c.auth.getUser()).data.user?.id;
+  const uid = await getCurrentUserId();
   const { data: rd } = await c.from("notification_reads").select("notification_id").eq("user_id", uid ?? "").eq("notification_id", id).maybeSingle();
   const readByMe = !!rd;
   return rowToNotification(data as Record<string, unknown>, readByMe);

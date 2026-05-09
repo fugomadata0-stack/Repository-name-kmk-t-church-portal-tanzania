@@ -79,7 +79,7 @@ export function Dashboard({
   kpiRefreshing = false,
   kpiError = null,
 }: Props) {
-  const { about, site, canPortalViewModule } = usePortal();
+  const { about, site, canPortalViewModule, authInitialized, authUser } = usePortal();
   const mode = useMemo(() => resolveDashMode(submodule), [submodule]);
   const visibleModules = useMemo(() => modules.filter((m) => canPortalViewModule(m.key)), [canPortalViewModule]);
   const [identityRow, setIdentityRow] = useState<ChurchIdentityRow | null>(null);
@@ -145,10 +145,15 @@ export function Dashboard({
       }
     };
     void loadLive();
+    if (!authInitialized || !authUser) {
+      return () => {
+        cancelled = true;
+      };
+    }
     const client = getSupabase();
     if (!client) return () => { cancelled = true; };
     const ch = client
-      .channel(`dashboard-live-center-${Date.now()}`)
+      .channel("dashboard-live-center")
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => void loadLive())
       .on("postgres_changes", { event: "*", schema: "public", table: "notification_reads" }, () => void loadLive())
       .on("postgres_changes", { event: "*", schema: "public", table: "system_alerts" }, () => void loadLive())
@@ -157,7 +162,7 @@ export function Dashboard({
       cancelled = true;
       void client.removeChannel(ch);
     };
-  }, []);
+  }, [authInitialized, authUser]);
   const pending = kpiLive.pendingRecordsCrossModule;
   const incomplete = kpiLive.incompleteLeadersCount;
   const pendingVerification = kpiLive.pendingVerificationCount;

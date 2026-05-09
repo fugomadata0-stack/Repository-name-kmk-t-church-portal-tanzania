@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let _client: SupabaseClient | null = null;
+const SUPABASE_FETCH_TIMEOUT_MS = 15000;
+const SUPABASE_FETCH_RETRIES = 2;
 
 function normalizeEnvUrl(raw: string): string {
   return raw.trim().replace(/\/+$/, "");
@@ -26,6 +28,60 @@ function validateAnonKey(key: string): string | null {
     return "Usitumie service role key kwenye frontend.";
   }
   return null;
+}
+
+function shouldRetryNetworkError(err: unknown): boolean {
+  const msg = String((err as { message?: unknown } | null)?.message ?? err ?? "").toLowerCase();
+  return (
+    msg.includes("failed to fetch") ||
+    msg.includes("networkerror") ||
+    msg.includes("network request failed") ||
+    msg.includes("timed out") ||
+    msg.includes("timeout") ||
+    msg.includes("connection reset") ||
+    msg.includes("err_connection_reset") ||
+    msg.includes("err_quic_protocol_error")
+  );
+}
+
+function canRetryRequest(input: RequestInfo | URL, init: RequestInit | undefined): boolean {
+  const method = String(init?.method ?? "GET").toUpperCase();
+  if (method === "GET" || method === "HEAD") return true;
+  const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+  // Auth token refresh POST is safe to retry and helps unstable connections.
+  return method === "POST" && url.includes("/auth/v1/token");
+}
+
+async function fetchWithTimeoutAndRetry(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    throw new Error("Hakuna intaneti kwa sasa.");
+  }
+
+  const retryable = canRetryRequest(input, init);
+  const maxAttempts = retryable ? SUPABASE_FETCH_RETRIES + 1 : 1;
+  let lastErr: unknown = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), SUPABASE_FETCH_TIMEOUT_MS);
+    try {
+      const merged: RequestInit = { ...init, signal: controller.signal };
+      const res = await fetch(input, merged);
+      window.clearTimeout(timer);
+      if (res.ok || !retryable || attempt >= maxAttempts) return res;
+      if (res.status < 500 && res.status !== 408 && res.status !== 429) return res;
+      await new Promise((r) => window.setTimeout(r, 250 * attempt));
+    } catch (err) {
+      window.clearTimeout(timer);
+      lastErr = err;
+      if (!retryable || attempt >= maxAttempts || !shouldRetryNetworkError(err)) {
+        throw err;
+      }
+      await new Promise((r) => window.setTimeout(r, 300 * attempt));
+    }
+  }
+
+  throw lastErr ?? new Error("Mtandao haupatikani kwa sasa.");
 }
 
 /**
@@ -62,8 +118,12 @@ export function getSupabase(): SupabaseClient | null {
     },
     global: {
       headers: { "X-Client-Info": "kmkt-portal-app-next" },
+      fetch: fetchWithTimeoutAndRetry,
     },
     db: { schema: "public" },
+    realtime: {
+      params: { eventsPerSecond: 5 },
+    },
   });
   return _client;
 }

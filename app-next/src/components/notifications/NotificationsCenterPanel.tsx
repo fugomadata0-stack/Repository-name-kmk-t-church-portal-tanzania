@@ -53,7 +53,7 @@ type ReadFilter = "ALL" | "READ" | "UNREAD";
 type ScopeFilter = "ALL" | "GLOBAL" | "ROLE" | "USER";
 
 export function NotificationsCenterPanel(props: { submodule?: string }) {
-  const { reportError, pushToast, authUser, canPortalCreateModule, canPortalEditModule, canPortalDeleteModule } = usePortal();
+  const { reportError, pushToast, authUser, authInitialized, canPortalCreateModule, canPortalEditModule, canPortalDeleteModule } = usePortal();
   const canCreate = canPortalCreateModule("notifications");
   const canEdit = canPortalEditModule("notifications");
   const canDelete = canPortalDeleteModule("notifications");
@@ -111,17 +111,17 @@ export function NotificationsCenterPanel(props: { submodule?: string }) {
   }, [load]);
 
   useEffect(() => {
-    if (!getSupabase()) return;
+    if (!authInitialized || !authUser || !getSupabase()) return;
     const client = getSupabase()!;
     const channel = client
-      .channel(`portal-notif-page-${Date.now()}`)
+      .channel("portal-notif-page-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => void load())
       .on("postgres_changes", { event: "*", schema: "public", table: "notification_reads" }, () => void load())
       .subscribe();
     return () => {
       void client.removeChannel(channel);
     };
-  }, [load]);
+  }, [load, authInitialized, authUser]);
 
   const filtered = useMemo(() => {
     const q = safeLower(search).trim();

@@ -1,4 +1,5 @@
 import { formatPostgrestError } from "../lib/supabaseErrors";
+import { getCurrentUserId } from "../lib/supabaseAuthSession";
 import { getSupabase } from "../lib/supabaseClient";
 import { safeJsonParseUnknown } from "../lib/security";
 import type {
@@ -60,7 +61,7 @@ export async function upsertAidBeneficiary(
   row: Partial<AidBeneficiaryRow> & { full_name: string }
 ): Promise<AidBeneficiaryRow> {
   const c = clientOrThrow();
-  const uid = (await c.auth.getUser()).data.user?.id ?? null;
+  const uid = await getCurrentUserId();
   const payload: Record<string, unknown> = {
     full_name: row.full_name.trim(),
     gender: row.gender ?? "",
@@ -87,7 +88,7 @@ export async function upsertAidRequest(
   row: Partial<AidRequestRow> & { beneficiary_id: string }
 ): Promise<AidRequestRow> {
   const c = clientOrThrow();
-  const uid = (await c.auth.getUser()).data.user?.id ?? null;
+  const uid = await getCurrentUserId();
   const itemsArr = parseItems(row.items);
   const payload: Record<string, unknown> = {
     id: row.id,

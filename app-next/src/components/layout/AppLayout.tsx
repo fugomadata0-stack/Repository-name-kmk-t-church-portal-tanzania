@@ -49,7 +49,7 @@ function ModuleLoadingFallback() {
 }
 
 export function AppLayout() {
-  const { pushToast, reportError, site, about, canPortalViewModule, noModuleRbac } = usePortal();
+  const { pushToast, reportError, site, about, canPortalViewModule, noModuleRbac, authInitialized, authUser } = usePortal();
   useSiteDocumentMeta(site);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>(
@@ -218,6 +218,7 @@ export function AppLayout() {
   const dashboardDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (!authInitialized || !authUser) return;
     if (!getSupabase()) {
       setAuditLogCount(0);
       setSecurityCounts({ directory: 0, visibilityRules: 0, rbacMatrixRows: 0 });
@@ -241,7 +242,7 @@ export function AppLayout() {
 
     const client = getSupabase()!;
     const channel = client
-      .channel(`portal-dashboard-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`)
+      .channel("portal-dashboard-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "church_members" }, scheduleReload)
       .on("postgres_changes", { event: "*", schema: "public", table: "church_families" }, scheduleReload)
       .on("postgres_changes", { event: "*", schema: "public", table: "dayosisi" }, scheduleReload)
@@ -279,25 +280,28 @@ export function AppLayout() {
       document.removeEventListener("visibilitychange", onVisibility);
       void client.removeChannel(channel);
     };
-  }, [activeModule, loadDashboardMetrics]);
+  }, [activeModule, loadDashboardMetrics, authInitialized, authUser]);
 
   useEffect(() => {
+    if (!authInitialized || !authUser) return;
     if (!getSupabase()) return;
     if (activeModule !== "muundo") return;
     void loadMuundoLists();
-  }, [activeModule, loadMuundoLists]);
+  }, [activeModule, loadMuundoLists, authInitialized, authUser]);
 
   useEffect(() => {
+    if (!authInitialized || !authUser) return;
     if (!getSupabase()) return;
     if (activeModule !== "fedha") return;
     void loadFinanceEntries();
-  }, [activeModule, loadFinanceEntries]);
+  }, [activeModule, loadFinanceEntries, authInitialized, authUser]);
 
   useEffect(() => {
+    if (!authInitialized || !authUser) return;
     if (!getSupabase()) return;
     if (activeModule !== "viongozi") return;
     void loadViongoziList();
-  }, [activeModule, loadViongoziList]);
+  }, [activeModule, loadViongoziList, authInitialized, authUser]);
 
   const incomeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -318,7 +322,7 @@ export function AppLayout() {
 
     const client = getSupabase()!;
     const channel = client
-      .channel(`portal-income-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`)
+      .channel("portal-income-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "church_income_sources" }, scheduleIncomeReload)
       .on("postgres_changes", { event: "*", schema: "public", table: "church_income_lines" }, scheduleIncomeReload)
       .subscribe();
@@ -334,7 +338,7 @@ export function AppLayout() {
       document.removeEventListener("visibilitychange", onVisibility);
       void client.removeChannel(channel);
     };
-  }, [activeModule, loadIncomeModuleData]);
+  }, [activeModule, loadIncomeModuleData, authInitialized, authUser]);
 
   const visibleModules = useMemo(() => modules.filter((m) => canPortalViewModule(m.key)), [canPortalViewModule]);
 

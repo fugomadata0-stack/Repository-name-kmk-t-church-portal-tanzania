@@ -21,7 +21,7 @@ interface Props {
 }
 
 export function NotificationBell({ onOpenFullPage }: Props) {
-  const { reportError, pushToast, canPortalViewModule } = usePortal();
+  const { reportError, pushToast, canPortalViewModule, authInitialized, authUser } = usePortal();
   const canView = canPortalViewModule("notifications");
 
   const [open, setOpen] = useState(false);
@@ -55,17 +55,17 @@ export function NotificationBell({ onOpenFullPage }: Props) {
   }, [refresh]);
 
   useEffect(() => {
-    if (!getSupabase() || !canView) return;
+    if (!authInitialized || !authUser || !getSupabase() || !canView) return;
     const client = getSupabase()!;
     const channel = client
-      .channel(`portal-notif-bell-${Date.now()}`)
+      .channel("portal-notif-bell-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => void refresh())
       .on("postgres_changes", { event: "*", schema: "public", table: "notification_reads" }, () => void refresh())
       .subscribe();
     return () => {
       void client.removeChannel(channel);
     };
-  }, [canView, refresh]);
+  }, [canView, refresh, authInitialized, authUser]);
 
   useEffect(() => {
     if (!open) return;
