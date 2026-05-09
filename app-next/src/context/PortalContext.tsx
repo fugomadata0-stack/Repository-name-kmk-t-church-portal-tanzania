@@ -10,7 +10,7 @@ import {
 } from "react";
 import type { AuthError, Session, User } from "@supabase/supabase-js";
 import { formatCaughtError, formatPostgrestError } from "../lib/supabaseErrors";
-import { getSupabase, isSupabaseConfigured } from "../lib/supabaseClient";
+import { getSupabase, isSupabaseConfigured, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
 import { redactSensitiveText, safeStorage } from "../lib/security";
 import { checkAndIncrementRateLimit, fetchMatrixForRole, resetRateLimit } from "../services/securityService";
 import { logAuditAction } from "../services/auditLogService";
@@ -756,6 +756,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const client = getSupabase();
+    if (!isSupabaseRealtimeEnabled()) return;
     if (!client || !authInitialized || !authUser) return;
     const ch = client
       .channel("site-settings-live")

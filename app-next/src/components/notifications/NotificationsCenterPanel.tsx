@@ -15,7 +15,7 @@ import {
   Filter,
 } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
-import { getSupabase } from "../../lib/supabaseClient";
+import { getSupabase, isSupabaseRealtimeEnabled } from "../../lib/supabaseClient";
 import { stage2GradHeader } from "../../lib/stage2Theme";
 import {
   createNotification,
@@ -111,6 +111,7 @@ export function NotificationsCenterPanel(props: { submodule?: string }) {
   }, [load]);
 
   useEffect(() => {
+    if (!isSupabaseRealtimeEnabled()) return;
     if (!authInitialized || !authUser || !getSupabase()) return;
     const client = getSupabase()!;
     const channel = client

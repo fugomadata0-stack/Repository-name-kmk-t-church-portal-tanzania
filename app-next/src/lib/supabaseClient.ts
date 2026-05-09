@@ -3,6 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 let _client: SupabaseClient | null = null;
 const SUPABASE_FETCH_TIMEOUT_MS = 15000;
 const SUPABASE_FETCH_RETRIES = 2;
+const REALTIME_ENABLED_RAW = String(import.meta.env.VITE_SUPABASE_REALTIME_ENABLED ?? "false").trim().toLowerCase();
 
 function normalizeEnvUrl(raw: string): string {
   return raw.trim().replace(/\/+$/, "");
@@ -140,6 +141,14 @@ export function getSupabaseOrThrow(): SupabaseClient {
 export function isSupabaseConfigured(): boolean {
   const v = validateSupabaseEnv();
   return v.ok;
+}
+
+/**
+ * Ruhusu kuzima Realtime kwa mazingira yenye websocket restrictions.
+ * Tumia VITE_SUPABASE_REALTIME_ENABLED=false kwenye env.
+ */
+export function isSupabaseRealtimeEnabled(): boolean {
+  return REALTIME_ENABLED_RAW !== "false" && REALTIME_ENABLED_RAW !== "0" && REALTIME_ENABLED_RAW !== "off";
 }
 
 /** Safisha singleton (hasa kwa majaribio / hot reload) */

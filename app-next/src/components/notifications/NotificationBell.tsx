@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, Check, CheckCheck, ChevronRight, Loader2 } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
-import { getSupabase } from "../../lib/supabaseClient";
+import { getSupabase, isSupabaseRealtimeEnabled } from "../../lib/supabaseClient";
 import { stage2GradHeader } from "../../lib/stage2Theme";
 import { fetchNotificationsWithReadState, markAllNotificationsRead, markNotificationRead } from "../../services/notificationsService";
 import type { PortalNotificationRow } from "../../types";
@@ -55,6 +55,7 @@ export function NotificationBell({ onOpenFullPage }: Props) {
   }, [refresh]);
 
   useEffect(() => {
+    if (!isSupabaseRealtimeEnabled()) return;
     if (!authInitialized || !authUser || !getSupabase() || !canView) return;
     const client = getSupabase()!;
     const channel = client

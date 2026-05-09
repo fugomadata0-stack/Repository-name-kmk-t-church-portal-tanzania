@@ -116,13 +116,19 @@ function hasMigrationNotReadyError(e: unknown): boolean {
   return msg.includes("schema cache") || msg.includes("does not exist") || msg.includes("could not find the table") || msg.includes("could not find the");
 }
 
+function hasUnauthorizedError(e: unknown): boolean {
+  const msg = String((e as { message?: unknown } | null)?.message ?? "").toLowerCase();
+  const status = Number((e as { status?: unknown } | null)?.status ?? 0);
+  return status === 401 || msg.includes("401") || msg.includes("unauthorized") || msg.includes("invalid api key");
+}
+
 function normalizeHexColor(value: string | null | undefined, fallback: string): string {
   const v = String(value ?? "").trim();
   return /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v) ? v : fallback;
 }
 
 export function LoginPage() {
-  const { signInWithEmailPassword, authBusy, supabaseReady } = usePortal();
+  const { signInWithEmailPassword, authBusy, supabaseReady, authUser } = usePortal();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -202,6 +208,10 @@ export function LoginPage() {
   useEffect(() => {
     const c = getSupabase();
     if (!c || !supabaseReady) return;
+    if (!authUser) {
+      setPublicLoadError("Ingia ili kuona taarifa za mfumo kutoka Supabase.");
+      return;
+    }
 
     let cancelled = false;
     void (async () => {
@@ -266,6 +276,8 @@ export function LoginPage() {
           ].filter(Boolean);
           if (allErrors.some(hasPermissionOrRlsError)) {
             setPublicLoadError("Baadhi ya data ya umma imefungwa na sera za usalama (RLS).");
+          } else if (allErrors.some(hasUnauthorizedError)) {
+            setPublicLoadError("Kikao kimeisha au ufunguo wa Supabase si sahihi. Ingia tena.");
           } else if (allErrors.some(hasMigrationNotReadyError)) {
             setPublicLoadError("Migration haijakamilika bado.");
           } else {
@@ -296,7 +308,7 @@ export function LoginPage() {
     return () => {
       cancelled = true;
     };
-  }, [supabaseReady]);
+  }, [supabaseReady, authUser]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

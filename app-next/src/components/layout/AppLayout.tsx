@@ -3,7 +3,7 @@ import { modules } from "../../data/portalModules";
 import type { DayosisiRecord, FedhaRecord, IncomeManagementRecord, IncomeSourceRecord, JimboRecord, KiongoziRecord, TawiRecord } from "../../types";
 import { usePortal } from "../../context/PortalContext";
 import { NoModuleAccessNotice } from "../auth/NoModuleAccessNotice";
-import { getSupabase } from "../../lib/supabaseClient";
+import { getSupabase, isSupabaseRealtimeEnabled } from "../../lib/supabaseClient";
 import { useSiteDocumentMeta } from "../../hooks/useSiteDocumentMeta";
 import { fetchAuditLogCount } from "../../services/auditLogService";
 import { fetchPortalSecurityCounts } from "../../services/securityService";
@@ -219,6 +219,7 @@ export function AppLayout() {
 
   useEffect(() => {
     if (!authInitialized || !authUser) return;
+    if (!isSupabaseRealtimeEnabled()) return;
     if (!getSupabase()) {
       setAuditLogCount(0);
       setSecurityCounts({ directory: 0, visibilityRules: 0, rbacMatrixRows: 0 });
@@ -308,6 +309,7 @@ export function AppLayout() {
   useEffect(() => {
     if (!getSupabase()) return;
     if (activeModule !== "vyanzo_mapato" && activeModule !== "mapato_income") return;
+    if (!isSupabaseRealtimeEnabled()) return;
 
     let cancelled = false;
     void loadIncomeModuleData();

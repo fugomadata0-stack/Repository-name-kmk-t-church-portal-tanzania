@@ -330,8 +330,19 @@ export async function checkAndIncrementRateLimit(
     p_block_seconds: blockSeconds,
   });
   if (error) {
+    const code = String((error as { code?: unknown } | null)?.code ?? "").toUpperCase();
+    const status = Number((error as { status?: unknown } | null)?.status ?? 0);
     const msg = formatPostgrestError(error, "portal_rate_limit_check_and_increment");
-    if (msg.toLowerCase().includes("404") || msg.toLowerCase().includes("not find")) {
+    const low = msg.toLowerCase();
+    if (
+      low.includes("404") ||
+      low.includes("not find") ||
+      low.includes("does not exist") ||
+      low.includes("undefined function") ||
+      code === "PGRST202" ||
+      code === "42883" ||
+      status === 400
+    ) {
       rateLimitRpcMissing = true;
     }
     return null;
@@ -352,8 +363,19 @@ export async function resetRateLimit(scope: string, identifier: string): Promise
   if (rateLimitRpcMissing) return;
   const { error } = await c.rpc("portal_rate_limit_reset", { p_scope: scope, p_identifier: identifier });
   if (error) {
+    const code = String((error as { code?: unknown } | null)?.code ?? "").toUpperCase();
+    const status = Number((error as { status?: unknown } | null)?.status ?? 0);
     const msg = formatPostgrestError(error, "portal_rate_limit_reset");
-    if (msg.toLowerCase().includes("404") || msg.toLowerCase().includes("not find")) {
+    const low = msg.toLowerCase();
+    if (
+      low.includes("404") ||
+      low.includes("not find") ||
+      low.includes("does not exist") ||
+      low.includes("undefined function") ||
+      code === "PGRST202" ||
+      code === "42883" ||
+      status === 400
+    ) {
       rateLimitRpcMissing = true;
     }
   }

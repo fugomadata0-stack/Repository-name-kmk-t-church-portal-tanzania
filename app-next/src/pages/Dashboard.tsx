@@ -16,7 +16,7 @@ import { fetchAuditLogs, toTableRows } from "../services/auditLogService";
 import { fetchNotificationsWithReadState } from "../services/notificationsService";
 import { fetchSystemAlerts, syncSmartAlerts } from "../services/alertsService";
 import type { PortalNotificationRow, SystemAlertRow } from "../types";
-import { getSupabase } from "../lib/supabaseClient";
+import { getSupabase, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
 import { priorityMeta } from "../components/notifications/notificationUi";
 
 const fedhaDatePrefix10 = (value: unknown): string | null => {
@@ -145,6 +145,11 @@ export function Dashboard({
       }
     };
     void loadLive();
+    if (!isSupabaseRealtimeEnabled()) {
+      return () => {
+        cancelled = true;
+      };
+    }
     if (!authInitialized || !authUser) {
       return () => {
         cancelled = true;
