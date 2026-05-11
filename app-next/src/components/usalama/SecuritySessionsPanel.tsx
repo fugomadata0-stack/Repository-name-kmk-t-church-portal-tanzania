@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { PremiumTable } from "../common/PremiumTable";
 import { SettingsSupabaseBanner } from "../settings/SettingsSupabaseBanner";
 import { usePortal } from "../../context/PortalContext";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import {
   DEFAULT_SECURITY_POLICY,
@@ -150,6 +151,7 @@ export function SecuritySessionsPanel() {
       <PremiumTable<EvRow>
         title="Matukio ya hivi karibuni"
         subtitle="Login / API / sera — fuatilia kwa ufuatiliaji wa operesheni"
+        persistenceScope={portalPremiumTableScope(["usalama", "Sessions", "access_events"])}
         rows={events}
         columns={[
           { key: "created_at", label: "Muda", sortable: true },

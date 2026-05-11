@@ -3,6 +3,7 @@ import { getSupabase, getSupabaseOrThrow } from "../lib/supabaseClient";
 import { safeStorage } from "../lib/security";
 
 export const MASTER_SETTINGS_CACHE_KEY = "kmkt_master_settings_cache_v2";
+export const DEFAULT_MASTER_WEBSITE_URL = "https://v0-church-portal-tanzania.vercel.app";
 let masterSettingsTablesMissing = false;
 
 export interface MasterIdentitySettings {
@@ -70,7 +71,7 @@ export function emptyMasterSettings(): MasterSettingsRow {
       address: "",
       phone: "",
       email: "",
-      website: "",
+      website: DEFAULT_MASTER_WEBSITE_URL,
       country: "Tanzania",
       timezone: "Africa/Dar_es_Salaam",
       registration_info: "",

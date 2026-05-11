@@ -4,6 +4,8 @@ import { PremiumTable } from "../common/PremiumTable";
 import { usePortal } from "../../context/PortalContext";
 import type { Phase33SignupRequest } from "../../services/phase33SignupService";
 import { fetchPhase33SignupRequests, updatePhase33SignupStatus } from "../../services/phase33SignupService";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
+import { exportRowsToExcel, exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
 
 const STATUS_ACTIONS: { label: string; status: string }[] = [
   { label: "Idhinisha", status: "Approved" },
@@ -12,6 +14,8 @@ const STATUS_ACTIONS: { label: string; status: string }[] = [
   { label: "Washa", status: "Activated" },
   { label: "Hifadhi", status: "Archived" },
 ];
+
+const EXPORT_HEADERS = ["Jina", "Barua pepe", "Simu", "Role", "Scope", "Kitengo", "Hali", "Tarehe"];
 
 export function RegistrationRequestsPanel() {
   const { pushToast, reportError, role } = usePortal();
@@ -54,19 +58,54 @@ export function RegistrationRequestsPanel() {
     [canMutate, load, pushToast, reportError]
   );
 
-  const exportCsv = () => {
-    const header = "FullName,Email,Phone,RequestedRole,Scope,Unit,Status,SubmittedAt";
-    const lines = rows.map(
-      (r) =>
-        `"${r.fullName.replace(/"/g, '""')}","${r.email}","${r.phone}","${r.requestedRole}","${r.requestedScope}","${r.unitName}","${r.status}","${r.submittedAt}"`
-    );
-    const blob = new Blob([[header, ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
+  const exportRows = useMemo<(string | number)[][]>(
+    () =>
+      rows.map((r) => [
+        r.fullName,
+        r.email,
+        r.phone,
+        r.requestedRole,
+        r.requestedScope,
+        r.unitName,
+        r.status,
+        r.submittedAt ? new Date(r.submittedAt).toLocaleString("sw-TZ") : "",
+      ]),
+    [rows]
+  );
+
+  const exportCsv = useCallback(() => {
+    const lines = exportRows.map((r) => r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(","));
+    const url = URL.createObjectURL(new Blob([[EXPORT_HEADERS.join(","), ...lines].join("\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = "phase33-signup-requests.csv";
     a.click();
-    URL.revokeObjectURL(a.href);
-  };
+    URL.revokeObjectURL(url);
+  }, [exportRows]);
+
+  const exportPdf = useCallback(async () => {
+    await exportTableToPdf("RIPOTI YA MAOMBI YA USAJILI", "phase33-signup-requests", EXPORT_HEADERS, exportRows, {
+      subtitle: "Phase 33 public registration queue",
+      description:
+        "Ripoti hii inaonyesha maombi rasmi ya usajili yaliyopokelewa kutoka fomu ya umma, pamoja na role, scope, kitengo na hali ya uamuzi kwa ajili ya ufuatiliaji wa kiutawala.",
+      showSignatureLine: true,
+    });
+  }, [exportRows]);
+
+  const exportExcel = useCallback(async () => {
+    await exportRowsToExcel("phase33-signup-requests", EXPORT_HEADERS, exportRows, {
+      reportTitle: "RIPOTI YA MAOMBI YA USAJILI",
+      filterSummary: "Phase 33 public registration queue",
+      sheetName: "Registration Requests",
+    });
+  }, [exportRows]);
+
+  const printRequests = useCallback(() => {
+    openPrintableTable("RIPOTI YA MAOMBI YA USAJILI", EXPORT_HEADERS, exportRows, {
+      subtitle: "Phase 33 public registration queue",
+      filterSummary: "Nakala rasmi ya kuchapishwa kutoka KMT Portal.",
+    });
+  }, [exportRows]);
 
   const statusFilters = useMemo(
     () => Array.from(new Set(rows.map((r) => r.status).filter(Boolean))),
@@ -91,7 +130,7 @@ export function RegistrationRequestsPanel() {
         key: "submittedAt",
         label: "Tarehe",
         sortable: true,
-        render: (r) => (r.submittedAt ? new Date(r.submittedAt).toLocaleString() : "—"),
+        render: (r) => (r.submittedAt ? new Date(r.submittedAt).toLocaleString("sw-TZ") : "—"),
       },
       {
         key: "_actions",
@@ -142,18 +181,43 @@ export function RegistrationRequestsPanel() {
           >
             Pakua CSV
           </button>
+          <button
+            type="button"
+            className="rounded-lg border border-amber-300/50 bg-amber-300/15 px-3 py-1.5 text-sm font-semibold text-amber-100 hover:bg-amber-300/25 disabled:opacity-50"
+            onClick={() => void exportPdf()}
+            disabled={!rows.length}
+          >
+            PDF rasmi
+          </button>
+          <button
+            type="button"
+            className="rounded-lg border border-emerald-300/50 bg-emerald-300/15 px-3 py-1.5 text-sm font-semibold text-emerald-100 hover:bg-emerald-300/25 disabled:opacity-50"
+            onClick={() => void exportExcel()}
+            disabled={!rows.length}
+          >
+            Excel
+          </button>
+          <button
+            type="button"
+            className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm hover:bg-white/20 disabled:opacity-50"
+            onClick={printRequests}
+            disabled={!rows.length}
+          >
+            Chapisha
+          </button>
         </div>
       </header>
 
       <PremiumTable<Phase33SignupRequest>
         title="Maombi"
         subtitle="phase33_signup_requests"
+        persistenceScope={portalPremiumTableScope(["registration_requests", "Maombi", "phase33"])}
         rows={rows}
         columns={columns}
         canAdd={false}
         canEdit={false}
         canDelete={false}
-        canExport={false}
+        canExport={true}
         isLoading={loading}
         exportBasename="phase33_signup_requests"
       />

@@ -5,10 +5,13 @@ import { PremiumTable } from "../common/PremiumTable";
 import { SettingsSupabaseBanner } from "../settings/SettingsSupabaseBanner";
 import { usePortal } from "../../context/PortalContext";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { validateSelectedFile } from "../../lib/fileUploadGuard";
 import { fetchAuditLogs, insertChurchAuditEntry, toTableRows, uploadAuditAttachment, type AuditLogTableRow } from "../../services/auditLogService";
 import { fetchAccessEvents } from "../../services/securityService";
 import { matrixCanSubmitManualAuditLog, matrixCanViewAuditLogs } from "../../utils/matrixPermissions";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
+import { exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
 
 export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string }) {
   const { pushToast, reportError, matrixByModule } = usePortal();
@@ -120,36 +123,28 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
   }, [filteredRows]);
 
   const exportPdf = useCallback(async () => {
-    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
-    const doc = new jsPDF({ orientation: "landscape" });
-    doc.setFontSize(13);
-    doc.text("KMK(T) TANZANIA PORTAL", 14, 12);
-    doc.setFontSize(11);
-    doc.text("RIPOTI YA AUDIT TRAIL", 14, 18);
-    doc.text(`Imetolewa: ${new Date().toLocaleString("sw-TZ")}`, 14, 24);
-    autoTable(doc, {
-      head: [["Date/Time", "User", "Role", "Module", "Action", "Entity", "Status", "Message"]],
-      body: filteredRows.map((r) => [r.created_at, r.performed_by_name, r.role_key, r.module, r.action, r.entity_name, r.status, r.message]),
-      startY: 30,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [11, 31, 58], textColor: [212, 175, 55] },
-      didDrawPage: () => {
-        doc.setFontSize(8);
-        doc.text(`Ukurasa ${doc.getCurrentPageInfo().pageNumber}`, 280, 205, { align: "right" });
-      },
-    });
-    doc.save(`KMKT_Audit_Trail_${new Date().toISOString().slice(0, 10)}.pdf`);
+    await exportTableToPdf(
+      "RIPOTI YA AUDIT TRAIL",
+      `KMKT_Audit_Trail_${new Date().toISOString().slice(0, 10)}`,
+      ["Date/Time", "User", "Role", "Module", "Action", "Entity", "Status", "Message"],
+      filteredRows.map((r) => [r.created_at, r.performed_by_name, r.role_key, r.module, r.action, r.entity_name, r.status, r.message]),
+      {
+        subtitle: "Ufuatiliaji rasmi wa usalama, mabadiliko na matukio muhimu ndani ya KMT Portal.",
+        description:
+          "Audit Trail hutumika kuthibitisha uwajibikaji wa watumiaji, kulinda uadilifu wa mfumo na kusaidia uchunguzi wa kiutawala au kiusalama.",
+      }
+    );
   }, [filteredRows]);
 
   const printView = useCallback(() => {
-    const w = window.open("", "_blank", "width=1200,height=900");
-    if (!w) return;
-    const rowsHtml = filteredRows
-      .map((r) => `<tr><td>${r.created_at}</td><td>${r.performed_by_name}</td><td>${r.role_key}</td><td>${r.module}</td><td>${r.action}</td><td>${r.entity_name}</td><td>${r.status}</td><td>${r.message}</td></tr>`)
-      .join("");
-    w.document.write(`<html><head><title>RIPOTI YA AUDIT TRAIL</title><style>body{font-family:Arial;padding:16px;color:#0B1F3A}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #cbd5e1;padding:6px;word-break:break-word}th{background:#0B1F3A;color:#D4AF37}</style></head><body><h1>KMK(T) TANZANIA PORTAL</h1><h2>RIPOTI YA AUDIT TRAIL</h2><p>Tarehe: ${new Date().toLocaleString("sw-TZ")}</p><table><thead><tr><th>Date/Time</th><th>User</th><th>Role</th><th>Module</th><th>Action</th><th>Entity</th><th>Status</th><th>Message</th></tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`);
-    w.document.close();
-    w.print();
+    openPrintableTable(
+      "RIPOTI YA AUDIT TRAIL",
+      ["Date/Time", "User", "Role", "Module", "Action", "Entity", "Status", "Message"],
+      filteredRows.map((r) => [r.created_at, r.performed_by_name, r.role_key, r.module, r.action, r.entity_name, r.status, r.message]),
+      {
+        subtitle: "Ufuatiliaji rasmi wa usalama, mabadiliko na matukio muhimu ndani ya KMT Portal.",
+      }
+    );
   }, [filteredRows]);
 
   async function onSubmitManual(e: React.FormEvent<HTMLFormElement>) {
@@ -185,7 +180,7 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
       }
       await insertChurchAuditEntry({ action, entity, entity_id, notes, attachment_url, file_label });
       pushToast("Ingizo la log limehifadhiwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setAddOpen(false);
       (e.target as HTMLFormElement).reset();
       await load();
@@ -245,6 +240,7 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
       <PremiumTable<AuditLogTableRow>
         title="Vitendo vya Hivi Karibuni"
         subtitle="Audit trail ya mfumo mzima"
+        persistenceScope={portalPremiumTableScope(["audit_logs", contextLabel ?? "default", "table"])}
         rows={filteredRows}
         columns={[
           { key: "created_at", label: "Date/Time", sortable: true },

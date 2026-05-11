@@ -49,6 +49,18 @@ export function mapDomainEntityRow(row: Record<string, unknown>): DomainEntityRe
     reference_code: String(row.reference_code ?? ""),
     event_date: ev,
     extra,
+    profile_completeness: Number(row.profile_completeness ?? extra.profile_completeness ?? 0),
+    hierarchy_summary: row.hierarchy_summary ? String(row.hierarchy_summary) : String(extra.hierarchy_summary ?? "") || null,
+    attachment_urls: Array.isArray(row.attachment_urls)
+      ? (row.attachment_urls as unknown[]).map((x) => String(x)).filter(Boolean)
+      : Array.isArray(extra.attachment_urls)
+      ? (extra.attachment_urls as unknown[]).map((x) => String(x)).filter(Boolean)
+      : [],
+    category_tags: Array.isArray(row.category_tags)
+      ? (row.category_tags as unknown[]).map((x) => String(x)).filter(Boolean)
+      : Array.isArray(extra.category_tags)
+      ? (extra.category_tags as unknown[]).map((x) => String(x)).filter(Boolean)
+      : [],
     status: uiStatus(row.status as string),
   };
 }
@@ -79,6 +91,7 @@ export async function upsertDomainEntity(
   const c = getSupabase();
   if (!c) throw new Error("Supabase haijasanidiwa.");
 
+  const extra = row.extra && typeof row.extra === "object" ? row.extra : {};
   const payload = {
     module_key: row.module_key.trim(),
     submodule_key: row.submodule_key?.trim() ?? "",
@@ -87,7 +100,24 @@ export async function upsertDomainEntity(
     category: row.category?.trim() || null,
     reference_code: row.reference_code?.trim() || null,
     event_date: row.event_date?.trim().slice(0, 10) || null,
-    extra: row.extra && typeof row.extra === "object" ? row.extra : {},
+    extra,
+    profile_completeness:
+      typeof row.profile_completeness === "number"
+        ? row.profile_completeness
+        : typeof extra.profile_completeness === "number"
+        ? extra.profile_completeness
+        : 0,
+    hierarchy_summary: row.hierarchy_summary || (typeof extra.hierarchy_summary === "string" ? extra.hierarchy_summary : null),
+    attachment_urls: Array.isArray(row.attachment_urls)
+      ? row.attachment_urls
+      : Array.isArray(extra.attachment_urls)
+      ? extra.attachment_urls
+      : [],
+    category_tags: Array.isArray(row.category_tags)
+      ? row.category_tags
+      : Array.isArray(extra.category_tags)
+      ? extra.category_tags
+      : [],
     status: dbStatus(row.status ?? "Active"),
     updated_at: new Date().toISOString(),
   };

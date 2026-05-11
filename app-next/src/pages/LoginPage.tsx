@@ -1,8 +1,9 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   Bell,
   Building2,
+  Calendar,
   FileText,
   Gauge,
   Landmark,
@@ -15,8 +16,10 @@ import {
   Wrench,
 } from "lucide-react";
 import { usePortal } from "../context/PortalContext";
-import { getSupabase } from "../lib/supabaseClient";
+import { getSupabase, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
+import { fetchPortalPublicDashboardCounts } from "../services/portalPublicDashboardService";
 import { fetchMasterSettingsOptional, readMasterSettingsCache } from "../services/masterSettingsService";
+import { fetchChurchIdentityOptional } from "../services/settingsTablesService";
 
 const HERO_IMAGE_CANDIDATES = [
   [
@@ -85,6 +88,35 @@ const MODULE_CARDS = [
   { title: "System Builder", desc: "Mipangilio ya kitaalamu na upanuzi wa mfumo.", icon: Wrench },
   { title: "System Security", desc: "Roles & Permissions na usalama wa upatikanaji.", icon: Lock },
   { title: "Public Comms", desc: "Mawasiliano ya umma kwa habari na matangazo.", icon: Newspaper },
+  { title: "Habari & Matukio", desc: "Taarifa za kanisa na matukio yanayokuja.", icon: Calendar },
+] as const;
+
+/** Rangi za KPI za umma — tu kwenye ukurasa huu (si global). */
+const KPI_CARD_STYLES = [
+  "border-amber-400/35 bg-gradient-to-br from-amber-500/15 to-amber-950/25 shadow-amber-500/10",
+  "border-sky-400/35 bg-gradient-to-br from-sky-500/15 to-sky-950/25 shadow-sky-500/10",
+  "border-emerald-400/35 bg-gradient-to-br from-emerald-500/15 to-emerald-950/25 shadow-emerald-500/10",
+  "border-violet-400/35 bg-gradient-to-br from-violet-500/15 to-violet-950/25 shadow-violet-500/10",
+  "border-rose-400/35 bg-gradient-to-br from-rose-500/15 to-rose-950/25 shadow-rose-500/10",
+  "border-cyan-400/35 bg-gradient-to-br from-cyan-500/15 to-cyan-950/25 shadow-cyan-500/10",
+  "border-orange-400/35 bg-gradient-to-br from-orange-500/15 to-orange-950/25 shadow-orange-500/10",
+] as const;
+
+const MODULE_CARD_ACCENT = [
+  "from-amber-500/90 to-amber-700/90",
+  "from-sky-500/90 to-indigo-700/90",
+  "from-emerald-500/90 to-teal-800/90",
+  "from-violet-500/90 to-purple-800/90",
+  "from-rose-500/90 to-pink-900/90",
+  "from-cyan-500/90 to-blue-900/90",
+  "from-orange-500/90 to-amber-900/90",
+  "from-fuchsia-500/90 to-purple-900/90",
+  "from-lime-500/90 to-green-900/90",
+  "from-red-500/90 to-rose-950/90",
+  "from-teal-500/90 to-cyan-950/90",
+  "from-indigo-500/90 to-slate-900/90",
+  "from-yellow-500/90 to-amber-950/90",
+  "from-stone-400/90 to-stone-800/90",
 ] as const;
 
 const SECURITY_BULLETS = [
@@ -101,9 +133,21 @@ function formatDateSafe(v: string | null | undefined): string {
   return d.toLocaleDateString("sw-TZ");
 }
 
-function countLabel(v: number | null): string {
-  if (typeof v === "number") return v.toLocaleString("sw-TZ");
-  return "Hakuna taarifa bado";
+/** Takwimu halisi kutoka Supabase; si nambari bandia. */
+function formatStatCount(value: number | null, loading: boolean, queryFailed: boolean): string {
+  if (loading) return "…";
+  if (typeof value === "number" && Number.isFinite(value)) return value.toLocaleString("sw-TZ");
+  if (queryFailed) return "Imeshindikana kupakua taarifa";
+  return "—";
+}
+
+function parsePublicCount(value: number | string | null | undefined): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "string") {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : 0;
+  }
+  return 0;
 }
 
 function hasPermissionOrRlsError(e: unknown): boolean {
@@ -128,7 +172,7 @@ function normalizeHexColor(value: string | null | undefined, fallback: string): 
 }
 
 export function LoginPage() {
-  const { signInWithEmailPassword, authBusy, supabaseReady, authUser } = usePortal();
+  const { signInWithEmailPassword, authBusy, supabaseReady } = usePortal();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -137,6 +181,7 @@ export function LoginPage() {
   const [hero, setHero] = useState<HeroState>({ src: HERO_IMAGE_CANDIDATES[0][0], idx: 0, variant: 0 });
   const [heroMissing, setHeroMissing] = useState(false);
   const [publicLoadError, setPublicLoadError] = useState("");
+  const [publicStatsLoading, setPublicStatsLoading] = useState(true);
 
   const [news, setNews] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
   const [events, setEvents] = useState<Array<{ id: string; title: string; event_date: string; location: string }>>([]);
@@ -155,6 +200,18 @@ export function LoginPage() {
     nyaraka: null,
     matukio: null,
   });
+
+  const [statQueryFailed, setStatQueryFailed] = useState<Record<keyof PublicCounts, boolean>>({
+    dayosisi: false,
+    majimbo: false,
+    matawi: false,
+    waumini: false,
+    viongozi: false,
+    nyaraka: false,
+    matukio: false,
+  });
+
+  const [moduleGateMsg, setModuleGateMsg] = useState("");
 
   const [branding, setBranding] = useState(() => {
     const cache = readMasterSettingsCache();
@@ -175,18 +232,22 @@ export function LoginPage() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const row = await fetchMasterSettingsOptional().catch(() => null);
-      if (!row || cancelled) return;
+      const [row, identity] = await Promise.all([
+        fetchMasterSettingsOptional().catch(() => null),
+        fetchChurchIdentityOptional().catch(() => null),
+      ]);
+      if (cancelled) return;
+      const cache = row ?? readMasterSettingsCache();
       setBranding({
-        officialName: row.identity.official_name || "KMK(T) TANZANIA PORTAL",
-        shortName: row.identity.short_name || "KMK(T)",
-        motto: row.identity.motto || "Kanisa la Mennonite la Kiinjili Tanzania",
-        logo: row.theme.logo_url || "",
-        footer: row.identity.system_footer || "Kanisa la Mennonite la Kiinjili Tanzania",
+        officialName: identity?.official_church_name || cache.identity.official_name || "KMK(T) TANZANIA PORTAL",
+        shortName: cache.identity.short_name || "KMK(T)",
+        motto: identity?.vision || cache.identity.motto || "Kanisa la Mennonite la Kiinjili Tanzania",
+        logo: identity?.logo_url || cache.theme.logo_url || "",
+        footer: identity?.official_church_name || cache.identity.system_footer || "Kanisa la Mennonite la Kiinjili Tanzania",
         colors: {
-          primary: row.theme.primary_color || "#0B1F3A",
-          secondary: row.theme.secondary_color || "#123C69",
-          accent: row.theme.accent_color || "#D4AF37",
+          primary: identity?.primary_color || cache.theme.primary_color || "#0B1F3A",
+          secondary: identity?.secondary_color || cache.theme.secondary_color || "#123C69",
+          accent: identity?.accent_color || cache.theme.accent_color || "#D4AF37",
         },
       });
     })();
@@ -207,13 +268,24 @@ export function LoginPage() {
 
   useEffect(() => {
     const c = getSupabase();
-    if (!c || !supabaseReady) return;
-    if (!authUser) {
-      setPublicLoadError("Ingia ili kuona taarifa za mfumo kutoka Supabase.");
+    if (!c || !supabaseReady) {
+      setPublicStatsLoading(false);
       return;
     }
 
     let cancelled = false;
+    setPublicStatsLoading(true);
+    setPublicLoadError("");
+    setStatQueryFailed({
+      dayosisi: false,
+      majimbo: false,
+      matawi: false,
+      waumini: false,
+      viongozi: false,
+      nyaraka: false,
+      matukio: false,
+    });
+
     void (async () => {
       try {
         const [
@@ -222,93 +294,199 @@ export function LoginPage() {
           docsRes,
           liveRes,
           sermonsRes,
-          dayosisiCount,
-          majimboCount,
-          matawiCount,
-          wauminiCount,
-          viongoziCount,
-          nyarakaCount,
-          matukioCount,
+          publicCountsPack,
         ] = await Promise.all([
           c.from("news_posts").select("id,title,created_at").eq("status", "published").eq("is_public", true).order("created_at", { ascending: false }).limit(4),
           c.from("events").select("id,title,event_date,location").eq("is_public", true).in("status", ["upcoming", "ongoing"]).order("event_date", { ascending: true }).limit(4),
           c.from("documents").select("id,title,category,created_at").order("created_at", { ascending: false }).limit(4),
           c.from("live_streams").select("id,title,stream_url").eq("is_public", true).eq("is_live", true).limit(1),
           c.from("sermons").select("id,title,preacher,date").order("date", { ascending: false }).limit(4),
-          c.from("dayosisi").select("id", { count: "exact", head: true }),
-          c.from("church_jimbo").select("id", { count: "exact", head: true }),
-          c.from("church_tawi").select("id", { count: "exact", head: true }),
-          c.from("church_members").select("id", { count: "exact", head: true }),
-          c.from("church_viongozi").select("id", { count: "exact", head: true }),
-          c.from("documents").select("id", { count: "exact", head: true }),
-          c.from("events").select("id", { count: "exact", head: true }),
+          fetchPortalPublicDashboardCounts(),
         ]);
 
         if (cancelled) return;
 
-        if (
-          newsRes.error ||
-          eventsRes.error ||
-          docsRes.error ||
-          liveRes.error ||
-          sermonsRes.error ||
-          dayosisiCount.error ||
-          majimboCount.error ||
-          matawiCount.error ||
-          wauminiCount.error ||
-          viongoziCount.error ||
-          nyarakaCount.error ||
-          matukioCount.error
-        ) {
-          const allErrors = [
-            newsRes.error,
-            eventsRes.error,
-            docsRes.error,
-            liveRes.error,
-            sermonsRes.error,
-            dayosisiCount.error,
-            majimboCount.error,
-            matawiCount.error,
-            wauminiCount.error,
-            viongoziCount.error,
-            nyarakaCount.error,
-            matukioCount.error,
-          ].filter(Boolean);
-          if (allErrors.some(hasPermissionOrRlsError)) {
-            setPublicLoadError("Baadhi ya data ya umma imefungwa na sera za usalama (RLS).");
-          } else if (allErrors.some(hasUnauthorizedError)) {
-            setPublicLoadError("Kikao kimeisha au ufunguo wa Supabase si sahihi. Ingia tena.");
-          } else if (allErrors.some(hasMigrationNotReadyError)) {
-            setPublicLoadError("Migration haijakamilika bado.");
+        const listErrors = [
+          newsRes.error,
+          eventsRes.error,
+          docsRes.error,
+          liveRes.error,
+          sermonsRes.error,
+          publicCountsPack.error,
+        ].filter(Boolean);
+
+        if (listErrors.length > 0) {
+          if (listErrors.some((e) => hasPermissionOrRlsError(e))) {
+            setPublicLoadError(
+              listErrors.length === 6
+                ? "Data ya umma haipatikani kwa sasa — sera za usalama (RLS) au mwongozo wa mwandishi wa DB."
+                : "Baadhi ya takwimu au orodha hazijaonyeshwa — RLS au muunganisho."
+            );
+          } else if (listErrors.some((e) => hasUnauthorizedError(e))) {
+            setPublicLoadError("Muunganisho wa mfumo si thabiti (angalia variable za Supabase kwenye seva).");
+          } else if (listErrors.some((e) => hasMigrationNotReadyError(e))) {
+            setPublicLoadError("Seva ya data haijakamilisha migrations zinazohitajika.");
           } else {
-            setPublicLoadError("Imeshindikana kupakua taarifa za umma kwa sasa.");
+            setPublicLoadError("Imeshindikana kupakua taarifa.");
           }
         } else {
           setPublicLoadError("");
         }
-        setNews((newsRes.data ?? []) as Array<{ id: string; title: string; created_at: string }>);
-        setEvents((eventsRes.data ?? []) as Array<{ id: string; title: string; event_date: string; location: string }>);
-        setDocuments((docsRes.data ?? []) as Array<{ id: string; title: string; category: string; created_at: string }>);
-        setLiveNow((liveRes.data ?? []) as Array<{ id: string; title: string; stream_url: string }>);
-        setSermons((sermonsRes.data ?? []) as Array<{ id: string; title: string; preacher: string; date: string }>);
+
+        setNews(((newsRes.error ? [] : newsRes.data) ?? []) as Array<{ id: string; title: string; created_at: string }>);
+        setEvents(((eventsRes.error ? [] : eventsRes.data) ?? []) as Array<{ id: string; title: string; event_date: string; location: string }>);
+        setDocuments(((docsRes.error ? [] : docsRes.data) ?? []) as Array<{ id: string; title: string; category: string; created_at: string }>);
+        setLiveNow(((liveRes.error ? [] : liveRes.data) ?? []) as Array<{ id: string; title: string; stream_url: string }>);
+        setSermons(((sermonsRes.error ? [] : sermonsRes.data) ?? []) as Array<{ id: string; title: string; preacher: string; date: string }>);
+
+        const countsErr = publicCountsPack.error;
+        const countsRow = publicCountsPack.counts;
+        const countOrNull = (key: keyof PublicCounts) => {
+          if (countsErr || !countsRow) return null;
+          return parsePublicCount(countsRow[key]);
+        };
+
         setStats({
-          dayosisi: dayosisiCount.count ?? null,
-          majimbo: majimboCount.count ?? null,
-          matawi: matawiCount.count ?? null,
-          waumini: wauminiCount.count ?? null,
-          viongozi: viongoziCount.count ?? null,
-          nyaraka: nyarakaCount.count ?? null,
-          matukio: matukioCount.count ?? null,
+          dayosisi: countOrNull("dayosisi"),
+          majimbo: countOrNull("majimbo"),
+          matawi: countOrNull("matawi"),
+          waumini: countOrNull("waumini"),
+          viongozi: countOrNull("viongozi"),
+          nyaraka: countOrNull("nyaraka"),
+          matukio: countOrNull("matukio"),
+        });
+        setStatQueryFailed({
+          dayosisi: !!countsErr,
+          majimbo: !!countsErr,
+          matawi: !!countsErr,
+          waumini: !!countsErr,
+          viongozi: !!countsErr,
+          nyaraka: !!countsErr,
+          matukio: !!countsErr,
         });
       } catch {
-        if (!cancelled) setPublicLoadError("Imeshindikana kupakua taarifa za umma kwa sasa.");
+        if (!cancelled) {
+          setPublicLoadError("Imeshindikana kuunganisha na seva ya data.");
+          setStats({
+            dayosisi: null,
+            majimbo: null,
+            matawi: null,
+            waumini: null,
+            viongozi: null,
+            nyaraka: null,
+            matukio: null,
+          });
+          setStatQueryFailed({
+            dayosisi: true,
+            majimbo: true,
+            matawi: true,
+            waumini: true,
+            viongozi: true,
+            nyaraka: true,
+            matukio: true,
+          });
+        }
+      } finally {
+        if (!cancelled) setPublicStatsLoading(false);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [supabaseReady, authUser]);
+  }, [supabaseReady]);
+
+  const refreshPublicKpiStrip = useCallback(async () => {
+    const client = getSupabase();
+    if (!client || !supabaseReady) return;
+    try {
+      const { counts, error } = await fetchPortalPublicDashboardCounts();
+      if (error) {
+        setStatQueryFailed({
+          dayosisi: true,
+          majimbo: true,
+          matawi: true,
+          waumini: true,
+          viongozi: true,
+          nyaraka: true,
+          matukio: true,
+        });
+        return;
+      }
+      if (!counts) return;
+      setStatQueryFailed({
+        dayosisi: false,
+        majimbo: false,
+        matawi: false,
+        waumini: false,
+        viongozi: false,
+        nyaraka: false,
+        matukio: false,
+      });
+      setStats((p) => ({
+        ...p,
+        dayosisi: counts.dayosisi,
+        majimbo: counts.majimbo,
+        matawi: counts.matawi,
+        waumini: counts.waumini,
+        viongozi: counts.viongozi,
+        nyaraka: counts.nyaraka,
+        matukio: counts.matukio,
+      }));
+    } catch {
+      /* polling / realtime — jaribu tena baadaye */
+    }
+  }, [supabaseReady]);
+
+  useEffect(() => {
+    if (!supabaseReady) return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refreshPublicKpiStrip();
+    }, 50_000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") void refreshPublicKpiStrip();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [supabaseReady, refreshPublicKpiStrip]);
+
+  useEffect(() => {
+    const client = getSupabase();
+    if (!client || !supabaseReady || !isSupabaseRealtimeEnabled()) return;
+    let cancelled = false;
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const schedule = () => {
+      if (t) window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        t = null;
+        if (!cancelled) void refreshPublicKpiStrip();
+      }, 650);
+    };
+    const channel = client
+      .channel("portal-public-kpi-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "dayosisi" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "church_jimbo" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "church_tawi" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "church_members" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "church_viongozi" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "documents" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, schedule)
+      .subscribe();
+    return () => {
+      cancelled = true;
+      if (t) window.clearTimeout(t);
+      void client.removeChannel(channel);
+    };
+  }, [supabaseReady, refreshPublicKpiStrip]);
+
+  const scrollToLoginCard = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      document.getElementById("login-form")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -328,29 +506,51 @@ export function LoginPage() {
     accent: normalizeHexColor(branding.colors.accent, "#D4AF37"),
   };
 
+  const statRows: Array<{ key: keyof PublicCounts; label: string }> = [
+    { key: "dayosisi", label: "Dayosisi" },
+    { key: "majimbo", label: "Majimbo" },
+    { key: "matawi", label: "Matawi/Vituo" },
+    { key: "waumini", label: "Waumini" },
+    { key: "viongozi", label: "Viongozi" },
+    { key: "nyaraka", label: "Nyaraka" },
+    { key: "matukio", label: "Matukio" },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#F8F6F0] text-slate-800">
-      <nav className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            {branding.logo ? <img src={branding.logo} alt={branding.shortName} className="h-10 w-10 rounded-full object-cover" loading="lazy" /> : null}
-            <div>
-              <p className="text-sm font-extrabold tracking-wide" style={{ color: theme.primary }}>{branding.shortName}</p>
-              <p className="text-xs text-slate-600">{branding.officialName}</p>
+    <div className="login-premium font-kmkt-sans relative min-h-screen overflow-x-hidden bg-[#030712] text-slate-100">
+      <div
+        className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(212,175,55,0.12),transparent_50%),radial-gradient(ellipse_90%_60%_at_100%_50%,rgba(18,60,105,0.22),transparent_45%),radial-gradient(ellipse_80%_50%_at_0%_80%,rgba(11,31,58,0.45),transparent_50%)]"
+        aria-hidden
+      />
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:48px_48px]" aria-hidden />
+      <nav className="sticky top-0 z-40 border-b border-white/10 bg-[#0a1628]/85 pt-[env(safe-area-inset-top)] shadow-lg shadow-black/20 backdrop-blur-xl">
+        <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            {branding.logo ? (
+              <img src={branding.logo} alt={branding.shortName} className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-amber-400/30" loading="lazy" decoding="async" />
+            ) : null}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold tracking-wide text-amber-300/95">{branding.shortName}</p>
+              <p className="truncate text-xs text-slate-400">{branding.officialName}</p>
             </div>
           </div>
-          <a href="#login-form" className="rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95" style={{ backgroundColor: theme.primary }}>
+          <button
+            type="button"
+            onClick={scrollToLoginCard}
+            className="shrink-0 rounded-xl border border-amber-400/40 bg-gradient-to-r px-4 py-2 text-sm font-semibold text-[#0a1628] shadow-md shadow-amber-900/20 transition hover:brightness-105"
+            style={{ backgroundImage: `linear-gradient(90deg, ${theme.accent}, #f0d78c)` }}
+          >
             Ingia
-          </a>
+          </button>
         </div>
       </nav>
 
-      <section className="relative overflow-hidden">
+      <section className="relative z-10 overflow-hidden">
         {!heroMissing ? (
           <img
             src={hero.src}
             alt="Mwonekano wa imani na ibada"
-            loading="eager"
+            loading="lazy"
             onError={() => {
               setHero((p) => {
                 const variants = HERO_IMAGE_CANDIDATES[p.idx];
@@ -367,28 +567,37 @@ export function LoginPage() {
               });
             }}
             decoding="async"
-            className="h-[420px] w-full object-cover transition-opacity duration-700 md:h-[520px]"
+            className="h-[clamp(220px,42vh,520px)] min-h-[200px] w-full object-cover transition-opacity duration-700 md:h-[520px]"
           />
         ) : (
-          <div className="grid h-[420px] w-full place-items-center bg-gradient-to-br from-[#0B1F3A] to-[#123C69] md:h-[520px]">
-            <div className="rounded-2xl border border-white/30 bg-white/10 px-6 py-4 text-center text-white">
-              <p className="text-lg font-bold">Picha haijapakiwa bado</p>
-              <p className="text-sm text-slate-200">Pakia faili kwenye `src/assets/images/hero`, `faith`, na `branding`.</p>
+          <div className="grid h-[clamp(220px,42vh,520px)] min-h-[200px] w-full place-items-center bg-gradient-to-br from-[#050a14] via-[#0B1F3A] to-[#123C69] md:h-[520px]">
+            <div className="rounded-2xl border border-white/20 bg-white/10 px-6 py-4 text-center text-white backdrop-blur-md">
+              <p className="font-kmkt-display text-lg font-bold">Picha haijapakiwa bado</p>
+              <p className="mt-1 text-sm text-slate-200">Pakia faili kwenye `src/assets/images/hero`, `faith`, na `branding`.</p>
             </div>
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0B1F3A]/92 via-[#0B1F3A]/82 to-[#123C69]/70" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#030712]/95 via-[#0B1F3A]/88 to-[#123C69]/75" />
 
-        <div className="absolute inset-0 mx-auto grid w-full max-w-7xl items-center gap-6 px-4 py-8 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="text-white">
-            <p className="text-xs font-semibold uppercase tracking-[0.26em]" style={{ color: theme.accent }}>KANISA LA MENNONITE LA KIINJILI TANZANIA</p>
-            <h1 className="mt-3 text-3xl font-extrabold leading-tight md:text-5xl">{branding.officialName || "KMK(T) TANZANIA PORTAL"}</h1>
-            <p className="mt-3 max-w-3xl text-sm text-slate-100 md:text-base">{branding.motto || "Mfumo Mkuu wa Kidigitali wa Kanisa la Mennonite la Kiinjili Tanzania"}</p>
+        <div className="absolute inset-0 z-10 mx-auto grid max-h-full w-full max-w-7xl items-start gap-6 overflow-y-auto overscroll-y-contain px-4 py-6 [-webkit-overflow-scrolling:touch] sm:items-center sm:py-8 lg:grid-cols-[1.15fr_0.85fr] lg:overflow-visible lg:py-8">
+          <div className="animate-kmkt-fade-up text-white [animation-delay:40ms]">
+            <p className="text-xs font-semibold uppercase tracking-[0.26em] text-amber-300/95">KANISA LA MENNONITE LA KIINJILI TANZANIA</p>
+            <h1 className="font-kmkt-display mt-3 text-3xl font-bold leading-tight tracking-tight text-white md:text-5xl md:leading-[1.15]">
+              {branding.officialName || "KMK(T) TANZANIA PORTAL"}
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm text-slate-200/95 md:text-base">{branding.motto || "Mfumo Mkuu wa Kidigitali wa Kanisa la Mennonite la Kiinjili Tanzania"}</p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <a href="#modules-overview" className="rounded-xl px-5 py-2.5 text-sm font-semibold shadow-sm transition hover:opacity-95" style={{ backgroundColor: theme.accent, color: "#0B1F3A" }}>
+              <a
+                href="#modules-overview"
+                className="rounded-xl border border-amber-400/50 bg-gradient-to-r px-5 py-2.5 text-sm font-semibold text-[#0a1628] shadow-lg shadow-black/25 transition hover:brightness-105"
+                style={{ backgroundImage: `linear-gradient(90deg, ${theme.accent}, #f5e6b8)` }}
+              >
                 Tazama Vipengele
               </a>
-              <a href="/auth/signup-request" className="rounded-xl border border-white/70 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white">
+              <a
+                href="/auth/signup-request"
+                className="rounded-xl border border-white/35 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/15"
+              >
                 Omba Akaunti
               </a>
             </div>
@@ -399,14 +608,17 @@ export function LoginPage() {
                   key={`hero-dot-${i}`}
                   type="button"
                   onClick={() => setHero({ idx: i, variant: 0, src: HERO_IMAGE_CANDIDATES[i][0] })}
-                  className={`h-2.5 w-2.5 rounded-full border ${i === hero.idx ? "bg-[#D4AF37] border-[#D4AF37]" : "bg-white/35 border-white/80"}`}
+                  className={`h-2.5 w-2.5 rounded-full border transition ${i === hero.idx ? "border-amber-400 bg-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.7)]" : "border-white/60 bg-white/30 hover:bg-white/45"}`}
                   aria-label={`Onyesha picha ${i + 1}`}
                 />
               ))}
             </div>
           </div>
 
-          <div id="login-form" className="rounded-2xl border border-[#D4AF37]/70 bg-white/95 p-6 shadow-2xl backdrop-blur-sm">
+          <div
+            id="login-form"
+            className="animate-kmkt-fade-up max-h-[min(92dvh,calc(100dvh-8rem))] w-full overflow-y-auto rounded-2xl border border-amber-400/45 bg-white/[0.97] p-4 shadow-[0_24px_80px_-12px_rgba(0,0,0,0.55)] backdrop-blur-xl [animation-delay:120ms] sm:max-h-none sm:overflow-visible sm:p-6"
+          >
             {branding.logo && !logoBroken ? (
               <img
                 src={branding.logo}
@@ -437,7 +649,7 @@ export function LoginPage() {
                 )}
               </>
             )}
-            <h2 className="text-center text-xl font-extrabold text-[#0B1F3A]">INGIA KWENYE KMK(T) PORTAL</h2>
+            <h2 className="font-kmkt-display text-center text-xl font-bold tracking-tight text-[#0a1628]">Ingia kwenye KMK(T) Portal</h2>
             <p className="mt-1 text-center text-xs text-slate-600">Mfumo Mkuu wa Kidigitali wa Kanisa la Mennonite la Kiinjili Tanzania</p>
 
             <form className="mt-5 space-y-3" onSubmit={onSubmit}>
@@ -448,8 +660,8 @@ export function LoginPage() {
                   autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="rounded-xl border border-slate-300 px-3 py-2.5 text-slate-900 shadow-sm focus:border-[#123C69] focus:outline-none focus:ring-1 focus:ring-[#123C69]"
-                  placeholder="jina@mfano.org"
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-inner shadow-slate-200/60 focus:border-[#123C69] focus:outline-none focus:ring-2 focus:ring-[#123C69]/35"
+                  placeholder=""
                 />
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-700">
@@ -459,7 +671,7 @@ export function LoginPage() {
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="rounded-xl border border-slate-300 px-3 py-2.5 text-slate-900 shadow-sm focus:border-[#123C69] focus:outline-none focus:ring-1 focus:ring-[#123C69]"
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-inner shadow-slate-200/60 focus:border-[#123C69] focus:outline-none focus:ring-2 focus:ring-[#123C69]/35"
                 />
               </label>
 
@@ -488,108 +700,171 @@ export function LoginPage() {
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-7xl px-4 py-6">
+      <section className="relative z-10 mx-auto w-full max-w-7xl px-4 py-8">
+        <div className="animate-kmkt-fade-up mb-4 text-center [animation-delay:60ms] md:text-left">
+          <p className="text-xs font-semibold uppercase tracking-wider text-amber-300/90">Takwimu za umma</p>
+          <h3 className="font-kmkt-display mt-1 text-xl font-bold text-white md:text-2xl">Muhtasari wa taasisi (live)</h3>
+          <p className="mt-1 text-sm text-slate-400">Nambari zinatoka Supabase pekee; hazijazuliwa.</p>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
-          {[
-            ["Dayosisi", stats.dayosisi],
-            ["Majimbo", stats.majimbo],
-            ["Matawi/Vituo", stats.matawi],
-            ["Waumini", stats.waumini],
-            ["Viongozi", stats.viongozi],
-            ["Nyaraka", stats.nyaraka],
-            ["Matukio", stats.matukio],
-          ].map(([label, value]) => (
-            <article key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-3 text-center shadow-sm">
-              <p className="text-xs font-semibold text-slate-600">{String(label)}</p>
-              <p className="mt-1 text-sm font-bold text-[#0B1F3A]">{countLabel(value as number | null)}</p>
+          {statRows.map(({ key, label }, i) => (
+            <article
+              key={key}
+              style={{ animationDelay: `${80 + i * 45}ms` }}
+              className={`animate-kmkt-fade-up rounded-2xl border p-3 text-center shadow-lg backdrop-blur-md ${KPI_CARD_STYLES[i % KPI_CARD_STYLES.length]}`}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300/95">{label}</p>
+              <p
+                className={`mt-1 font-bold text-white ${statQueryFailed[key] ? "text-[10px] leading-snug md:text-xs" : "text-lg md:text-xl"}`}
+                title={statQueryFailed[key] ? "Imeshindikana kupakua taarifa" : undefined}
+              >
+                {formatStatCount(stats[key], publicStatsLoading, statQueryFailed[key])}
+              </p>
             </article>
           ))}
         </div>
-        {publicLoadError ? <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{publicLoadError}</p> : null}
+        {publicLoadError ? (
+          <p className="mt-4 rounded-xl border border-amber-400/35 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-100 backdrop-blur-sm">{publicLoadError}</p>
+        ) : null}
       </section>
 
-      <section id="modules-overview" className="mx-auto w-full max-w-7xl px-4 pb-8">
-        <h3 className="text-xl font-extrabold text-[#0B1F3A]">Vipengele vya Mfumo</h3>
-        <p className="mt-1 text-sm text-slate-600">Muonekano wa moduli kuu ndani ya portal ya KMK(T).</p>
+      <section id="modules-overview" className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-8">
+        <div className="animate-kmkt-fade-up">
+          <h3 className="font-kmkt-display text-xl font-bold text-white md:text-2xl">Vipengele vya mfumo</h3>
+          <p className="mt-1 text-sm text-slate-400">Vinjari maktaba ya moduli kabla ya kuingia — huna ruhusa ya ndani bila akaunti.</p>
+        </div>
+        {moduleGateMsg ? (
+          <p className="mt-4 rounded-xl border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-sm text-amber-50 backdrop-blur-sm" role="status">
+            {moduleGateMsg}
+          </p>
+        ) : null}
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {MODULE_CARDS.map((m) => {
+          {MODULE_CARDS.map((m, idx) => {
             const Icon = m.icon;
+            const accent = MODULE_CARD_ACCENT[idx % MODULE_CARD_ACCENT.length];
             return (
-              <article key={m.title} className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#D4AF37]/60 hover:shadow-lg">
+              <button
+                key={m.title}
+                type="button"
+                onClick={() => {
+                  setModuleGateMsg("Tafadhali ingia ili kufungua kipengele hiki.");
+                  scrollToLoginCard();
+                }}
+                style={{ animationDelay: `${100 + idx * 35}ms` }}
+                className="login-premium-module group animate-kmkt-fade-up w-full rounded-2xl border border-white/12 bg-white/[0.06] p-4 text-left shadow-lg shadow-black/30 backdrop-blur-md transition duration-200 hover:-translate-y-0.5 hover:border-amber-400/45 hover:bg-white/[0.09] hover:shadow-xl hover:shadow-amber-950/40"
+              >
                 <div className="flex items-start gap-3">
-                  <div className="rounded-xl p-2 text-white" style={{ background: `linear-gradient(135deg, ${theme.primary}, ${theme.secondary})` }}>
+                  <div className={`rounded-xl bg-gradient-to-br p-2 text-white shadow-inner ${accent}`}>
                     <Icon className="h-4 w-4" />
                   </div>
-                  <div>
-                    <p className="text-sm font-semibold text-[#0B1F3A]">{m.title}</p>
-                    <p className="mt-1 text-xs text-slate-600">{m.desc}</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white">{m.title}</p>
+                    <p className="mt-1 text-xs text-slate-400">{m.desc}</p>
                   </div>
                 </div>
-              </article>
+              </button>
             );
           })}
         </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-7xl gap-4 px-4 pb-8 lg:grid-cols-2">
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h4 className="text-lg font-bold text-[#0B1F3A]">Habari Mpya</h4>
+      <section className="relative z-10 mx-auto grid w-full max-w-7xl gap-4 px-4 pb-8 lg:grid-cols-2">
+        <article className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-lg shadow-black/25 backdrop-blur-md">
+          <h4 className="font-kmkt-display text-lg font-bold text-white">Habari Mpya</h4>
           <div className="mt-3 space-y-2">
-            {news.length === 0 ? <p className="text-sm text-slate-600">Hakuna taarifa bado.</p> : news.map((n) => (
-              <div key={n.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                <p className="text-sm font-semibold text-[#0B1F3A]">{n.title}</p>
-                <p className="text-xs text-slate-600">{formatDateSafe(n.created_at)}</p>
-              </div>
-            ))}
+            {news.length === 0 ? (
+              <p className="text-sm text-slate-400">Hakuna taarifa bado</p>
+            ) : (
+              news.map((n) => (
+                <div key={n.id} className="rounded-lg border border-white/10 bg-slate-950/40 p-2.5">
+                  <p className="text-sm font-semibold text-slate-100">{n.title}</p>
+                  <p className="text-xs text-slate-400">{formatDateSafe(n.created_at)}</p>
+                </div>
+              ))
+            )}
           </div>
         </article>
 
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h4 className="text-lg font-bold text-[#0B1F3A]">Matukio Yajayo</h4>
+        <article className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-lg shadow-black/25 backdrop-blur-md">
+          <h4 className="font-kmkt-display text-lg font-bold text-white">Matukio Yajayo</h4>
           <div className="mt-3 space-y-2">
-            {events.length === 0 ? <p className="text-sm text-slate-600">Hakuna taarifa bado.</p> : events.map((ev) => (
-              <div key={ev.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                <p className="text-sm font-semibold text-[#0B1F3A]">{ev.title}</p>
-                <p className="text-xs text-slate-600">{formatDateSafe(ev.event_date)} • {ev.location || "Eneo halijatajwa"}</p>
-              </div>
-            ))}
+            {events.length === 0 ? (
+              <p className="text-sm text-slate-400">Hakuna taarifa bado</p>
+            ) : (
+              events.map((ev) => (
+                <div key={ev.id} className="rounded-lg border border-white/10 bg-slate-950/40 p-2.5">
+                  <p className="text-sm font-semibold text-slate-100">{ev.title}</p>
+                  <p className="text-xs text-slate-400">
+                    {formatDateSafe(ev.event_date)} • {ev.location || "Eneo halijatajwa"}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </article>
 
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h4 className="text-lg font-bold text-[#0B1F3A]">Nyaraka za Umma</h4>
+        <article className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-lg shadow-black/25 backdrop-blur-md">
+          <h4 className="font-kmkt-display text-lg font-bold text-white">Nyaraka za Umma</h4>
           <div className="mt-3 space-y-2">
-            {documents.length === 0 ? <p className="text-sm text-slate-600">Hakuna taarifa bado.</p> : documents.map((d) => (
-              <div key={d.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                <p className="text-sm font-semibold text-[#0B1F3A]">{d.title}</p>
-                <p className="text-xs text-slate-600">{d.category || "Nyingine"} • {formatDateSafe(d.created_at)}</p>
-              </div>
-            ))}
+            {documents.length === 0 ? (
+              <p className="text-sm text-slate-400">Hakuna taarifa bado</p>
+            ) : (
+              documents.map((d) => (
+                <div key={d.id} className="rounded-lg border border-white/10 bg-slate-950/40 p-2.5">
+                  <p className="text-sm font-semibold text-slate-100">{d.title}</p>
+                  <p className="text-xs text-slate-400">
+                    {d.category || "Nyingine"} • {formatDateSafe(d.created_at)}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </article>
 
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h4 className="text-lg font-bold text-[#0B1F3A]">Media Highlights & Livestream</h4>
+        <article className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-lg shadow-black/25 backdrop-blur-md">
+          <h4 className="font-kmkt-display text-lg font-bold text-white">Media Highlights & Livestream</h4>
           <div className="mt-3 space-y-2">
-            {liveNow.length === 0 ? <p className="text-sm text-slate-600">Hakuna livestream ya moja kwa moja kwa sasa.</p> : liveNow.map((lv) => (
-              <a key={lv.id} href={lv.stream_url} target="_blank" rel="noreferrer" className="block rounded-lg border border-rose-200 bg-rose-50 p-2">
-                <p className="text-sm font-semibold text-rose-900">LIVE NOW • {lv.title}</p>
-              </a>
-            ))}
-            {sermons.length === 0 ? <p className="text-sm text-slate-600">Hakuna taarifa bado.</p> : sermons.slice(0, 3).map((s) => (
-              <div key={s.id} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-                <p className="text-sm font-semibold text-[#0B1F3A]">{s.title}</p>
-                <p className="text-xs text-slate-600">{s.preacher || "Mhudumu"} • {formatDateSafe(s.date)}</p>
-              </div>
-            ))}
+            {liveNow.length === 0 ? (
+              <p className="text-sm text-slate-400">Hakuna livestream ya moja kwa moja kwa sasa</p>
+            ) : (
+              liveNow.map((lv) =>
+                lv.stream_url ? (
+                  <a
+                    key={lv.id}
+                    href={lv.stream_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-lg border border-rose-400/35 bg-rose-500/10 p-2.5 backdrop-blur-sm"
+                  >
+                    <p className="text-sm font-semibold text-rose-100">LIVE • {lv.title}</p>
+                  </a>
+                ) : (
+                  <div key={lv.id} className="rounded-lg border border-rose-400/35 bg-rose-500/10 p-2.5">
+                    <p className="text-sm font-semibold text-rose-100">LIVE • {lv.title}</p>
+                  </div>
+                )
+              )
+            )}
+            {sermons.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-400">Hakuna taarifa bado</p>
+            ) : (
+              sermons.slice(0, 3).map((s) => (
+                <div key={s.id} className="rounded-lg border border-white/10 bg-slate-950/40 p-2.5">
+                  <p className="text-sm font-semibold text-slate-100">{s.title}</p>
+                  <p className="text-xs text-slate-400">
+                    {s.preacher || "Mhudumu"} • {formatDateSafe(s.date)}
+                  </p>
+                </div>
+              ))
+            )}
           </div>
         </article>
       </section>
 
-      <section className="mx-auto w-full max-w-7xl px-4 pb-8">
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h4 className="text-lg font-bold text-[#0B1F3A]">Usalama, Roles & Permissions</h4>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+      <section className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-8">
+        <article className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-lg shadow-black/25 backdrop-blur-md">
+          <h4 className="font-kmkt-display text-lg font-bold text-white">Usalama, Roles & Permissions</h4>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-300">
             {SECURITY_BULLETS.map((x) => (
               <li key={x}>{x}</li>
             ))}
@@ -597,10 +872,10 @@ export function LoginPage() {
         </article>
       </section>
 
-      <footer className="border-t border-slate-200 bg-white">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 py-5 text-sm text-slate-700 md:flex-row md:items-center md:justify-between">
-          <p className="font-semibold text-[#0B1F3A]">{branding.officialName}</p>
-          <p>{branding.footer}</p>
+      <footer className="relative z-10 border-t border-white/10 bg-[#050a14]/90 backdrop-blur-md">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 py-5 text-sm text-slate-300 md:flex-row md:items-center md:justify-between">
+          <p className="font-semibold text-white">{branding.officialName}</p>
+          <p className="text-slate-400">{branding.footer}</p>
           <p className="text-slate-500">© {new Date().getFullYear()} KMK(T) Tanzania</p>
         </div>
       </footer>

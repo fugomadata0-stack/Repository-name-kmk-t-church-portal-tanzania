@@ -26,8 +26,8 @@ function rowToRecord(r: Record<string, unknown>): DeveloperProfileRecord {
   };
 }
 
-const DEFAULT_BIO =
-  "Mr Fugo ni mwasifu wa kiufundi wa mfumo wa KMKT. Ana uzoefu wa uundaji programu, uunganisho wa mifumo na Supabase, na msaada wa kiufundi kwa timu ya kanisa. Anapatikana Mwanza, Simiyu, na Geita kwa masuala ya kiufundi na maendeleo ya mfumo.";
+const FALLBACK_BIO =
+  "Hariri wasifu huu na taarifa halisi za mwasifu wa mfumo (hazijazuliwa kwenye uzalishaji).";
 
 export async function fetchDeveloperProfile(): Promise<DeveloperProfileRecord | null> {
   const c = clientOrThrow();
@@ -37,7 +37,10 @@ export async function fetchDeveloperProfile(): Promise<DeveloperProfileRecord | 
   return rowToRecord(data as Record<string, unknown>);
 }
 
-/** Hakikisha kuna safu moja (kinachofanana na msimbo wa DB seed). */
+/**
+ * Hakikisha kuna safu moja ikiwa jedwali ni tupu — **hakuna** nambari ya simu wala anwani bandia kwenye msimbo;
+ * msimamizi anahariri kwenye UI baada ya kuonyesha.
+ */
 export async function ensureDeveloperProfileSeed(): Promise<DeveloperProfileRecord> {
   const existing = await fetchDeveloperProfile();
   if (existing) return existing;
@@ -45,12 +48,12 @@ export async function ensureDeveloperProfileSeed(): Promise<DeveloperProfileReco
   const { data, error } = await c
     .from("developer_profile")
     .insert({
-      full_name: "Mr Fugo",
-      email: "fugomadata0@gmail.com",
-      phone: "0624683622",
-      address: "Mwanza, Simiyu, Geita",
-      po_box: "P.O. Box 308 Itilima DC",
-      bio: DEFAULT_BIO,
+      full_name: "Wasifu wa kiufundi (hariri)",
+      email: "",
+      phone: "",
+      address: "",
+      po_box: "",
+      bio: FALLBACK_BIO,
     })
     .select("*")
     .single();

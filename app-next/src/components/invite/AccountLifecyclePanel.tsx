@@ -11,6 +11,7 @@ import {
   userLifecycleAction,
   type UnifiedAuditRow,
 } from "../../services/phase36UserLifecycleService";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 
 export function AccountLifecyclePanel() {
   const { role, session, pushToast, reportError, logAudit } = usePortal();
@@ -232,6 +233,7 @@ export function AccountLifecyclePanel() {
         <PremiumTable<PortalDirectoryProfile>
           title="Watumishi"
           subtitle="portal_directory_profiles"
+          persistenceScope={portalPremiumTableScope(["invite_promote_permissions", "lifecycle", "profiles"])}
           rows={profiles}
           columns={profileColumns}
           canAdd={false}
@@ -249,6 +251,7 @@ export function AccountLifecyclePanel() {
         <PremiumTable<UnifiedAuditRow>
           title="Timeline"
           subtitle="phase36 + phase34"
+          persistenceScope={portalPremiumTableScope(["invite_promote_permissions", "lifecycle", "timeline"])}
           rows={timeline.slice(0, 80)}
           columns={timelineColumns}
           canAdd={false}

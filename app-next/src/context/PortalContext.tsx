@@ -9,13 +9,24 @@ import {
   type ReactNode,
 } from "react";
 import type { AuthError, Session, User } from "@supabase/supabase-js";
+import { captureClientException } from "../lib/sentryInit";
 import { formatCaughtError, formatPostgrestError } from "../lib/supabaseErrors";
 import { getSupabase, isSupabaseConfigured, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
 import { redactSensitiveText, safeStorage } from "../lib/security";
+import { clearPortalUiSnapshot } from "../lib/portalUiPersistence";
+import { notifyOfficialPortalSave } from "../lib/portalDraftRecovery";
 import { checkAndIncrementRateLimit, fetchMatrixForRole, resetRateLimit } from "../services/securityService";
 import { logAuditAction } from "../services/auditLogService";
 import { parsePortalUserRole } from "../utils/permissions";
 import { matrixHasAnyViewableModule, type ModuleMatrixMap } from "../utils/matrixPermissions";
+import {
+  describeScopeEditBadge,
+  recordAllowsScopeMutation,
+  SCOPE_TOOLTIP_SW,
+  type ScopeHierarchy,
+  type ScopeMutationOp,
+  type ScopeTriple,
+} from "../utils/scopeAccess";
 import type {
   AboutKmktState,
   PortalDirectoryProfile,
@@ -81,6 +92,11 @@ export interface PortalContextValue {
   canPortalUploadModule: (moduleKey: string) => boolean;
   canPortalDownloadModule: (moduleKey: string) => boolean;
   canPortalManageSettingsModule: (moduleKey: string) => boolean;
+
+  /** Upeo wa kuona data zote vs uhariri ndani ya eneo */
+  scopeBadgeLabel: string;
+  canScopeMutateRecord: (op: ScopeMutationOp, row: ScopeTriple | null, hierarchy: ScopeHierarchy) => boolean;
+  notifyScopeDenied: (moduleKey: string, attemptedEntity: string, meta?: Record<string, unknown>) => void;
 }
 
 const emptySocial: SiteSocialLinks = {
@@ -298,6 +314,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 
   const reportError = useCallback(
     (err: unknown, context?: string) => {
+      captureClientException(err, context);
       const safeErrText = redactSensitiveText(formatCaughtError(err));
       if (context) console.error(`[${context}]`, safeErrText);
       else console.error(safeErrText);
@@ -557,6 +574,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         user_agent: typeof window !== "undefined" ? window.navigator.userAgent : null,
       });
     }
+    clearPortalUiSnapshot();
     clearPortalAccess();
     setSession(null);
     setAuthUser(null);
@@ -643,6 +661,37 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [matrixByModule]
   );
 
+  const scopeBadgeLabel = useMemo(() => describeScopeEditBadge(role, portalProfile), [role, portalProfile]);
+
+  const canScopeMutateRecord = useCallback(
+    (op: ScopeMutationOp, row: ScopeTriple | null, hierarchy: ScopeHierarchy) =>
+      recordAllowsScopeMutation(role, portalProfile, op, row, hierarchy),
+    [role, portalProfile]
+  );
+
+  const notifyScopeDenied = useCallback(
+    (moduleKey: string, attemptedEntity: string, meta?: Record<string, unknown>) => {
+      pushToast(SCOPE_TOOLTIP_SW, "error");
+      void logAuditAction({
+        module: moduleKey,
+        action: "scope_denied",
+        entity_type: attemptedEntity,
+        status: "failed",
+        message: "outside_scope",
+        performed_by_user_id: authUser?.id ?? null,
+        performed_by_name: portalProfile?.full_name ?? authUser?.email ?? null,
+        role_key: portalProfile?.role_key ?? role,
+        new_values: {
+          reason: "outside_scope",
+          role_key: portalProfile?.role_key ?? role,
+          ...meta,
+        },
+        user_agent: typeof window !== "undefined" ? window.navigator.userAgent : null,
+      });
+    },
+    [pushToast, authUser, portalProfile, role]
+  );
+
   const supabaseReady = isSupabaseConfigured();
 
   useEffect(() => {
@@ -667,8 +716,9 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         if (isInvalidRefreshTokenError(e)) {
           safeStorage.remove(SESSION_ACTIVITY_KEY);
+          clearPortalUiSnapshot();
           void client.auth.signOut({ scope: "local" }).catch(() => undefined);
-          pushToast("Session ya zamani imeisha. Tafadhali ingia tena.", "info");
+          pushToast("Kikao chako kimekwisha muda wake. Tafadhali ingia tena.", "info");
         } else {
           reportError(e, "Auth — getSession");
         }
@@ -692,6 +742,78 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     };
   }, [reportError, pushToast]);
 
+  /** Kurudi kwenye tab / programu: thibitisha kikao kimya kimya; epuka kutoa mtumiaji kwa hitilafu ya mtandao kwa muda mfupi. */
+  useEffect(() => {
+    const client = getSupabase();
+    if (!client || !session) return;
+
+    const SESSION_EXPIRED_SW = "Kikao chako kimekwisha muda wake. Tafadhali ingia tena.";
+
+    const reconcileSession = () => {
+      void (async () => {
+        try {
+          const { data, error } = await client.auth.getSession();
+          const s = data.session;
+          if (error) {
+            if (isInvalidRefreshTokenError(error)) {
+              safeStorage.remove(SESSION_ACTIVITY_KEY);
+              clearPortalUiSnapshot();
+              await client.auth.signOut({ scope: "local" }).catch(() => undefined);
+              setSession(null);
+              setAuthUser(null);
+              clearPortalAccessRef.current();
+              pushToast(SESSION_EXPIRED_SW, "info");
+              return;
+            }
+            return;
+          }
+          if (s?.user) {
+            setSession(s);
+            setAuthUser(s.user);
+            return;
+          }
+          const refreshed = await client.auth.refreshSession();
+          if (refreshed.error) {
+            if (isInvalidRefreshTokenError(refreshed.error)) {
+              safeStorage.remove(SESSION_ACTIVITY_KEY);
+              clearPortalUiSnapshot();
+              await client.auth.signOut({ scope: "local" }).catch(() => undefined);
+              setSession(null);
+              setAuthUser(null);
+              clearPortalAccessRef.current();
+              pushToast(SESSION_EXPIRED_SW, "info");
+            }
+            return;
+          }
+          const rs = refreshed.data.session;
+          if (rs?.user) {
+            setSession(rs);
+            setAuthUser(rs.user);
+          }
+        } catch {
+          /* mtandao si thabiti — usibadilishe hali ya mtumiaji */
+        }
+      })();
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") reconcileSession();
+    };
+    const onOnline = () => reconcileSession();
+    const onPageShow = (ev: PageTransitionEvent) => {
+      if (ev.persisted) reconcileSession();
+    };
+
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [session, pushToast]);
+
   useEffect(() => {
     if (!session) return;
     const touch = () => safeStorage.set(SESSION_ACTIVITY_KEY, String(Date.now()));
@@ -700,7 +822,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     const interval = window.setInterval(() => {
       const last = Number(safeStorage.get(SESSION_ACTIVITY_KEY) || 0);
       if (last > 0 && Date.now() - last > SESSION_IDLE_LIMIT_MS) {
-        pushToast("Session imeisha kutokana na kutotumika kwa muda mrefu.", "info");
+        pushToast("Kikao chako kimekwisha muda wake. Tafadhali ingia tena.", "info");
         void signOut();
       }
     }, 60000);
@@ -806,7 +928,10 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         if (error) {
           pushToast(formatPostgrestError(error, "site_settings.save"), "error");
-        } else pushToast("Mipangilio ya tovuti imesasishwa.", "success");
+        } else {
+          notifyOfficialPortalSave();
+          pushToast("Mipangilio ya tovuti imesasishwa.", "success");
+        }
       } else {
         const { data, error } = await client.from("site_settings").insert(payload).select("id").single();
         setLoading(false);
@@ -814,6 +939,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
           pushToast(formatPostgrestError(error, "site_settings.insert"), "error");
         } else {
           setSite((s) => ({ ...s, id: data?.id as string }));
+          notifyOfficialPortalSave();
           pushToast("Mipangilio ya tovuti imehifadhiwa.", "success");
         }
       }
@@ -857,7 +983,10 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         if (error) {
           pushToast(formatPostgrestError(error, "about_kmkt.save"), "error");
-        } else pushToast("Kuhusu KMKT kimesasishwa.", "success");
+        } else {
+          notifyOfficialPortalSave();
+          pushToast("Kuhusu KMKT kimesasishwa.", "success");
+        }
       } else {
         const { data, error } = await client.from("about_kmkt").insert(payload).select("id").single();
         setLoading(false);
@@ -865,6 +994,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
           pushToast(formatPostgrestError(error, "about_kmkt.insert"), "error");
         } else {
           setAbout((a) => ({ ...a, id: data?.id }));
+          notifyOfficialPortalSave();
           pushToast("Kuhusu KMKT kimeundwa.", "success");
         }
       }
@@ -939,6 +1069,9 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       canPortalUploadModule,
       canPortalDownloadModule,
       canPortalManageSettingsModule,
+      scopeBadgeLabel,
+      canScopeMutateRecord,
+      notifyScopeDenied,
     }),
     [
       role,
@@ -980,6 +1113,9 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       canPortalUploadModule,
       canPortalDownloadModule,
       canPortalManageSettingsModule,
+      scopeBadgeLabel,
+      canScopeMutateRecord,
+      notifyScopeDenied,
     ]
   );
 

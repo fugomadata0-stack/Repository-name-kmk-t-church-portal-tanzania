@@ -1,24 +1,41 @@
 {
-  "name": "KMK(T) Internal Portal",
-  "short_name": "KMK(T) Portal",
-  "description": "Portal ya ndani ya Kanisa la Mennonite la Kiinjili Tanzania.",
+  "id": "/",
+  "name": "KMK(T) Tanzania Website",
+  "short_name": "KMK(T)",
+  "description": "KMK(T) Tanzania Website — huduma za kidigitali za Kanisa la Mennonite la Kiinjili Tanzania.",
+  "lang": "sw",
+  "dir": "ltr",
+  "categories": ["business", "productivity"],
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0B1F3A",
-  "theme_color": "#0B1F3A",
-  "orientation": "portrait-primary",
+  "background_color": "#0a1628",
+  "theme_color": "#0f1e46",
+  "orientation": "any",
   "icons": [
     {
-      "src": "/pwa-192.svg",
+      "src": "/pwa-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/pwa-512.svg",
+      "src": "/pwa-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/pwa-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/pwa-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

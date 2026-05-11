@@ -1,3 +1,4 @@
+import { mirrorDeleteDayosisiCascade, mirrorLegacyDayosisiToStructure } from "../lib/legacyStructureMirror";
 import { getSupabase } from "../lib/supabaseClient";
 import { safeLower } from "../lib/safe";
 import { formatPostgrestError } from "../lib/supabaseErrors";
@@ -76,17 +77,22 @@ export async function upsertDayosisi(record: DayosisiRecord): Promise<DayosisiRe
   if (isPersistedDayosisiId(record.id)) {
     const res = await client.from("dayosisi").update(payload).eq("id", record.id).select("*").single();
     const data = unwrapOrThrow(res, "dayosisi.update");
-    return mapRowToDayosisi(data as unknown as Record<string, unknown>);
+    const mapped = mapRowToDayosisi(data as unknown as Record<string, unknown>);
+    void mirrorLegacyDayosisiToStructure(mapped);
+    return mapped;
   }
 
   const res = await client.from("dayosisi").insert(payload).select("*").single();
   const data = unwrapOrThrow(res, "dayosisi.insert");
-  return mapRowToDayosisi(data as unknown as Record<string, unknown>);
+  const mapped = mapRowToDayosisi(data as unknown as Record<string, unknown>);
+  void mirrorLegacyDayosisiToStructure(mapped);
+  return mapped;
 }
 
 export async function deleteDayosisi(id: string): Promise<void> {
   const client = getSupabase();
   if (!client || !isPersistedDayosisiId(id)) return;
+  await mirrorDeleteDayosisiCascade(id);
   const { error } = await client.from("dayosisi").delete().eq("id", id);
   if (error) throw new Error(formatPostgrestError(error, "dayosisi.delete"));
 }

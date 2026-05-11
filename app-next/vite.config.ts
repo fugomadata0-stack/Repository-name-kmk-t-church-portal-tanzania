@@ -1,8 +1,26 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const sentryPkg = path.join(__dirname, "node_modules", "@sentry", "react", "package.json");
+const sentryInstalled = fs.existsSync(sentryPkg);
+
+function supabaseOriginFromEnv(env: Record<string, string>): string {
+  const raw = String(env.VITE_SUPABASE_URL ?? "").trim();
+  if (!raw) return "";
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return "";
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
+  const supabaseOrigin = supabaseOriginFromEnv(env);
   if (mode === "production") {
     const required = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"] as const;
     const missing = required.filter((k) => !String(env[k] ?? "").trim());
@@ -19,9 +37,24 @@ export default defineConfig(({ mode }) => {
     }
   }
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        name: "html-preconnect-supabase",
+        transformIndexHtml(html) {
+          if (!supabaseOrigin) return html;
+          const inject = `    <link rel="preconnect" href="${supabaseOrigin}" crossorigin />\n    <link rel="dns-prefetch" href="${supabaseOrigin}" />\n`;
+          return html.replace(/<head>/i, `<head>\n${inject}`);
+        },
+      },
+    ],
     resolve: {
       dedupe: ["react", "react-dom"],
+      alias: {
+        ...(sentryInstalled
+          ? {}
+          : { "@sentry/react": path.resolve(__dirname, "src/lib/sentryPackageShim.ts") }),
+      },
     },
     server: {
       host: "localhost",
@@ -38,6 +71,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
+      target: "es2022",
       sourcemap: false,
       chunkSizeWarningLimit: 900,
       rollupOptions: {
@@ -52,6 +86,7 @@ export default defineConfig(({ mode }) => {
               return "export-pdf";
             }
             if (id.includes("xlsx")) return "export-excel";
+            if (id.includes("@sentry")) return "sentry";
             if (id.includes("react") || id.includes("react-dom") || id.includes("scheduler")) return "react-vendor";
             return "vendor";
           },

@@ -12,6 +12,7 @@ import {
   validateHexColor,
   validatePhone,
 } from "../../services/masterSettingsService";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 
 type TabKey =
   | "identity"
@@ -40,8 +41,8 @@ const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 
 export function MasterSettingsCenterPanel() {
-  const { pushToast, reportError, canPortalEditModule, role, logAudit } = usePortal();
-  const canEdit = canPortalEditModule("mipangilio") && role === "super_admin";
+  const { pushToast, reportError, canPortalEditModule, canPortalManageSettingsModule, logAudit } = usePortal();
+  const canEdit = canPortalManageSettingsModule("mipangilio") && canPortalEditModule("mipangilio");
 
   const [activeTab, setActiveTab] = useState<TabKey>("identity");
   const [loading, setLoading] = useState(true);
@@ -143,7 +144,7 @@ export function MasterSettingsCenterPanel() {
       });
 
       window.dispatchEvent(new CustomEvent("kmt-portal-settings-updated"));
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
 
       pushToast("Master Settings zimehifadhiwa.", "success");
     } catch (err) {

@@ -16,7 +16,9 @@ type Props = {
 };
 
 /**
- * Mandhari ya modal inayoruhusu skrôl ya wima kwa fomu ndefu (juu ↔ chini).
+ * Modal overlay with vertical scroll for tall content.
+ * Small screens: aligns from top + respects safe-area and dynamic viewport (`dvh`).
+ * `sm+`: centers vertically when space allows.
  */
 export function ModalScrollLayer({
   children,
@@ -27,13 +29,16 @@ export function ModalScrollLayer({
 }: Props) {
   const outerClass =
     overlayClassName?.trim() ||
-    `fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-black/45 px-2 py-4 backdrop-blur-sm sm:px-4 sm:py-10 ${extraBackdropClassName}`.trim();
+    `fixed inset-0 z-50 overflow-y-auto overflow-x-hidden bg-black/45 px-2 py-3 backdrop-blur-sm sm:px-4 sm:py-10 ${extraBackdropClassName}`.trim();
 
   return (
     <div className={outerClass} onClick={onBackdropClick} role="presentation">
-      <div className="flex min-h-full items-center justify-center">
-        <div className={`relative w-full ${maxWidthClass} py-2`} onClick={(e) => e.stopPropagation()}>
-          <div className="max-h-[min(92vh,calc(100dvh-2rem))] overflow-y-auto overscroll-y-contain [scrollbar-gutter:stable] sm:max-h-[min(88vh,calc(100dvh-5rem))]">
+      <div className="flex min-h-[100dvh] w-full flex-col items-stretch justify-start pt-[max(0.5rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:min-h-full sm:items-center sm:justify-center sm:py-10">
+        <div
+          className={`relative mx-auto w-full min-w-0 ${maxWidthClass} py-1 sm:py-2`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.25rem))] overflow-y-auto overscroll-y-contain leading-relaxed [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] sm:max-h-[min(90vh,calc(100dvh-5rem))]">
             {children}
           </div>
         </div>

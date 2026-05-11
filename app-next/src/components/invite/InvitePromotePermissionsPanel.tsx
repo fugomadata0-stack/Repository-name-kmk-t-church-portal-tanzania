@@ -32,6 +32,7 @@ import {
   saveMatrixSafe,
 } from "../../services/phase34PermissionsService";
 import { AccountLifecyclePanel } from "./AccountLifecyclePanel";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 import { safeArray, safeIncludes, safeLower } from "../../lib/safe";
 const MATRIX_FLAGS = ["can_view", "can_create", "can_edit", "can_delete", "can_export", "can_audit"] as const;
 
@@ -626,6 +627,7 @@ export function InvitePromotePermissionsPanel({ submodule }: Props) {
             <PremiumTable<Phase34InviteRow>
               title="Mialiko ya hivi karibuni"
               subtitle="phase34_invites"
+              persistenceScope={portalPremiumTableScope(["invite_promote_permissions", "wizard", "invites_recent"])}
               rows={invites.slice(0, 12)}
               columns={inviteColumns}
               canAdd={false}
@@ -653,6 +655,7 @@ export function InvitePromotePermissionsPanel({ submodule }: Props) {
           <PremiumTable<PortalDirectoryProfile>
             title="Watumishi / wasifu"
             subtitle="portal_directory_profiles"
+            persistenceScope={portalPremiumTableScope(["invite_promote_permissions", "promote", "directory"])}
             rows={filteredProfiles}
             columns={profileColumns}
             canAdd={false}
@@ -859,6 +862,7 @@ export function InvitePromotePermissionsPanel({ submodule }: Props) {
           <PremiumTable<Phase34InviteRow>
             title="Historia ya mialiko"
             subtitle="phase34_invites"
+            persistenceScope={portalPremiumTableScope(["invite_promote_permissions", "history", "invites"])}
             rows={filteredInvites}
             columns={inviteColumns}
             canAdd={false}
@@ -870,6 +874,7 @@ export function InvitePromotePermissionsPanel({ submodule }: Props) {
           <PremiumTable<Phase34RoleChangeRow>
             title="Historia ya mabadiliko ya jukumu"
             subtitle="phase34_role_change_history"
+            persistenceScope={portalPremiumTableScope(["invite_promote_permissions", "history", "role_changes"])}
             rows={history}
             columns={historyColumns}
             canAdd={false}

@@ -6,6 +6,7 @@ import { usePortal } from "../../context/PortalContext";
 import { GENERIC_MODULE_EXCEL } from "../../lib/excelModuleFormSpecs";
 import { bulkImportGenericRows } from "../../lib/portalExcelBulkHandlers";
 import { safeLower } from "../../lib/safe";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 
 export interface GenericRow extends Record<string, string | number | undefined> {
   id: string;
@@ -102,6 +103,7 @@ export function GenericModuleView({ moduleKey, submodule, title }: Props) {
       <PremiumTable<GenericRow>
         title={heading}
         subtitle="Jedwali la kitaalamu: tafuta, chuja, panga, ukurasa, nakala, PDF, Excel, maelezo."
+        persistenceScope={portalPremiumTableScope([moduleKey, submodule, "generic"])}
         rows={rows}
         columns={[
           { key: "title", label: "Kichwa", sortable: true },

@@ -15,7 +15,7 @@ export function SiteFooter({ site, about }: { site: SiteSettingsState; about: Ab
   const brand = about.church_name?.trim() || site.meta_title?.trim() || "KMT Portal";
   const year = new Date().getFullYear();
 
-  const emailRaw = sl.email_public?.trim() ?? "";
+  const emailRaw = (sl.email_public?.trim() ?? "").replace(/^mailt:/i, "mailto:");
   const emailHref = emailRaw
     ? emailRaw.startsWith("http")
       ? emailRaw

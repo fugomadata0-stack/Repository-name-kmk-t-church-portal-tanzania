@@ -238,7 +238,7 @@ export function canCreate(role: UserRole, moduleKey: string) {
 }
 
 export function canEdit(role: UserRole, moduleKey: string) {
-  if (["viewer", "reviewer", "tawi_admin"].includes(role)) return false;
+  if (role === "viewer" || role === "reviewer") return false;
   if (role === "approver") return ["nyaraka", "fedha", "mapato_income", "communications"].includes(moduleKey);
   return canViewModule(role, moduleKey);
 }

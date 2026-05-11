@@ -7,10 +7,12 @@ interface Props {
   onOpenMobileSidebar: () => void;
   /** Tumia kusogeza moduli programu (mf. taarifa kutoka bell). */
   onNavigateToModule?: (moduleKey: string, submodule?: string) => void;
+  /** False inapoonyesha tayari uko kwenye Dashibodi/Overview — kitufe kinazima na tooltip. */
+  canBack?: boolean;
 }
 
-export function Topbar({ title, onOpenMobileSidebar, onNavigateToModule }: Props) {
-  const { supabaseReady, authUser, portalProfile, role, signOut } = usePortal();
+export function Topbar({ title, onOpenMobileSidebar, onNavigateToModule, canBack = true }: Props) {
+  const { supabaseReady, authUser, portalProfile, role, signOut, scopeBadgeLabel } = usePortal();
   const [installEvent, setInstallEvent] = useState<any>(null);
   const [installed, setInstalled] = useState(false);
 
@@ -31,16 +33,25 @@ export function Topbar({ title, onOpenMobileSidebar, onNavigateToModule }: Props
     };
   }, []);
   const goBack = () => {
-    if (window.history.length > 1) window.history.back();
+    window.dispatchEvent(new Event("kmt-portal-submodule-back"));
   };
   return (
-    <header className="sticky top-0 z-30 border-b border-amber-200/90 bg-white/85 shadow-sm backdrop-blur-md">
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2 sm:px-4 sm:py-3">
-        <button type="button" className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm lg:hidden" onClick={onOpenMobileSidebar} aria-label="Fungua menyu">
-          ☰
-        </button>
-        <h2 className="min-w-0 flex-1 truncate text-base font-bold text-[#0f1e46] sm:text-lg">{title}</h2>
-        <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+    <header className="sticky top-0 z-30 border-b border-amber-200/90 bg-white/85 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-md">
+      <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-2 sm:px-4 sm:py-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            className="shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm lg:hidden"
+            onClick={onOpenMobileSidebar}
+            aria-label="Fungua menyu"
+          >
+            ☰
+          </button>
+          <h2 className="min-w-0 flex-1 hyphens-auto break-words text-base font-bold leading-snug text-[#0f1e46] sm:text-lg">
+            {title}
+          </h2>
+        </div>
+        <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-2 sm:ml-auto sm:max-w-none">
           {onNavigateToModule ? (
             <NotificationBell
               onOpenFullPage={() => {
@@ -73,16 +84,28 @@ export function Topbar({ title, onOpenMobileSidebar, onNavigateToModule }: Props
           >
             {supabaseReady ? "Supabase" : "Local"}
           </span>
-          <button type="button" onClick={goBack} className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 hover:bg-slate-50">
+          <button
+            type="button"
+            onClick={goBack}
+            disabled={!canBack}
+            title={canBack ? "Rudi nyuma" : "Tayari uko kwenye Dashibodi."}
+            className="shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+          >
             ← Rudi
           </button>
           <span className="hidden max-w-[200px] truncate text-xs text-slate-600 md:inline" title={authUser?.email ?? ""}>
             {portalProfile?.full_name?.trim() || authUser?.email || "—"}
           </span>
-          <span className="rounded-full bg-gradient-to-r from-blue-900 to-blue-950 px-2.5 py-1 text-xs font-semibold text-amber-100">{role}</span>
+          <span
+            className="hidden max-w-[220px] truncate rounded-full border border-amber-200/80 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-950 sm:inline"
+            title={scopeBadgeLabel}
+          >
+            {scopeBadgeLabel}
+          </span>
+          <span className="shrink-0 rounded-full bg-gradient-to-r from-blue-900 to-blue-950 px-2.5 py-1 text-xs font-semibold text-amber-100">{role}</span>
           <button
             type="button"
-            className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
+            className="shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm font-medium text-slate-800 hover:bg-slate-50"
             onClick={() => void signOut()}
           >
             Toka

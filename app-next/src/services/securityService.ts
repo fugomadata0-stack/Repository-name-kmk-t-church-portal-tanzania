@@ -312,6 +312,28 @@ export async function fetchPortalSecurityCounts(): Promise<{
   }
 }
 
+export async function fetchPortalSecurityCountsStrict(): Promise<{
+  directory: number;
+  visibilityRules: number;
+  rbacMatrixRows: number;
+}> {
+  const c = getSupabase();
+  if (!c) throw new Error("Supabase haijasanidiwa.");
+  const [d, v, mx] = await Promise.all([
+    c.from("portal_directory_profiles").select("*", { count: "exact", head: true }),
+    c.from("portal_visibility_rules").select("*", { count: "exact", head: true }),
+    c.from("portal_module_matrix").select("*", { count: "exact", head: true }),
+  ]);
+  if (d.error) throw new Error(formatPostgrestError(d.error, "portal_directory_profiles.count"));
+  if (v.error) throw new Error(formatPostgrestError(v.error, "portal_visibility_rules.count"));
+  if (mx.error) throw new Error(formatPostgrestError(mx.error, "portal_module_matrix.count"));
+  return {
+    directory: d.count ?? 0,
+    visibilityRules: v.count ?? 0,
+    rbacMatrixRows: mx.count ?? 0,
+  };
+}
+
 export async function checkAndIncrementRateLimit(
   scope: string,
   identifier: string,

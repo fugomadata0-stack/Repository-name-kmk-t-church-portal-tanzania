@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { mergeModuleSlice, readModuleSlice } from "../../lib/portalUiPersistence";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import type { ReactNode } from "react";
 import { usePortal } from "../../context/PortalContext";
 import { ConfirmModal } from "./ConfirmModal";
@@ -15,6 +17,7 @@ import { downloadCsvDataExport, downloadCsvTemplate, parseCsvData } from "../../
 import { PORTAL_EXCEL_TABLE_HINT_SW } from "../../lib/excelModuleFormSpecs";
 import { validateSelectedFile } from "../../lib/fileUploadGuard";
 import { safeArray, safeIncludes, safeLower } from "../../lib/safe";
+import { SCOPE_TOOLTIP_SW } from "../../utils/scopeAccess";
 
 export interface Column<T> {
   key: keyof T | string;
@@ -48,6 +51,9 @@ interface Props<T extends { id: string; status?: string }> {
   canAdd?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
+  /** Ukiweka, safu moja moja inaamua (mipaka ya eneo) */
+  rowCanEdit?: (row: T) => boolean;
+  rowCanDelete?: (row: T) => boolean;
   canExport?: boolean;
   /** Base filename for Excel / PDF export */
   exportBasename?: string;
@@ -58,9 +64,25 @@ interface Props<T extends { id: string; status?: string }> {
   actionsDisabled?: boolean;
   /** Angaza safu kwa sekunde chache (baada ya kuongeza) */
   highlightRowId?: string | null;
+  /** Ufunguo wa sessionStorage (filters / ukurasa) — tumia `portalPremiumTableScope` au kamba maalum kwa jedwali */
+  persistenceScope?: string;
+  /** Badilisha kichwa / ujumbe wa kidirisha cha uthibitisho wa futa (mf. archive). */
+  deleteConfirmTitle?: string;
+  deleteConfirmMessage?: string;
+  /** Vitendo vya ziada kwa kila safu (mf. PDF/Excel ya rekodi moja). */
+  renderRowActionExtras?: (row: T) => ReactNode;
 }
 
 type SortDir = "asc" | "desc";
+
+type PremiumTablePersist = {
+  q: string;
+  statusFilter: string;
+  sortKey: string | null;
+  sortDir: SortDir;
+  page: number;
+  pageSize: number;
+};
 const EXCEL_MAX_BYTES = 5 * 1024 * 1024;
 const CSV_MAX_BYTES = 2 * 1024 * 1024;
 
@@ -75,14 +97,20 @@ export function PremiumTable<T extends { id: string; status?: string }>({
   canAdd = true,
   canEdit = true,
   canDelete = true,
+  rowCanEdit,
+  rowCanDelete,
   canExport = true,
   exportBasename,
   excelBulk = null,
   isLoading = false,
   actionsDisabled = false,
   highlightRowId = null,
+  persistenceScope,
+  deleteConfirmTitle,
+  deleteConfirmMessage,
+  renderRowActionExtras,
 }: Props<T>) {
-  const { reportError, pushToast } = usePortal();
+  const { reportError, pushToast, authUser } = usePortal();
   const importInputRef = useRef<HTMLInputElement>(null);
   const csvImportInputRef = useRef<HTMLInputElement>(null);
   const [importBusy, setImportBusy] = useState(false);
@@ -96,11 +124,49 @@ export function PremiumTable<T extends { id: string; status?: string }>({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  const persistFullKey = useMemo(() => {
+    const s = persistenceScope?.trim();
+    if (!s) return null;
+    return `pt:${s.slice(0, 160)}`;
+  }, [persistenceScope]);
+
+  useLayoutEffect(() => {
+    if (!persistFullKey || !authUser?.id) return;
+    const saved = readModuleSlice<PremiumTablePersist>(authUser.id, persistFullKey);
+    if (!saved) return;
+    setQ(saved.q);
+    setStatusFilter(saved.statusFilter ?? "ALL");
+    setSortKey(saved.sortKey ?? null);
+    setSortDir(saved.sortDir === "desc" ? "desc" : "asc");
+    setPage(Math.max(1, Number(saved.page) || 1));
+    setPageSize(Math.min(100, Math.max(5, Number(saved.pageSize) || 10)));
+  }, [persistFullKey, authUser?.id]);
+
+  useEffect(() => {
+    if (!persistFullKey || !authUser?.id) return;
+    const t = window.setTimeout(() => {
+      mergeModuleSlice(authUser.id, persistFullKey, {
+        q,
+        statusFilter,
+        sortKey,
+        sortDir,
+        page,
+        pageSize,
+      } satisfies PremiumTablePersist);
+    }, 380);
+    return () => window.clearTimeout(t);
+  }, [persistFullKey, authUser?.id, q, statusFilter, sortKey, sortDir, page, pageSize]);
+
   const statusColumn = columns.find((c) => c.key === "status" || c.filterValues);
   const statusOptions = statusColumn?.filterValues;
 
+  const debouncedQ = useDebouncedValue(q, 220);
+
+  const allowEditRow = (row: T) => (rowCanEdit ? canEdit && rowCanEdit(row) : canEdit);
+  const allowDeleteRow = (row: T) => (rowCanDelete ? canDelete && rowCanDelete(row) : canDelete);
+
   const filtered = useMemo(() => {
-    const qq = safeLower(q).trim();
+    const qq = safeLower(debouncedQ).trim();
     return safeArray(rows).filter((r) => {
       if (statusFilter !== "ALL" && String((r as any).status ?? "") !== statusFilter) return false;
       if (!qq) return true;
@@ -111,7 +177,11 @@ export function PremiumTable<T extends { id: string; status?: string }>({
       }
       return columns.some((c) => safeIncludes((r as Record<string, unknown>)[String(c.key)], qq));
     });
-  }, [q, rows, statusFilter, columns]);
+  }, [debouncedQ, rows, statusFilter, columns]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQ, statusFilter]);
 
   const sorted = useMemo(() => {
     if (!sortKey) return filtered;
@@ -158,6 +228,7 @@ export function PremiumTable<T extends { id: string; status?: string }>({
   }, [highlightRowId, safePage, pageSize, paged.length]);
 
   const baseName = exportBasename || title.replace(/\s+/g, "_").slice(0, 80);
+  const exportColumns = useMemo(() => columns.filter((c) => !String(c.key).startsWith("_")), [columns]);
 
   function exportCellValue(row: T, c: Column<T>): string | number {
     if (c.exportValue) return c.exportValue(row);
@@ -198,10 +269,10 @@ export function PremiumTable<T extends { id: string; status?: string }>({
       });
       return;
     }
-    const headers = ["S/N", ...columns.map((c) => c.label)];
+    const headers = ["S/N", ...exportColumns.map((c) => c.label)];
     const body = sorted.map((row, i) => [
       i + 1,
-      ...columns.map((c) => exportCellValue(row, c)),
+      ...exportColumns.map((c) => exportCellValue(row, c)),
     ]);
     await exportRowsToExcel(baseName, headers, body as (string | number)[][]);
   }
@@ -318,21 +389,68 @@ export function PremiumTable<T extends { id: string; status?: string }>({
   }
 
   async function exportPdf() {
-    const headers = ["S/N", ...columns.map((c) => c.label)];
+    const headers = ["S/N", ...exportColumns.map((c) => c.label)];
     const body = sorted.map((row, i) => [
       i + 1,
-      ...columns.map((c) => exportCellValue(row, c)),
+      ...exportColumns.map((c) => exportCellValue(row, c)),
     ]);
     await exportTableToPdf(title, baseName, headers, body as (string | number)[][]);
   }
 
   function printTable() {
-    const headers = ["S/N", ...columns.map((c) => c.label)];
+    const headers = ["S/N", ...exportColumns.map((c) => c.label)];
     const body = sorted.map((row, i) => [
       i + 1,
-      ...columns.map((c) => exportCellValue(row, c)),
+      ...exportColumns.map((c) => exportCellValue(row, c)),
     ]);
     openPrintableTable(title, headers, body as (string | number)[][]);
+  }
+
+  function detailCellValue(value: unknown): string | number {
+    if (value == null || value === "") return "—";
+    if (typeof value === "number") return value;
+    if (typeof value === "string" || typeof value === "boolean") return String(value);
+    if (Array.isArray(value)) {
+      return value.map((item) => detailCellValue(item)).join("\n") || "—";
+    }
+    if (typeof value === "object") {
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch {
+        return "[object]";
+      }
+    }
+    return String(value);
+  }
+
+  function buildDetailRows(row: T): (string | number)[][] {
+    const seen = new Set<string>();
+    const visible = exportColumns.map((c) => {
+      seen.add(String(c.key));
+      return [c.label, exportCellValue(row, c)] as (string | number)[];
+    });
+    const extra = Object.entries(row as Record<string, unknown>)
+      .filter(([key]) => !seen.has(key) && key !== "id")
+      .map(([key, value]) => [key, detailCellValue(value)] as (string | number)[]);
+    return [["ID", row.id], ...visible, ...extra];
+  }
+
+  async function exportDetailPdf(row: T) {
+    const safeId = row.id.replace(/[^A-Za-z0-9_-]+/g, "_").slice(0, 80);
+    await exportTableToPdf(`WASIFU WA REKODI - ${title}`, `${baseName}_${safeId}_profile`, ["Kipengele", "Maelezo"], buildDetailRows(row), {
+      orientation: "portrait",
+      subtitle: subtitle,
+      description:
+        "Taarifa hii ni nakala rasmi ya rekodi moja iliyotolewa kutoka KMT Portal kwa ajili ya ukaguzi, uhifadhi, uwasilishaji na matumizi ya kiutawala.",
+      showSignatureLine: true,
+    });
+  }
+
+  function printDetail(row: T) {
+    openPrintableTable(`WASIFU WA REKODI - ${title}`, ["Kipengele", "Maelezo"], buildDetailRows(row), {
+      subtitle,
+      filterSummary: `Record ID: ${row.id}`,
+    });
   }
 
   function clearFilters() {
@@ -343,13 +461,13 @@ export function PremiumTable<T extends { id: string; status?: string }>({
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-bold text-[#0B1F3A]">{title}</h3>
-          <p className="text-sm font-medium text-slate-700">{subtitle}</p>
+    <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <h3 className="break-words text-lg font-bold text-[#0B1F3A]">{title}</h3>
+          <p className="break-words text-sm font-medium leading-snug text-slate-700">{subtitle}</p>
         </div>
-        <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
+        <div className="flex w-full min-w-0 flex-shrink-0 flex-wrap items-center gap-2 lg:w-auto lg:max-w-full lg:justify-end">
           <input
             value={q}
             onChange={(e) => {
@@ -548,16 +666,16 @@ export function PremiumTable<T extends { id: string; status?: string }>({
         </div>
       ) : (
         <>
-          <div className="mt-4 overflow-x-auto overflow-y-hidden rounded-xl border border-slate-200 bg-white shadow-inner">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead className="border-b border-slate-200 bg-slate-100 text-slate-900">
+          <div className="mt-4 max-h-[min(70vh,52rem)] overflow-auto rounded-xl border border-slate-200 bg-white shadow-inner [-webkit-overflow-scrolling:touch]">
+            <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm">
+              <thead className="sticky top-0 z-20 border-b border-slate-200 bg-slate-100 text-slate-900 shadow-[0_1px_0_0_rgba(15,23,42,0.08)]">
                 <tr>
-                  <th className="px-3 py-3 text-left text-xs font-bold uppercase tracking-wide">S/N</th>
+                  <th className="bg-slate-100 px-3 py-3 text-left text-xs font-bold uppercase tracking-wide">S/N</th>
                   {columns.map((c) => (
-                    <th key={String(c.key)} className="px-3 py-3 text-left text-xs font-bold uppercase tracking-wide">
+                    <th key={String(c.key)} className="bg-slate-100 px-3 py-3 text-left text-xs font-bold uppercase tracking-wide">
                       <button
                         type="button"
-                        className={`inline-flex items-center gap-1 text-slate-900 ${c.sortable === false ? "cursor-default" : "hover:underline"}`}
+                        className={`max-w-full min-w-0 break-words text-left leading-relaxed text-slate-900 ${c.sortable === false ? "cursor-default" : "hover:underline"}`}
                         onClick={() => c.sortable !== false && toggleSort(String(c.key))}
                       >
                         {c.label}
@@ -565,7 +683,7 @@ export function PremiumTable<T extends { id: string; status?: string }>({
                       </button>
                     </th>
                   ))}
-                  <th className="px-3 py-3 text-left text-xs font-bold uppercase tracking-wide">Vitendo</th>
+                  <th className="bg-slate-100 px-3 py-3 text-left text-xs font-bold uppercase tracking-wide">Vitendo</th>
                 </tr>
               </thead>
               <tbody className="bg-white text-slate-800">
@@ -587,9 +705,9 @@ export function PremiumTable<T extends { id: string; status?: string }>({
                           hi ? "bg-amber-50 ring-2 ring-inset ring-amber-400" : ""
                         }`}
                       >
-                        <td className="px-3 py-2.5 tabular-nums text-slate-700">{sn}</td>
+                        <td className="min-w-0 px-3 py-2.5 align-top tabular-nums leading-relaxed text-slate-700">{sn}</td>
                         {columns.map((c) => (
-                          <td className="px-3 py-2.5 text-slate-800" key={String(c.key)}>
+                          <td className="min-w-0 px-3 py-2.5 align-top leading-relaxed text-slate-800 [overflow-wrap:anywhere]" key={String(c.key)}>
                             {c.render
                               ? c.render(row)
                               : c.key === "status"
@@ -597,20 +715,23 @@ export function PremiumTable<T extends { id: string; status?: string }>({
                               : String((row as any)[c.key] ?? "—")}
                           </td>
                         ))}
-                        <td className="px-3 py-2.5">
+                        <td className="min-w-[10rem] max-w-[18rem] px-3 py-2.5 align-top">
                           <div className="flex flex-wrap gap-1.5">
                             <button
                               type="button"
                               disabled={tableActionsLocked}
                               className="rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-900 disabled:opacity-50"
                               onClick={() => setViewRow(row)}
+                              aria-label="Tazama maelezo kamili ya rekodi"
                             >
-                              Maelezo
+                              Tazama
                             </button>
                             {canEdit && onEdit && (
                               <button
                                 type="button"
-                                disabled={tableActionsLocked}
+                                disabled={tableActionsLocked || !allowEditRow(row)}
+                                title={!allowEditRow(row) ? SCOPE_TOOLTIP_SW : undefined}
+                                aria-label={!allowEditRow(row) ? SCOPE_TOOLTIP_SW : "Hariri rekodi"}
                                 onClick={() => onEdit(row)}
                                 className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:opacity-50"
                               >
@@ -620,13 +741,16 @@ export function PremiumTable<T extends { id: string; status?: string }>({
                             {canDelete && onDelete && (
                               <button
                                 type="button"
-                                disabled={tableActionsLocked}
+                                disabled={tableActionsLocked || !allowDeleteRow(row)}
+                                title={!allowDeleteRow(row) ? SCOPE_TOOLTIP_SW : undefined}
+                                aria-label={!allowDeleteRow(row) ? SCOPE_TOOLTIP_SW : "Futa rekodi"}
                                 onClick={() => setDeleteId(row.id)}
                                 className="rounded-lg border border-rose-300 px-2.5 py-1.5 text-xs font-medium text-rose-700 disabled:opacity-50"
                               >
                                 Futa
                               </button>
                             )}
+                            {renderRowActionExtras ? renderRowActionExtras(row) : null}
                           </div>
                         </td>
                       </tr>
@@ -685,8 +809,11 @@ export function PremiumTable<T extends { id: string; status?: string }>({
 
       <ConfirmModal
         open={!!deleteId}
-        title="Thibitisha kufuta"
-        message="Una uhakika unataka kufuta rekodi hii? Hatua hii haiwezi kutenduliwa kwa urahisi."
+        title={deleteConfirmTitle ?? "Thibitisha kufuta"}
+        message={
+          deleteConfirmMessage ??
+          "Una uhakika unataka kufuta rekodi hii? Hatua hii haiwezi kutenduliwa kwa urahisi."
+        }
         confirmLoading={deleteBusy}
         onCancel={() => {
           if (!deleteBusy) setDeleteId(null);
@@ -710,21 +837,52 @@ export function PremiumTable<T extends { id: string; status?: string }>({
       />
 
       {viewRow && (
-        <ModalScrollLayer onBackdropClick={() => setViewRow(null)} maxWidthClass="max-w-lg">
+        <ModalScrollLayer onBackdropClick={() => setViewRow(null)} maxWidthClass="max-w-3xl">
           <div className="w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-2xl">
-            <h4 className="text-lg font-bold text-[#0B1F3A]">Maelezo kamili</h4>
-            <pre className="mt-3 whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-3 text-xs text-slate-800">
-              {(() => {
-                try {
-                  return JSON.stringify(viewRow, null, 2);
-                } catch {
-                  return "Haiwezi kuonyesha maelezo kamili (muundo wa rekodi ni tatanishi).";
-                }
-              })()}
-            </pre>
-            <button type="button" className="mt-4 rounded-lg bg-blue-900 px-4 py-2 text-sm text-white" onClick={() => setViewRow(null)}>
-              Funga
-            </button>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">Official Record Profile</p>
+                <h4 className="text-lg font-bold text-[#0B1F3A]">Tazama rekodi</h4>
+                <p className="text-sm text-slate-600">Nakala kamili inayoweza kuchapishwa au kupakuliwa PDF.</p>
+              </div>
+              {canExport ? (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void exportDetailPdf(viewRow)}
+                    className="rounded-xl border border-[#D4AF37]/70 bg-amber-50 px-3 py-2 text-xs font-bold text-[#0B1F3A]"
+                  >
+                    PDF ya Rekodi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => printDetail(viewRow)}
+                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-800"
+                  >
+                    Chapisha Rekodi
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            <div className="mt-4 max-h-[65vh] overflow-auto rounded-xl border border-slate-200">
+              <table className="w-full min-w-[520px] text-sm">
+                <tbody>
+                  {buildDetailRows(viewRow).map(([label, value], idx) => (
+                    <tr key={`${label}-${idx}`} className="border-t border-slate-200 odd:bg-slate-50">
+                      <th className="w-44 px-3 py-2 text-left align-top text-xs font-bold uppercase tracking-wide text-[#0B1F3A]">
+                        {label}
+                      </th>
+                      <td className="whitespace-pre-wrap break-words px-3 py-2 text-slate-800">{String(value)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button type="button" className="rounded-lg bg-blue-900 px-4 py-2 text-sm text-white" onClick={() => setViewRow(null)}>
+                Funga
+              </button>
+            </div>
           </div>
         </ModalScrollLayer>
       )}

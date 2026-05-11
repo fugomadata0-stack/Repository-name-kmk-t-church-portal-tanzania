@@ -25,16 +25,22 @@ export function NgaziKuuSummary({ dayosisi, majimbo, matawi }: Props) {
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           <article className="rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white px-4 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-blue-700">Dayosisi</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums text-slate-900">{ds}</p>
+            <div className="flex min-h-[100px] flex-col items-center justify-center text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-blue-700">Dayosisi</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-slate-900">{ds}</p>
+            </div>
           </article>
           <article className="rounded-xl border border-cyan-200 bg-gradient-to-br from-cyan-50 to-white px-4 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-800">Majimbo</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums text-slate-900">{jb}</p>
+            <div className="flex min-h-[100px] flex-col items-center justify-center text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-800">Majimbo</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-slate-900">{jb}</p>
+            </div>
           </article>
           <article className="rounded-xl border border-teal-200 bg-gradient-to-br from-teal-50 to-white px-4 py-3">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-teal-800">Matawi / Vituo</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums text-slate-900">{tw}</p>
+            <div className="flex min-h-[100px] flex-col items-center justify-center text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-teal-800">Matawi / Vituo</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums text-slate-900">{tw}</p>
+            </div>
           </article>
         </div>
       </section>

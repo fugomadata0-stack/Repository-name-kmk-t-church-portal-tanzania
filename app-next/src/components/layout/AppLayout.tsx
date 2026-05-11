@@ -6,8 +6,8 @@ import { NoModuleAccessNotice } from "../auth/NoModuleAccessNotice";
 import { getSupabase, isSupabaseRealtimeEnabled } from "../../lib/supabaseClient";
 import { useSiteDocumentMeta } from "../../hooks/useSiteDocumentMeta";
 import { fetchAuditLogCount } from "../../services/auditLogService";
-import { fetchPortalSecurityCounts } from "../../services/securityService";
-import { fetchWauminiCounts } from "../../services/wauminiService";
+import { fetchPortalSecurityCountsStrict } from "../../services/securityService";
+import { fetchWauminiCountsStrict } from "../../services/wauminiService";
 import { fetchDayosisi } from "../../services/dayosisiService";
 import { fetchChurchFinanceEntries } from "../../services/financeEntriesService";
 import { fetchChurchIncomeLines, fetchChurchIncomeSources } from "../../services/incomeModuleService";
@@ -19,8 +19,19 @@ import {
   type DashboardKpiSnapshot,
 } from "../../services/dashboardKpiAggregatesService";
 import { DASHBOARD_KPI_LOAD_ERROR_SW } from "../../lib/supabaseUiMessages";
+import { dispatchPortalReloadMetrics, KMT_PORTAL_RELOAD_METRICS_EVENT } from "../../lib/portalEvents";
+import { roleBypassesGeoScope } from "../../utils/scopeAccess";
+import { readPortalUiSnapshot, writePortalUiSnapshot } from "../../lib/portalUiPersistence";
+import {
+  clearPortalDraft,
+  confirmPortalDraftNavigation,
+  PORTAL_DRAFT_EVENT_CLEAR_CURRENT,
+  PORTAL_DRAFT_EVENT_FLUSH,
+  type PortalDraftScope,
+} from "../../lib/portalDraftRecovery";
 import { CookieConsentBanner } from "./CookieConsentBanner";
 import { MaintenanceBanner } from "./MaintenanceBanner";
+import { PortalAutoDraftRecovery } from "../draft/PortalAutoDraftRecovery";
 import { SiteFooter } from "./SiteFooter";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -49,14 +60,20 @@ function ModuleLoadingFallback() {
 }
 
 export function AppLayout() {
-  const { pushToast, reportError, site, about, canPortalViewModule, noModuleRbac, authInitialized, authUser } = usePortal();
+  const { pushToast, reportError, site, about, canPortalViewModule, noModuleRbac, authInitialized, authUser, role } = usePortal();
   useSiteDocumentMeta(site);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(
-    Object.fromEntries(modules.map((m) => [m.key, m.key === "dashboard"]))
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
+    const snap = typeof window !== "undefined" ? readPortalUiSnapshot(authUser?.id) : null;
+    if (snap?.expanded && Object.keys(snap.expanded).length > 0) return snap.expanded;
+    return Object.fromEntries(modules.map((m) => [m.key, m.key === "dashboard"]));
+  });
+  const [activeModule, setActiveModule] = useState(
+    () => (typeof window !== "undefined" ? readPortalUiSnapshot(authUser?.id)?.activeModule : null) ?? "dashboard"
   );
-  const [activeModule, setActiveModule] = useState("dashboard");
-  const [activeSubmodule, setActiveSubmodule] = useState("Overview");
+  const [activeSubmodule, setActiveSubmodule] = useState(
+    () => (typeof window !== "undefined" ? readPortalUiSnapshot(authUser?.id)?.activeSubmodule : null) ?? "Overview"
+  );
   const [highlightRecordId, setHighlightRecordId] = useState<string | null>(null);
 
   const [dayosisi, setDayosisi] = useState<DayosisiRecord[]>([]);
@@ -73,6 +90,80 @@ export function AppLayout() {
   const [kpiRefreshing, setKpiRefreshing] = useState(false);
   const [kpiError, setKpiError] = useState<string | null>(null);
   const [online, setOnline] = useState(() => navigator.onLine);
+
+  /** Muda wa mwisho wa kuwa nyuma ya tab (kupima kurudi); si tokeni. */
+  const hiddenAtRef = useRef<number | null>(null);
+  /** Nusu sekunde za mwisho za kuwa nyuma — kusawazisha vipima baada ya kurudi. */
+  const lastResumeHiddenMsRef = useRef(0);
+  const lastDashboardMetricsAtRef = useRef(0);
+  const lastIncomeDataAtRef = useRef(0);
+  const restoredScrollRef = useRef(false);
+
+  const VISIBILITY_SKIP_HIDDEN_MS = 120_000;
+  const METRICS_RECENT_FETCH_MS = 180_000;
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAtRef.current = Date.now();
+        return;
+      }
+      lastResumeHiddenMsRef.current = hiddenAtRef.current ? Date.now() - hiddenAtRef.current : 0;
+      hiddenAtRef.current = null;
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
+  useEffect(() => {
+    if (!authUser?.id) return;
+    writePortalUiSnapshot({
+      userId: authUser.id,
+      activeModule,
+      activeSubmodule,
+      expanded,
+    });
+  }, [authUser?.id, activeModule, activeSubmodule, expanded]);
+
+  useEffect(() => {
+    if (!authUser?.id || restoredScrollRef.current) return;
+    const snap = readPortalUiSnapshot(authUser.id);
+    if (!snap || snap.scrollTop <= 0) {
+      restoredScrollRef.current = true;
+      return;
+    }
+    const apply = () => {
+      const el = document.getElementById("portal-main-scroll");
+      if (el) el.scrollTop = snap.scrollTop;
+    };
+    apply();
+    requestAnimationFrame(apply);
+    window.setTimeout(apply, 80);
+    restoredScrollRef.current = true;
+  }, [authUser?.id]);
+
+  useEffect(() => {
+    const el = document.getElementById("portal-main-scroll");
+    if (!el || !authUser?.id) return;
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      if (t) window.clearTimeout(t);
+      t = window.setTimeout(() => {
+        writePortalUiSnapshot({
+          userId: authUser.id,
+          activeModule,
+          activeSubmodule,
+          expanded,
+          scrollTop: el.scrollTop,
+        });
+      }, 400);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      if (t) window.clearTimeout(t);
+    };
+  }, [authUser?.id, activeModule, activeSubmodule, expanded]);
 
   /** Hesabu + dayosisi za KPI za dashibodi — zote kutoka Supabase kwa wakati mmoja. */
   const loadDashboardMetrics = useCallback(async () => {
@@ -97,15 +188,15 @@ export function AppLayout() {
       const settled = await Promise.allSettled([
         fetchDayosisi(),
         fetchAuditLogCount(),
-        fetchPortalSecurityCounts(),
-        fetchWauminiCounts(),
+        fetchPortalSecurityCountsStrict(),
+        fetchWauminiCountsStrict(),
         fetchChurchJimbo(),
         fetchChurchTawi(),
         fetchChurchFinanceEntries(),
         fetchChurchIncomeSources(),
         fetchChurchIncomeLines(),
         fetchChurchViongozi(),
-        fetchDashboardKpiAggregates(),
+        fetchDashboardKpiAggregates({ alignCoreCountsWithPublicRpc: roleBypassesGeoScope(role) }),
       ]);
       const getVal = <T,>(idx: number, fallback: T): T => {
         const r = settled[idx];
@@ -113,7 +204,15 @@ export function AppLayout() {
         if (import.meta.env.DEV) console.warn("[Dashibodi — kipimo kimeshindwa]", r.reason);
         return fallback;
       };
+      const getErr = (idx: number): string | null => {
+        const r = settled[idx];
+        if (r.status === "fulfilled") return null;
+        return String((r.reason as { message?: unknown } | null)?.message ?? r.reason ?? "Haijapatikana");
+      };
       const failedCritical = settled.filter((r) => r.status === "rejected").length;
+      const auditErr = getErr(1);
+      const securityErr = getErr(2);
+      const wauminiErr = getErr(3);
       setDayosisi(getVal(0, []));
       setAuditLogCount(getVal(1, 0));
       setSecurityCounts(getVal(2, { directory: 0, visibilityRules: 0, rbacMatrixRows: 0 }));
@@ -124,7 +223,29 @@ export function AppLayout() {
       setIncomeSources(getVal(7, []));
       setIncomeManagement(getVal(8, []));
       setViongozi(getVal(9, []));
-      setKpiLive(getVal(10, emptyDashboardKpiSnapshot()));
+      const baseKpi = getVal(10, emptyDashboardKpiSnapshot());
+      setKpiLive({
+        ...baseKpi,
+        failedKpis: {
+          ...(baseKpi.failedKpis ?? {}),
+          ...(auditErr ? { "kpi.audit_logs.count": auditErr } : {}),
+          ...(securityErr
+            ? {
+                "kpi.portal_directory_profiles.count": securityErr,
+                "kpi.portal_visibility_rules.count": securityErr,
+                "kpi.portal_module_matrix.count": securityErr,
+              }
+            : {}),
+          ...(wauminiErr
+            ? {
+                "kpi.church_families.count": wauminiErr,
+                "kpi.church_members.count": wauminiErr,
+                "kpi.church_members.count_active": wauminiErr,
+                "kpi.church_members.count_baptized": wauminiErr,
+              }
+            : {}),
+        },
+      });
       setKpiError(failedCritical >= settled.length ? DASHBOARD_KPI_LOAD_ERROR_SW : null);
     } catch (err) {
       reportError(err, "Dashibodi — vipimo");
@@ -132,8 +253,9 @@ export function AppLayout() {
       setKpiLive(emptyDashboardKpiSnapshot());
     } finally {
       setKpiRefreshing(false);
+      lastDashboardMetricsAtRef.current = Date.now();
     }
-  }, [reportError]);
+  }, [reportError, role]);
 
   const loadViongoziList = useCallback(async () => {
     if (!getSupabase()) {
@@ -163,6 +285,8 @@ export function AppLayout() {
       reportError(err, "Mapato — orodha");
       setIncomeSources([]);
       setIncomeManagement([]);
+    } finally {
+      lastIncomeDataAtRef.current = Date.now();
     }
   }, [reportError]);
 
@@ -219,7 +343,6 @@ export function AppLayout() {
 
   useEffect(() => {
     if (!authInitialized || !authUser) return;
-    if (!isSupabaseRealtimeEnabled()) return;
     if (!getSupabase()) {
       setAuditLogCount(0);
       setSecurityCounts({ directory: 0, visibilityRules: 0, rbacMatrixRows: 0 });
@@ -232,6 +355,21 @@ export function AppLayout() {
 
     let cancelled = false;
     void loadDashboardMetrics();
+
+    if (!isSupabaseRealtimeEnabled()) {
+      const onVisibility = () => {
+        if (document.visibilityState !== "visible" || cancelled) return;
+        const hiddenMs = lastResumeHiddenMsRef.current;
+        const since = Date.now() - lastDashboardMetricsAtRef.current;
+        if (hiddenMs > 0 && hiddenMs < VISIBILITY_SKIP_HIDDEN_MS && since < METRICS_RECENT_FETCH_MS) return;
+        void loadDashboardMetrics();
+      };
+      document.addEventListener("visibilitychange", onVisibility);
+      return () => {
+        cancelled = true;
+        document.removeEventListener("visibilitychange", onVisibility);
+      };
+    }
 
     const scheduleReload = () => {
       if (dashboardDebounceRef.current) clearTimeout(dashboardDebounceRef.current);
@@ -330,7 +468,11 @@ export function AppLayout() {
       .subscribe();
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible" && !cancelled) void loadIncomeModuleData();
+      if (document.visibilityState !== "visible" || cancelled) return;
+      const hiddenMs = lastResumeHiddenMsRef.current;
+      const since = Date.now() - lastIncomeDataAtRef.current;
+      if (hiddenMs > 0 && hiddenMs < VISIBILITY_SKIP_HIDDEN_MS && since < METRICS_RECENT_FETCH_MS) return;
+      void loadIncomeModuleData();
     };
     document.addEventListener("visibilitychange", onVisibility);
 
@@ -343,16 +485,49 @@ export function AppLayout() {
   }, [activeModule, loadIncomeModuleData, authInitialized, authUser]);
 
   const visibleModules = useMemo(() => modules.filter((m) => canPortalViewModule(m.key)), [canPortalViewModule]);
+  const draftScope = useMemo<PortalDraftScope>(
+    () => ({ userId: authUser?.id, moduleKey: activeModule, submodule: activeSubmodule }),
+    [activeModule, activeSubmodule, authUser?.id]
+  );
+
+  const canLeaveDraftScope = useCallback(
+    (nextModule: string, nextSubmodule: string) => {
+      if (nextModule === activeModule && nextSubmodule === activeSubmodule) return true;
+      window.dispatchEvent(new CustomEvent(PORTAL_DRAFT_EVENT_FLUSH));
+      return confirmPortalDraftNavigation(draftScope);
+    },
+    [activeModule, activeSubmodule, draftScope]
+  );
+
+  const selectModule = useCallback(
+    (moduleKey: string, submodule: string) => {
+      if (!canLeaveDraftScope(moduleKey, submodule)) return;
+      setActiveModule(moduleKey);
+      setActiveSubmodule(submodule);
+      setExpanded((p) => ({ ...p, [moduleKey]: true }));
+      setMobileOpen(false);
+    },
+    [canLeaveDraftScope]
+  );
+
+  const reloadMetricsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const onReloadMetrics = () => {
-      void loadDashboardMetrics();
-      void loadIncomeModuleData();
-      void loadFinanceEntries();
-      void loadViongoziList();
+      if (reloadMetricsDebounceRef.current) clearTimeout(reloadMetricsDebounceRef.current);
+      reloadMetricsDebounceRef.current = setTimeout(() => {
+        reloadMetricsDebounceRef.current = null;
+        void loadDashboardMetrics();
+        void loadIncomeModuleData();
+        void loadFinanceEntries();
+        void loadViongoziList();
+      }, 380);
     };
-    window.addEventListener("kmt-portal-reload-metrics", onReloadMetrics);
-    return () => window.removeEventListener("kmt-portal-reload-metrics", onReloadMetrics);
+    window.addEventListener(KMT_PORTAL_RELOAD_METRICS_EVENT, onReloadMetrics);
+    return () => {
+      window.removeEventListener(KMT_PORTAL_RELOAD_METRICS_EVENT, onReloadMetrics);
+      if (reloadMetricsDebounceRef.current) clearTimeout(reloadMetricsDebounceRef.current);
+    };
   }, [loadDashboardMetrics, loadIncomeModuleData, loadFinanceEntries, loadViongoziList]);
 
   useEffect(() => {
@@ -362,13 +537,33 @@ export function AppLayout() {
       if (!mk || !canPortalViewModule(mk)) return;
       const mod = modules.find((m) => m.key === mk);
       const sm = detail?.submodule?.trim() || mod?.submodules[0] || "Overview";
-      setActiveModule(mk);
-      setActiveSubmodule(sm);
-      setExpanded((p) => ({ ...p, [mk]: true }));
+      selectModule(mk, sm);
     };
     window.addEventListener("kmt-portal-navigate", onNavigate);
     return () => window.removeEventListener("kmt-portal-navigate", onNavigate);
-  }, [canPortalViewModule]);
+  }, [canPortalViewModule, selectModule]);
+
+  /** Rudi: usitumie history.back (SPA moja / Vercel) — rudi kwenye submodule ya kwanza, kisha dashboard. */
+  useEffect(() => {
+    const onSubBack = () => {
+      const mod = modules.find((m) => m.key === activeModule);
+      const subs = mod?.submodules ?? [];
+      const first = subs[0] ?? "Overview";
+      if (activeSubmodule !== first) {
+        if (!canLeaveDraftScope(activeModule, first)) return;
+        selectModule(activeModule, first);
+        requestAnimationFrame(() => {
+          document.getElementById("portal-main-scroll")?.scrollTo({ top: 0, behavior: "smooth" });
+        });
+        return;
+      }
+      if (activeModule !== "dashboard" && canPortalViewModule("dashboard")) {
+        selectModule("dashboard", "Overview");
+      }
+    };
+    window.addEventListener("kmt-portal-submodule-back", onSubBack);
+    return () => window.removeEventListener("kmt-portal-submodule-back", onSubBack);
+  }, [activeModule, activeSubmodule, canLeaveDraftScope, canPortalViewModule, selectModule]);
 
   useEffect(() => {
     if (noModuleRbac) {
@@ -416,15 +611,22 @@ export function AppLayout() {
     return () => window.clearTimeout(t);
   }, [highlightRecordId]);
 
+  const canSubBack = useMemo(() => {
+    const mod = modules.find((m) => m.key === activeModule);
+    const first = mod?.submodules[0] ?? "Overview";
+    if (activeSubmodule !== first) return true;
+    return activeModule !== "dashboard" && canPortalViewModule("dashboard");
+  }, [activeModule, activeSubmodule, canPortalViewModule]);
+
   return (
-    <div className="flex min-h-screen flex-col bg-[#F3F6FA]">
+    <div className="flex h-screen flex-col bg-[#F3F6FA]" style={{ height: "100dvh" }}>
       <a
         href="#portal-main-scroll"
         className="pointer-events-none fixed left-4 top-4 z-[300] -translate-y-[160%] rounded-xl bg-[#0f1e46] px-4 py-2.5 text-sm font-semibold text-white opacity-0 shadow-lg ring-2 ring-white/90 transition-transform duration-200 focus:pointer-events-auto focus:translate-y-0 focus:opacity-100 focus:outline-none"
       >
         Ruka hadi maudhui
       </a>
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 min-w-0 flex-1">
         <Sidebar
           modules={visibleModules}
           activeModule={activeModule}
@@ -432,9 +634,7 @@ export function AppLayout() {
           expanded={expanded}
           onToggle={(k) => setExpanded((p) => ({ ...p, [k]: !p[k] }))}
           onSelect={(moduleKey, submodule) => {
-            setActiveModule(moduleKey);
-            setActiveSubmodule(submodule);
-            setMobileOpen(false);
+            selectModule(moduleKey, submodule);
           }}
           mobileOpen={mobileOpen}
           onCloseMobile={() => setMobileOpen(false)}
@@ -450,16 +650,14 @@ export function AppLayout() {
             title={activeSubmodule || "Dashibodi Kuu"}
             onOpenMobileSidebar={() => setMobileOpen(true)}
             onNavigateToModule={(moduleKey, submodule) => {
-              setActiveModule(moduleKey);
-              setActiveSubmodule(submodule ?? "Orodha");
-              setExpanded((p) => ({ ...p, [moduleKey]: true }));
-              setMobileOpen(false);
+              selectModule(moduleKey, submodule ?? "Orodha");
             }}
+            canBack={canSubBack}
           />
           <div
             id="portal-main-scroll"
             tabIndex={-1}
-            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain p-3 pb-24 [-webkit-overflow-scrolling:touch] focus:outline-none sm:p-4"
+            className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-y-contain p-3 pb-[max(5rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch] focus:outline-none sm:p-4"
           >
             {noModuleRbac ? (
               <div className="mb-4">
@@ -487,6 +685,7 @@ export function AppLayout() {
                 <ModulePage
                   moduleKey={activeModule}
                   submodule={activeSubmodule}
+                  canNavigateBack={canSubBack}
                   dayosisi={dayosisi}
                   setDayosisi={setDayosisi}
                   majimbo={majimbo}
@@ -503,7 +702,9 @@ export function AppLayout() {
                   setIncomeManagement={setIncomeManagement}
                   highlightRecordId={highlightRecordId}
                   onCrudSuccess={(action, meta) => {
-                    window.dispatchEvent(new Event("kmt-portal-reload-metrics"));
+                    dispatchPortalReloadMetrics();
+                    clearPortalDraft({ userId: authUser?.id, moduleKey: meta.moduleKey, submodule: meta.submodule });
+                    window.dispatchEvent(new CustomEvent(PORTAL_DRAFT_EVENT_CLEAR_CURRENT));
                     const mod = modules.find((m) => m.key === meta.moduleKey);
                     const target = meta.targetSubmodule?.trim();
                     if (
@@ -528,6 +729,7 @@ export function AppLayout() {
               )}
             </Suspense>
           </div>
+          <PortalAutoDraftRecovery scope={draftScope} rootId="portal-main-scroll" enabled={authInitialized && Boolean(authUser)} />
           <SiteFooter site={site} about={about} />
         </main>
       </div>

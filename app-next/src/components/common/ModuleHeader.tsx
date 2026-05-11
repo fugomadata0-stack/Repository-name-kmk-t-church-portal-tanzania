@@ -1,6 +1,8 @@
 interface Props {
   title: string;
   subtitle: string;
+  /** Rudi: false inapoonyesha tayari hali ya kwanza (sawia na Topbar) */
+  canBack?: boolean;
   onAdd?: () => void;
   canAdd?: boolean;
   /** Fumbatia Ongeza wakati fomu/madoido yako wazi */
@@ -14,22 +16,33 @@ interface Props {
   }[];
 }
 
-export function ModuleHeader({ title, subtitle, onAdd, canAdd = true, addDisabled = false, actionButtons = [] }: Props) {
+export function ModuleHeader({
+  title,
+  subtitle,
+  canBack = true,
+  onAdd,
+  canAdd = true,
+  addDisabled = false,
+  actionButtons = [],
+}: Props) {
   const goBack = () => {
-    if (window.history.length > 1) window.history.back();
+    if (!canBack) return;
+    window.dispatchEvent(new Event("kmt-portal-submodule-back"));
   };
   return (
-    <div className="rounded-2xl border border-[#123C69]/40 bg-gradient-to-r from-[#0B1F3A] via-[#0f2744] to-[#123C69] p-4 text-white shadow-xl">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-bold text-white drop-shadow-sm">{title}</h2>
-          <p className="mt-0.5 text-sm font-medium text-slate-100">{subtitle}</p>
+    <div className="rounded-2xl border border-[#123C69]/40 bg-gradient-to-r from-[#0B1F3A] via-[#0f2744] to-[#123C69] p-4 text-white shadow-xl sm:p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1 pr-1">
+          <h2 className="break-words text-xl font-bold leading-relaxed text-white drop-shadow-sm sm:text-2xl">{title}</h2>
+          <p className="mt-1.5 break-words text-sm font-medium leading-relaxed text-slate-100/95">{subtitle}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex min-w-0 shrink-0 flex-wrap gap-2">
           <button
             type="button"
             onClick={goBack}
-            className="rounded-lg border border-white/40 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/15"
+            disabled={!canBack}
+            title={canBack ? undefined : "Tayari uko kwenye Dashibodi."}
+            className="rounded-lg border border-white/40 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
           >
             ← Rudi Nyuma
           </button>

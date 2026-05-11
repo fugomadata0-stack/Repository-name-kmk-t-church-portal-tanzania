@@ -3,9 +3,31 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { PortalProvider } from "./context/PortalContext";
+import { initSentry } from "./lib/sentryInit";
 import "./styles/global.scss";
 
+initSentry();
+
 window.addEventListener("unhandledrejection", (ev) => {
+  const r = ev.reason;
+  const msg =
+    typeof r === "object" && r !== null && "message" in r
+      ? String((r as { message?: unknown }).message ?? "")
+      : String(r ?? "");
+  const chunkFailed =
+    import.meta.env.PROD &&
+    /loading chunk \d+ failed|failed to fetch dynamically imported module|importing a module script failed|chunk load error/i.test(
+      msg
+    );
+  if (chunkFailed) {
+    const k = "kmkt_chunk_reload_once_v1";
+    if (!sessionStorage.getItem(k)) {
+      sessionStorage.setItem(k, "1");
+      ev.preventDefault();
+      window.location.reload();
+      return;
+    }
+  }
   if (import.meta.env.DEV) {
     console.error("[unhandledrejection]", ev.reason);
   } else {

@@ -130,7 +130,8 @@ export function AIAssistantPanel(props: { submodule?: string }) {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || !enabled}
+            title={!enabled ? "Kipengele hiki kinaandaliwa." : undefined}
             onClick={() => void onRun()}
             className="rounded-xl bg-violet-800 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >

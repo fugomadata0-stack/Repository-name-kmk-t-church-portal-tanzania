@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PremiumTable, type PremiumTableExcelBulk } from "../common/PremiumTable";
 import { usePortal } from "../../context/PortalContext";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 import { getSupabase } from "../../lib/supabaseClient";
 import { modules } from "../../data/portalModules";
 import {
@@ -13,6 +14,15 @@ import type { DomainEntityRecord } from "../../types";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { buildDomainEntityExcelBundle } from "../../lib/excelModuleFormSpecs";
 import { bulkImportDomainEntities } from "../../lib/portalExcelBulkHandlers";
+import {
+  buildHierarchySummary,
+  calculateRegistrationCompleteness,
+  exportEnterpriseRegistrationProfilePdf,
+  generateRegistrationCode,
+  parseAttachmentUrls,
+  parseTags,
+  registrationLevelFromSubmodule,
+} from "../../lib/enterpriseRegistration";
 
 type CrudMeta = {
   moduleKey: string;
@@ -46,7 +56,7 @@ export function DomainEntitiesPanel({
   highlightRecordId,
   onCrudSuccess,
 }: Props) {
-  const { role, pushToast, reportError, canPortalCreateModule, canPortalEditModule, canPortalDeleteModule, canPortalExportModule } =
+  const { pushToast, reportError, canPortalCreateModule, canPortalEditModule, canPortalDeleteModule, canPortalExportModule } =
     usePortal();
   const [rows, setRows] = useState<DomainEntityRecord[]>([]);
   const [editing, setEditing] = useState<Partial<DomainEntityRecord> | null>(null);
@@ -79,19 +89,13 @@ export function DomainEntitiesPanel({
     void load();
   }, [load]);
 
-  const canManageMuundo = moduleKey === "muundo" ? role === "super_admin" : undefined;
   const roleBased = {
     canAdd: canPortalCreateModule(moduleKey),
     canEdit: canPortalEditModule(moduleKey),
     canDelete: canPortalDeleteModule(moduleKey),
     canExport: canPortalExportModule(moduleKey),
   };
-  const shared = {
-    canAdd: canManageMuundo ?? roleBased.canAdd,
-    canEdit: canManageMuundo ?? roleBased.canEdit,
-    canDelete: canManageMuundo ?? roleBased.canDelete,
-    canExport: roleBased.canExport,
-  };
+  const shared = roleBased;
 
   const submoduleKeyResolved = (contextKey ?? (submodule && submodule !== "Overview" ? submodule : "")).trim();
 
@@ -125,25 +129,67 @@ export function DomainEntitiesPanel({
   }, [moduleKey, submodule, contextKey, submoduleKeyResolved, shared.canAdd, onCrudSuccess]);
 
   const actionsLocked = !!editing || saving || !!deletingId;
+  const isStructureRegistration = moduleKey === "muundo";
+  const registrationLevel = useMemo(() => registrationLevelFromSubmodule(contextKey ?? submodule), [contextKey, submodule]);
 
   const onSave = async (payload: Partial<DomainEntityRecord>) => {
-    if (moduleKey === "muundo" && !shared.canAdd && !editing?.id) {
-      pushToast("Huna ruhusa ya kusimamia muundo wa kanisa.", "error");
+    if (moduleKey === "muundo" && !roleBased.canAdd && !editing?.id) {
+      pushToast("Huna ruhusa ya kuongeza kwenye muundo wa kanisa.", "error");
       return;
     }
-    if (moduleKey === "muundo" && !shared.canEdit && !!editing?.id) {
-      pushToast("Huna ruhusa ya kusimamia muundo wa kanisa.", "error");
+    if (moduleKey === "muundo" && !roleBased.canEdit && !!editing?.id) {
+      pushToast("Huna ruhusa ya kuhariri muundo wa kanisa.", "error");
       return;
     }
     const sk = contextKey ?? (submodule && submodule !== "Overview" ? submodule : "");
+    const incomingExtra = payload.extra as Record<string, unknown> | undefined;
+    const parentName = String(incomingExtra?.parent_level ?? "").trim();
+    const generatedCode = generateRegistrationCode({
+      level: registrationLevel,
+      name: String(payload.title ?? "").trim(),
+      parentName,
+      date: String(payload.event_date ?? ""),
+    });
+    const hierarchySummary = buildHierarchySummary({
+      level: registrationLevel,
+      name: String(payload.title ?? "").trim(),
+      parentName,
+      mkoa: String(incomingExtra?.mkoa ?? ""),
+      wilaya: String(incomingExtra?.wilaya ?? ""),
+      kata: String(incomingExtra?.kata_mtaa ?? ""),
+    });
+    const completedExtra =
+      isStructureRegistration && incomingExtra
+        ? {
+            ...incomingExtra,
+            official_name: String(incomingExtra.official_name || payload.title || "").trim(),
+            short_code: String(incomingExtra.short_code || payload.reference_code || generatedCode).trim(),
+            hierarchy_summary: hierarchySummary,
+            profile_completeness: calculateRegistrationCompleteness({
+              ...incomingExtra,
+              title: payload.title,
+              reference_code: payload.reference_code || generatedCode,
+              category: payload.category,
+              details: payload.details,
+              event_date: payload.event_date,
+              status: payload.status,
+            }),
+          }
+        : incomingExtra;
     const merged: Partial<DomainEntityRecord> & { module_key: string; title: string } = {
       module_key: moduleKey,
       submodule_key: sk,
       title: String(payload.title ?? "").trim(),
       details: payload.details,
       category: payload.category,
-      reference_code: payload.reference_code,
+      reference_code: String(payload.reference_code ?? "").trim() || (isStructureRegistration ? generatedCode : ""),
       event_date: payload.event_date,
+      extra: completedExtra ?? payload.extra,
+      profile_completeness:
+        isStructureRegistration && completedExtra ? Number(completedExtra.profile_completeness ?? 0) : payload.profile_completeness,
+      hierarchy_summary: isStructureRegistration ? hierarchySummary : payload.hierarchy_summary,
+      attachment_urls: Array.isArray(completedExtra?.attachment_urls) ? (completedExtra.attachment_urls as string[]) : payload.attachment_urls,
+      category_tags: Array.isArray(completedExtra?.category_tags) ? (completedExtra.category_tags as string[]) : payload.category_tags,
       status: payload.status ?? "Active",
       ...(editing?.id && isDomainEntityUuid(editing.id) ? { id: editing.id } : {}),
     };
@@ -212,7 +258,7 @@ export function DomainEntitiesPanel({
 
   return (
     <div className="space-y-3">
-      {moduleKey === "muundo" && !shared.canAdd ? (
+      {moduleKey === "muundo" && !roleBased.canAdd && !roleBased.canEdit ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           Huna ruhusa ya kusimamia muundo wa kanisa.
         </div>
@@ -220,11 +266,35 @@ export function DomainEntitiesPanel({
       <PremiumTable
         title={title ?? `Rekodi — ${moduleKey}`}
         subtitle={subtitle ?? `Submodule: ${submodule}${contextKey ? ` · ${contextKey}` : ""}`}
+        persistenceScope={portalPremiumTableScope([moduleKey, submodule, contextKey ?? "ctx", "entities"])}
         rows={rows}
         columns={[
           { key: "title", label: "Kichwa" },
           { key: "category", label: "Kundi" },
           { key: "reference_code", label: "Nambari / Ref" },
+          ...(isStructureRegistration
+            ? [
+                {
+                  key: "hierarchy_summary",
+                  label: "Hierarchy",
+                  exportValue: (r: DomainEntityRecord) => String(r.hierarchy_summary || r.extra?.hierarchy_summary || ""),
+                  render: (r: DomainEntityRecord) => (
+                    <span className="line-clamp-2 text-xs text-slate-600">
+                      {String(r.hierarchy_summary || r.extra?.hierarchy_summary || "KMK(T)")}
+                    </span>
+                  ),
+                },
+                {
+                  key: "profile_completeness",
+                  label: "Ukamilifu",
+                  exportValue: (r: DomainEntityRecord) => `${Number(r.profile_completeness ?? r.extra?.profile_completeness ?? 0)}%`,
+                  render: (r: DomainEntityRecord) => {
+                    const pct = Number(r.profile_completeness ?? r.extra?.profile_completeness ?? 0);
+                    return <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">{pct}%</span>;
+                  },
+                },
+              ]
+            : []),
           { key: "event_date", label: "Tarehe" },
           { key: "details", label: "Maelezo" },
           { key: "status", label: "Status" },
@@ -272,7 +342,7 @@ export function DomainEntitiesPanel({
       />
 
       {editing ? (
-        <ModalScrollLayer onBackdropClick={() => setEditing(null)} maxWidthClass="max-w-lg">
+        <ModalScrollLayer onBackdropClick={() => setEditing(null)} maxWidthClass={isStructureRegistration ? "max-w-5xl" : "max-w-lg"}>
           <form
             className="w-full rounded-2xl border border-amber-200 bg-white p-4 shadow-2xl"
             onSubmit={(e) => {
@@ -286,21 +356,63 @@ export function DomainEntitiesPanel({
                 event_date: fd.get("event_date"),
                 extra: moduleKey === "muundo"
                   ? {
+                      official_name: fd.get("official_name"),
+                      short_code: fd.get("short_code"),
+                      logo_url: fd.get("logo_url"),
+                      photo_url: fd.get("photo_url"),
+                      signature_url: fd.get("signature_url"),
                       parent_level: fd.get("parent_level"),
                       mkoa: fd.get("mkoa"),
                       wilaya: fd.get("wilaya"),
                       kata_mtaa: fd.get("kata_mtaa"),
+                      kijiji_mtaa: fd.get("kijiji_mtaa"),
+                      address: fd.get("address"),
+                      gps_coordinates: fd.get("gps_coordinates"),
                       contact_person: fd.get("contact_person"),
                       phone: fd.get("phone"),
                       email: fd.get("email"),
+                      website: fd.get("website"),
+                      leader_name: fd.get("leader_name"),
+                      assistant_leaders: fd.get("assistant_leaders"),
+                      secretary_name: fd.get("secretary_name"),
+                      treasurer_name: fd.get("treasurer_name"),
+                      notes: fd.get("notes"),
+                      attachment_urls: parseAttachmentUrls(fd.get("attachment_urls")),
+                      custom_fields: {
+                        registration_level: registrationLevel,
+                        registration_source: "enterprise_registration_form",
+                      },
+                      category_tags: parseTags(fd.get("category_tags")),
                     }
                   : editing.extra,
                 status: fd.get("status"),
               } as Partial<DomainEntityRecord>);
             }}
           >
-            <h3 className="text-lg font-bold text-slate-900">{editing.id ? "Hariri" : "Ongeza"}</h3>
-            <div className="mt-3 grid gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
+                  Enterprise Registration · {registrationLevel.toUpperCase()}
+                </p>
+                <h3 className="text-lg font-bold text-slate-900">{editing.id ? "Hariri" : "Ongeza"}</h3>
+              </div>
+              {isStructureRegistration && editing.id ? (
+                <button
+                  type="button"
+                  onClick={() => void exportEnterpriseRegistrationProfilePdf(editing as DomainEntityRecord, { level: registrationLevel, submodule })}
+                  className="rounded-xl border border-[#D4AF37]/60 bg-amber-50 px-3 py-2 text-xs font-bold text-[#0B1F3A] shadow-sm"
+                >
+                  PDF ya Wasifu
+                </button>
+              ) : null}
+            </div>
+            {isStructureRegistration ? (
+              <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-900">
+                Mfumo huu hujaza code, hierarchy summary na profile completeness kiotomatiki. Jaza taarifa nyingi kadri
+                iwezekanavyo ili PDF na records ziwe rasmi.
+              </div>
+            ) : null}
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
               <label className="grid gap-1 text-xs">
                 Kichwa *
                 <input name="title" required defaultValue={String(editing.title ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
@@ -311,6 +423,31 @@ export function DomainEntitiesPanel({
               </label>
               {moduleKey === "muundo" ? (
                 <>
+                  <label className="grid gap-1 text-xs">
+                    Jina rasmi
+                    <input name="official_name" defaultValue={String((editing.extra?.official_name as string) ?? editing.title ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs">
+                    Short code
+                    <input
+                      name="short_code"
+                      defaultValue={String((editing.extra?.short_code as string) ?? editing.reference_code ?? "")}
+                      placeholder="Auto ikiwa tupu"
+                      className="rounded-lg border px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs">
+                    Logo URL
+                    <input name="logo_url" defaultValue={String((editing.extra?.logo_url as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs">
+                    Picha/Profile URL
+                    <input name="photo_url" defaultValue={String((editing.extra?.photo_url as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs">
+                    Signature URL
+                    <input name="signature_url" defaultValue={String((editing.extra?.signature_url as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
                   <label className="grid gap-1 text-xs">
                     Parent level
                     <input name="parent_level" defaultValue={String((editing.extra?.parent_level as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
@@ -328,6 +465,18 @@ export function DomainEntitiesPanel({
                     <input name="kata_mtaa" defaultValue={String((editing.extra?.kata_mtaa as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
                   </label>
                   <label className="grid gap-1 text-xs">
+                    Kijiji/Mtaa
+                    <input name="kijiji_mtaa" defaultValue={String((editing.extra?.kijiji_mtaa as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs">
+                    Anwani kamili
+                    <input name="address" defaultValue={String((editing.extra?.address as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs">
+                    GPS / Location
+                    <input name="gps_coordinates" defaultValue={String((editing.extra?.gps_coordinates as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs">
                     Contact person
                     <input name="contact_person" defaultValue={String((editing.extra?.contact_person as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
                   </label>
@@ -339,11 +488,48 @@ export function DomainEntitiesPanel({
                     Email
                     <input name="email" defaultValue={String((editing.extra?.email as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
                   </label>
+                  <label className="grid gap-1 text-xs">
+                    Website
+                    <input name="website" defaultValue={String((editing.extra?.website as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs">
+                    Kiongozi mkuu
+                    <input name="leader_name" defaultValue={String((editing.extra?.leader_name as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs">
+                    Assistant leaders
+                    <input name="assistant_leaders" defaultValue={String((editing.extra?.assistant_leaders as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs">
+                    Katibu
+                    <input name="secretary_name" defaultValue={String((editing.extra?.secretary_name as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs">
+                    Mweka Hazina
+                    <input name="treasurer_name" defaultValue={String((editing.extra?.treasurer_name as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs md:col-span-2">
+                    Category tags
+                    <input name="category_tags" defaultValue={Array.isArray(editing.extra?.category_tags) ? (editing.extra.category_tags as string[]).join(", ") : String(editing.extra?.category_tags ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs md:col-span-2">
+                    Attachments/Documents URLs (moja kwa mstari)
+                    <textarea name="attachment_urls" rows={2} defaultValue={Array.isArray(editing.extra?.attachment_urls) ? (editing.extra.attachment_urls as string[]).join("\n") : ""} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
+                  <label className="grid gap-1 text-xs md:col-span-2">
+                    Notes / Maoni ya ndani
+                    <textarea name="notes" rows={2} defaultValue={String((editing.extra?.notes as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                  </label>
                 </>
               ) : null}
               <label className="grid gap-1 text-xs">
                 Nambari / Ref
-                <input name="reference_code" defaultValue={String(editing.reference_code ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
+                <input
+                  name="reference_code"
+                  defaultValue={String(editing.reference_code ?? "")}
+                  placeholder={isStructureRegistration ? "Auto code ikiwa tupu" : undefined}
+                  className="rounded-lg border px-3 py-2 text-sm"
+                />
               </label>
               <label className="grid gap-1 text-xs">
                 Tarehe (hafla / mwisho wa wiki / benki)

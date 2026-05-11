@@ -16,6 +16,7 @@ import { stage2GradHeader } from "../../lib/stage2Theme";
 import { fetchPortalAnalyticsDashboard } from "../../services/stage3/analyticsService";
 import type { AnalyticsDashboardPayload } from "../../types";
 import { GlassPanel, MotionCard } from "../stage2/Stage2Motion";
+import { exportTableToPdf } from "../../lib/exportHelpers";
 import {
   ResponsiveContainer,
   LineChart,
@@ -150,49 +151,27 @@ export function AnalyticsDashboardPanel(props: { variant?: "dashibodi" | "ripoti
       return;
     }
     if (!data) return;
-    const { jsPDF } = await import("jspdf");
-    const autoTableMod = await import("jspdf-autotable");
-    const autoTable = autoTableMod.default;
-    const doc = new jsPDF({ unit: "pt", format: "a4" });
-    const margin = 48;
-    let y = margin;
-    doc.setFontSize(16);
-    doc.setTextColor(11, 60, 93);
-    doc.text("KMKT — Ripoti ya Analytics", margin, y);
-    y += 28;
-    doc.setFontSize(10);
-    doc.setTextColor(60, 60, 60);
-    doc.text(`Kipindi: ${data.range.from} — ${data.range.to}`, margin, y);
-    y += 18;
-    if (data.category_filter) doc.text(`Kategoria: ${data.category_filter}`, margin, y);
-    y += 22;
-    autoTable(doc, {
-      startY: y,
-      head: [["Kipimo", "Thamani"]],
-      body: [
-        ["Waumini", String(data.totals.members)],
-        ["Familia", String(data.totals.families)],
-        ["Mapato (mistari)", tzs(data.period.income_lines_sum)],
-        ["Mapato (fedha)", tzs(data.period.finance_income_sum)],
-        ["Leaders active", String(data.totals.leaders_active)],
+    await exportTableToPdf(
+      "RIPOTI YA ANALYTICS YA KMK(T)",
+      `kmkt-analytics-${data.range.from}-${data.range.to}`,
+      ["Sehemu", "Kipimo", "Thamani"],
+      [
+        ["Muhtasari", "Waumini", String(data.totals.members)],
+        ["Muhtasari", "Familia", String(data.totals.families)],
+        ["Muhtasari", "Viongozi active", String(data.totals.leaders_active)],
+        ["Fedha", "Mapato (mistari)", tzs(data.period.income_lines_sum)],
+        ["Fedha", "Mapato (fedha)", tzs(data.period.finance_income_sum)],
+        ...data.income_by_source.slice(0, 12).map((r) => ["Chanzo cha mapato", r.label, tzs(r.amount)]),
+        ...data.members_by_region.slice(0, 10).map((r) => ["Waumini kwa Mkoa", r.label, String(r.total)]),
+        ...data.leaders_by_level.slice(0, 10).map((r) => ["Uongozi kwa Ngazi", r.label, String(r.total)]),
+        ...data.audit_activity.slice(0, 10).map((r) => ["Audit Activity", r.day, String(r.total)]),
       ],
-      headStyles: { fillColor: [11, 31, 58] },
-    });
-    y = ((doc as any).lastAutoTable?.finalY ?? y) + 18;
-    autoTable(doc, {
-      startY: y,
-      head: [["Top source", "Kiasi"]],
-      body: data.income_by_source.slice(0, 8).map((r) => [r.label, tzs(r.amount)]),
-      headStyles: { fillColor: [11, 31, 58] },
-    });
-    const pageCount = doc.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(9);
-      doc.setTextColor(80, 80, 80);
-      doc.text(`Ukurasa ${i}/${pageCount}`, 520, 820);
-    }
-    doc.save(`kmkt-analytics-${data.range.from}-${data.range.to}.pdf`);
+      {
+        subtitle: `Kipindi: ${data.range.from} - ${data.range.to}${data.category_filter ? ` | Kategoria: ${data.category_filter}` : ""}`,
+        description:
+          "Ripoti hii inatoa muhtasari wa viashiria muhimu vya utendaji wa portal, huduma, waumini na fedha kwa ajili ya uamuzi wa kiutendaji na uongozi.",
+      }
+    );
     pushToast("PDF imepakuliwa.", "success");
   };
 
@@ -380,12 +359,14 @@ export function AnalyticsDashboardPanel(props: { variant?: "dashibodi" | "ripoti
             ].map((k, i) => (
               <MotionCard key={k.label}>
                 <div
-                  className={`rounded-2xl bg-gradient-to-br p-4 text-white shadow-lg ${k.tone}`}
+                  className={`rounded-2xl bg-gradient-to-br p-4 text-center text-white shadow-lg ${k.tone}`}
                   style={{ animationDelay: `${i * 0.05}s` }}
                 >
-                  <k.icon className="h-6 w-6 opacity-90" />
-                  <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-white/80">{k.label}</p>
-                  <p className="mt-1 text-xl font-bold leading-snug md:text-2xl">{k.display}</p>
+                  <div className="flex min-h-[128px] flex-col items-center justify-center">
+                    <k.icon className="h-6 w-6 opacity-90" />
+                    <p className="mt-3 line-clamp-2 text-xs font-semibold uppercase tracking-wide text-white/80">{k.label}</p>
+                    <p className="mt-1 text-xl font-bold leading-snug md:text-2xl">{k.display}</p>
+                  </div>
                 </div>
               </MotionCard>
             ))}

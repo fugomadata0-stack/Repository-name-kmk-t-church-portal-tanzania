@@ -4,6 +4,7 @@ import { PremiumTable, type PremiumTableExcelBulk } from "../common/PremiumTable
 import { SettingsSupabaseBanner } from "../settings/SettingsSupabaseBanner";
 import { usePortal } from "../../context/PortalContext";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import {
   deleteChurchMember,
   ensureMemberCard,
@@ -25,6 +26,7 @@ import { bulkImportChurchMembers } from "../../lib/portalExcelBulkHandlers";
 import { exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
 import { fetchCascadeOptions } from "../../services/churchStructureService";
 import { StructureCascadeSelector } from "../common/StructureCascadeSelector";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 
 type Row = ChurchMemberRecord;
 const PHONE_RE = /^\+?[0-9]{9,15}$/;
@@ -76,6 +78,8 @@ export function ChurchMembersPanel({
     canPortalEditModule,
     canPortalDeleteModule,
     canPortalExportModule,
+    canScopeMutateRecord,
+    notifyScopeDenied,
   } = usePortal();
   const [rows, setRows] = useState<Row[]>([]);
   const [families, setFamilies] = useState<ChurchFamilyRecord[]>([]);
@@ -101,6 +105,14 @@ export function ChurchMembersPanel({
     jumuiya: [],
   });
   const [cascade, setCascade] = useState<{ dayosisi_id?: string; jimbo_id?: string; tawi_id?: string }>({});
+
+  const scopeHierarchy = useMemo(
+    () => ({
+      majimbo: structure.majimbo.map((x) => ({ id: x.id, dayosisi_id: x.parent_id ?? null })),
+      matawi: structure.matawi.map((x) => ({ id: x.id, jimbo_id: x.parent_id ?? null })),
+    }),
+    [structure.majimbo, structure.matawi]
+  );
 
   const shared = {
     canAdd: canPortalCreateModule("waumini"),
@@ -343,6 +355,16 @@ export function ChurchMembersPanel({
       pushToast("Namba ya simu si sahihi.", "error");
       return;
     }
+    const scopeIds = {
+      dayosisi_id: dayosisi_id || null,
+      jimbo_id: jimbo_id || null,
+      tawi_id: tawi_id || null,
+    };
+    const scopeOp = draft.id ? ("edit" as const) : ("create" as const);
+    if (!canScopeMutateRecord(scopeOp, scopeIds, scopeHierarchy)) {
+      notifyScopeDenied(crudContext?.moduleKey ?? "waumini", "church_members", { member_id: draft.id });
+      return;
+    }
     setSaving(true);
     const wasNew = !draft.id;
     try {
@@ -404,7 +426,7 @@ export function ChurchMembersPanel({
       } else if (wasNew) {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setDraft(null);
       await load();
     } catch (err) {
@@ -432,6 +454,12 @@ export function ChurchMembersPanel({
       <PremiumTable<Row>
         title={title}
         subtitle={subtitle}
+        persistenceScope={portalPremiumTableScope([
+          crudContext?.moduleKey ?? "waumini",
+          crudContext?.submodule ?? "Orodha",
+          mode,
+          "members",
+        ])}
         rows={rows}
         columns={columns}
         onAdd={shared.canAdd ? () => setDraft({}) : undefined}
@@ -446,7 +474,7 @@ export function ChurchMembersPanel({
                   if (crudContext && onCrudSuccess) {
                     onCrudSuccess("delete", { ...crudContext, recordId: id });
                   }
-                  window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+                  dispatchPortalReloadMetrics();
                   await load();
                 } catch (err) {
                   reportError(err, "Waumini — futa");

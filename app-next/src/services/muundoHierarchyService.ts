@@ -1,3 +1,9 @@
+import {
+  mirrorDeleteJimboCascade,
+  mirrorDeleteStructureById,
+  mirrorLegacyJimboToStructure,
+  mirrorLegacyTawiToStructure,
+} from "../lib/legacyStructureMirror";
 import { formatPostgrestError } from "../lib/supabaseErrors";
 import { getSupabase } from "../lib/supabaseClient";
 import { unwrapList, unwrapOrThrow } from "../lib/supabaseResult";
@@ -132,17 +138,22 @@ export async function upsertChurchJimbo(
   if (row.id && isPersistedUuid(row.id)) {
     const res = await c.from("church_jimbo").update(payload).eq("id", row.id).select("*, dayosisi ( jina )").single();
     const data = unwrapOrThrow(res, "church_jimbo.update");
-    return mapJimboRow(data as unknown as Record<string, unknown>);
+    const mapped = mapJimboRow(data as unknown as Record<string, unknown>);
+    void mirrorLegacyJimboToStructure(mapped);
+    return mapped;
   }
 
   const res = await c.from("church_jimbo").insert(payload).select("*, dayosisi ( jina )").single();
   const data = unwrapOrThrow(res, "church_jimbo.insert");
-  return mapJimboRow(data as unknown as Record<string, unknown>);
+  const mapped = mapJimboRow(data as unknown as Record<string, unknown>);
+  void mirrorLegacyJimboToStructure(mapped);
+  return mapped;
 }
 
 export async function deleteChurchJimbo(id: string): Promise<void> {
   const c = getSupabase();
   if (!c || !isPersistedUuid(id)) return;
+  await mirrorDeleteJimboCascade(id);
   const { error } = await c.from("church_jimbo").delete().eq("id", id);
   if (error) throw new Error(formatPostgrestError(error, "church_jimbo.delete"));
 }
@@ -187,17 +198,22 @@ export async function upsertChurchTawi(
       .select("*, church_jimbo ( jina, dayosisi ( jina ) )")
       .single();
     const data = unwrapOrThrow(res, "church_tawi.update");
-    return mapTawiRow(data as unknown as Record<string, unknown>);
+    const mapped = mapTawiRow(data as unknown as Record<string, unknown>);
+    void mirrorLegacyTawiToStructure(mapped);
+    return mapped;
   }
 
   const res = await c.from("church_tawi").insert(payload).select("*, church_jimbo ( jina, dayosisi ( jina ) )").single();
   const data = unwrapOrThrow(res, "church_tawi.insert");
-  return mapTawiRow(data as unknown as Record<string, unknown>);
+  const mapped = mapTawiRow(data as unknown as Record<string, unknown>);
+  void mirrorLegacyTawiToStructure(mapped);
+  return mapped;
 }
 
 export async function deleteChurchTawi(id: string): Promise<void> {
   const c = getSupabase();
   if (!c || !isPersistedUuid(id)) return;
+  await mirrorDeleteStructureById(id);
   const { error } = await c.from("church_tawi").delete().eq("id", id);
   if (error) throw new Error(formatPostgrestError(error, "church_tawi.delete"));
 }

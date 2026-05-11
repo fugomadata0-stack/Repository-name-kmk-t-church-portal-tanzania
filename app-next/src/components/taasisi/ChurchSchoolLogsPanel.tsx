@@ -18,6 +18,7 @@ import {
 } from "../../services/schoolLogsService";
 import type { DomainEntityRecord } from "../../types";
 import { GlassPanel } from "../stage2/Stage2Motion";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 
 const ACCEPT = ".csv,.txt,.log,.pdf,.xlsx,.docx,text/plain,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const LOG_MAX_BYTES = 8 * 1024 * 1024;
@@ -251,6 +252,7 @@ export function ChurchSchoolLogsPanel(props: {
       <PremiumTable<DomainEntityRecord>
         title="Orodha ya log za shule"
         subtitle="Rekodi zinazounganishwa na faili kwenye hifadhi"
+        persistenceScope={portalPremiumTableScope(["taasisi", "Church_School_Logs", "table"])}
         rows={rows}
         columns={columns}
         onAdd={canAdd ? openCreate : undefined}

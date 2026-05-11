@@ -55,6 +55,20 @@ export async function fetchSystemAlerts(status: "open" | "resolved" | "all" = "o
   return (data ?? []).map((r) => toAlertRow(r as Record<string, unknown>));
 }
 
+export async function resolveSystemAlert(alertId: string): Promise<void> {
+  if (systemAlertsTableMissing) return;
+  const c = clientOrThrow();
+  const { error } = await c.from("system_alerts").update({ status: "resolved", updated_at: new Date().toISOString() }).eq("id", alertId);
+  if (error) {
+    if (isMissingTableError(error)) {
+      systemAlertsTableMissing = true;
+      warnSystemAlertsMissingOnce("system_alerts.resolve");
+      return;
+    }
+    throw new Error(formatPostgrestError(error, "system_alerts.resolve"));
+  }
+}
+
 export interface SmartAlertInput {
   type: string;
   module: string;

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
 import { getSupabase, isSupabaseRealtimeEnabled } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { stage2GradHeader } from "../../lib/stage2Theme";
 import {
   createNotification,
@@ -227,7 +228,7 @@ export function NotificationsCenterPanel(props: { submodule?: string }) {
         setRows((prev) => [saved, ...prev]);
         pushToast("Taarifa imehifadhiwa.", "success");
       }
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setModal(false);
     } catch (e) {
       reportError(e, "Taarifa — hifadhi");
@@ -243,7 +244,7 @@ export function NotificationsCenterPanel(props: { submodule?: string }) {
       await deleteNotification(delId);
       setRows((prev) => prev.filter((x) => x.id !== delId));
       pushToast("Taarifa imefutwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setDelId(null);
     } catch (e) {
       reportError(e, "Taarifa — futa");
@@ -262,7 +263,7 @@ export function NotificationsCenterPanel(props: { submodule?: string }) {
         pushToast("Umesoma taarifa.", "success");
       }
       await load();
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
     } catch (e) {
       reportError(e, "Taarifa — hali ya kusoma");
     }
@@ -273,7 +274,7 @@ export function NotificationsCenterPanel(props: { submodule?: string }) {
       await markAllNotificationsRead();
       pushToast("Taarifa zote zimewekwa kama zimesomwa.", "success");
       await load();
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
     } catch (e) {
       reportError(e, "Taarifa — soma zote");
     }

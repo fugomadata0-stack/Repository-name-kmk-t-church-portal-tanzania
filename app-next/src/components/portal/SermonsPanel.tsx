@@ -7,6 +7,7 @@ import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
 import { deleteSermon, fetchSermons, upsertSermon } from "../../services/sermonsService";
 import type { SermonMediaType, SermonRecord } from "../../types";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 
 export function SermonsPanel(props: { highlightRecordId?: string | null }) {
   const { reportError, pushToast, canPortalCreateModule, canPortalEditModule, canPortalDeleteModule } = usePortal();
@@ -191,6 +192,7 @@ export function SermonsPanel(props: { highlightRecordId?: string | null }) {
       <PremiumTable<SermonRecord>
         title="Mahubiri"
         subtitle="Sauti au video (kiungo cha YouTube / sauti)"
+        persistenceScope={portalPremiumTableScope(["mahubiri", "Orodha", "sermons"])}
         rows={filteredRows}
         columns={[
           { key: "title", label: "Kichwa" },

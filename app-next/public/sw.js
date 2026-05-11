@@ -1,6 +1,14 @@
 /* global self, caches, fetch, Response */
-const CACHE_NAME = "kmkt-portal-static-v1";
-const APP_SHELL = ["/", "/index.html", "/manifest.webmanifest", "/favicon.svg", "/pwa-192.svg", "/pwa-512.svg"];
+const CACHE_NAME = "kmkt-portal-static-v6";
+const APP_SHELL = [
+  "/",
+  "/index.html",
+  "/manifest.webmanifest",
+  "/favicon.svg",
+  "/pwa-192.png",
+  "/pwa-512.png",
+  "/apple-touch-icon.png",
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

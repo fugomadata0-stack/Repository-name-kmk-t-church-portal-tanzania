@@ -8,14 +8,34 @@
   --kmt-focus-offset: 2px;
 }
 
+html {
+  /* Imesaidia portrait/landscape na viwango vya kimo kwenye simu */
+  height: 100%;
+}
+
 body {
   margin: 0;
+  min-height: 100%;
+  min-height: 100dvh;
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   background-color: #f3f6fa;
   color: #0b1f3a;
+  line-height: 1.6;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+@layer base {
+  /* Site-wide: readable tables and long labels without clipping */
+  table th,
+  table td {
+    overflow-wrap: break-word;
+    word-break: break-word;
+    vertical-align: top;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

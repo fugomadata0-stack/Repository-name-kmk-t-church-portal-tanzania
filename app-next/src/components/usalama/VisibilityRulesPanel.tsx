@@ -3,6 +3,7 @@ import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { PremiumTable } from "../common/PremiumTable";
 import { SettingsSupabaseBanner } from "../settings/SettingsSupabaseBanner";
 import { usePortal } from "../../context/PortalContext";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import { PORTAL_MODULE_KEYS } from "../../data/portalModuleKeys";
 import {
@@ -116,6 +117,7 @@ export function VisibilityRulesPanel() {
       <PremiumTable<Row>
         title="Matrix ya mwonekano"
         subtitle="Panga kipaumbele (nambari ndogo = juu zaidi)"
+        persistenceScope={portalPremiumTableScope(["usalama", "Visibility_Rules", "rules"])}
         rows={rows}
         columns={[
           { key: "name", label: "Jina", sortable: true },

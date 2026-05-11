@@ -4,6 +4,7 @@ import { PremiumTable, type PremiumTableExcelBulk } from "../common/PremiumTable
 import { SettingsSupabaseBanner } from "../settings/SettingsSupabaseBanner";
 import { usePortal } from "../../context/PortalContext";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import {
   deleteChurchFamily,
   fetchChurchFamilies,
@@ -14,6 +15,7 @@ import {
 import type { ChurchFamilyRecord, ChurchMemberRecord, DayosisiRecord } from "../../types";
 import { buildChurchFamilyExcelBundle } from "../../lib/excelModuleFormSpecs";
 import { bulkImportChurchFamilies } from "../../lib/portalExcelBulkHandlers";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 
 type Row = ChurchFamilyRecord;
 
@@ -41,6 +43,8 @@ export function ChurchFamiliesPanel({
     canPortalEditModule,
     canPortalDeleteModule,
     canPortalExportModule,
+    canScopeMutateRecord,
+    notifyScopeDenied,
   } = usePortal();
   const [rows, setRows] = useState<Row[]>([]);
   const [members, setMembers] = useState<ChurchMemberRecord[]>([]);
@@ -54,6 +58,9 @@ export function ChurchFamiliesPanel({
     canDelete: canPortalDeleteModule("waumini"),
     canExport: canPortalExportModule("waumini"),
   };
+
+  /** Hakuna majimbo/matawi ya pwenti hapa — mipaka inategemea UUID kwenye rekodi */
+  const scopeHierarchy = useMemo(() => ({ majimbo: [] as { id: string; dayosisi_id?: string | null }[], matawi: [] as { id: string; jimbo_id?: string | null }[] }), []);
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured()) {
@@ -129,6 +136,18 @@ export function ChurchFamiliesPanel({
       pushToast("Jina la familia linahitajika.", "error");
       return;
     }
+    const jimbo_id = String(fd.get("jimbo_id") ?? "").trim() || null;
+    const tawi_id = String(fd.get("tawi_id") ?? "").trim() || null;
+    const scopeIds = {
+      dayosisi_id: dayosisi_id || null,
+      jimbo_id,
+      tawi_id,
+    };
+    const scopeOp = draft.id ? ("edit" as const) : ("create" as const);
+    if (!canScopeMutateRecord(scopeOp, scopeIds, scopeHierarchy)) {
+      notifyScopeDenied(crudContext?.moduleKey ?? "waumini", "church_families", { family_id: draft.id });
+      return;
+    }
     setSaving(true);
     const wasNew = !draft.id;
     try {
@@ -138,6 +157,8 @@ export function ChurchFamiliesPanel({
         head_member_id,
         head_member_name: members.find((m) => m.id === head_member_id)?.jina_kamili ?? null,
         dayosisi_id,
+        jimbo_id,
+        tawi_id,
         jimbo_name,
         tawi_name,
         phone,
@@ -153,7 +174,7 @@ export function ChurchFamiliesPanel({
       }
       await logAudit("church_family_upsert", "church_families", saved.id);
       pushToast("Familia imehifadhiwa kwenye Supabase.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       if (crudContext && onCrudSuccess) {
         onCrudSuccess(wasNew ? "create" : "update", {
           ...crudContext,
@@ -187,6 +208,11 @@ export function ChurchFamiliesPanel({
       <PremiumTable<Row>
         title="Familia zilizosajiliwa"
         subtitle="Chagua dayosisi (mgongo wa data wa Supabase) au andika jimbo/tawi kwa maandishi"
+        persistenceScope={portalPremiumTableScope([
+          crudContext?.moduleKey ?? "waumini",
+          crudContext?.submodule ?? "Familia",
+          "families",
+        ])}
         rows={rows}
         columns={[
           { key: "family_name", label: "Familia", sortable: true },
@@ -208,13 +234,29 @@ export function ChurchFamiliesPanel({
           shared.canDelete
             ? async (id) => {
                 try {
+                  const row = rows.find((x) => x.id === id);
+                  if (
+                    row &&
+                    !canScopeMutateRecord(
+                      "delete",
+                      {
+                        dayosisi_id: row.dayosisi_id ?? null,
+                        jimbo_id: row.jimbo_id ?? null,
+                        tawi_id: row.tawi_id ?? null,
+                      },
+                      scopeHierarchy
+                    )
+                  ) {
+                    notifyScopeDenied(crudContext?.moduleKey ?? "waumini", "church_families", { family_id: id });
+                    return;
+                  }
                   await deleteChurchFamily(id);
                   await logAudit("church_family_delete", "church_families", id);
                   pushToast("Familia imefutwa.", "success");
                   if (crudContext && onCrudSuccess) {
                     onCrudSuccess("delete", { ...crudContext, recordId: id });
                   }
-                  window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+                  dispatchPortalReloadMetrics();
                   await load();
                 } catch (err) {
                   reportError(err, "Familia — futa");
@@ -223,6 +265,20 @@ export function ChurchFamiliesPanel({
             : undefined
         }
         {...shared}
+        rowCanEdit={(r) =>
+          canScopeMutateRecord(
+            "edit",
+            { dayosisi_id: r.dayosisi_id ?? null, jimbo_id: r.jimbo_id ?? null, tawi_id: r.tawi_id ?? null },
+            scopeHierarchy
+          )
+        }
+        rowCanDelete={(r) =>
+          canScopeMutateRecord(
+            "delete",
+            { dayosisi_id: r.dayosisi_id ?? null, jimbo_id: r.jimbo_id ?? null, tawi_id: r.tawi_id ?? null },
+            scopeHierarchy
+          )
+        }
         exportBasename="Church_Families"
         excelBulk={excelBulk}
         isLoading={loading}
@@ -257,6 +313,8 @@ export function ChurchFamiliesPanel({
                   ))}
                 </select>
               </label>
+              <input type="hidden" name="jimbo_id" value={draft.jimbo_id ?? ""} />
+              <input type="hidden" name="tawi_id" value={draft.tawi_id ?? ""} />
               <label className="grid gap-1 text-sm font-medium text-slate-800">
                 Jimbo (maandishi)
                 <input name="jimbo_name" defaultValue={draft.jimbo_name ?? ""} className="rounded-xl border border-slate-200 px-3 py-2" />
@@ -265,6 +323,9 @@ export function ChurchFamiliesPanel({
                 Tawi / kituo
                 <input name="tawi_name" defaultValue={draft.tawi_name ?? ""} className="rounded-xl border border-slate-200 px-3 py-2" />
               </label>
+              <p className="text-xs text-slate-500">
+                Kiunga cha UUID cha jimbo/tawi (ikiwa kinapatikana kwenye DB) kinatumika kwa mipaka ya usalama; kingine tumia dayosisi na majina.
+              </p>
               <label className="grid gap-1 text-sm font-medium text-slate-800">
                 Mkuu wa kaya
                 <select name="head_member_id" defaultValue={draft.head_member_id ?? ""} className="rounded-xl border border-slate-200 px-3 py-2">

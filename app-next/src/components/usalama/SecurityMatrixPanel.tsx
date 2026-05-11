@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { SettingsSupabaseBanner } from "../settings/SettingsSupabaseBanner";
 import { usePortal } from "../../context/PortalContext";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { PORTAL_MODULE_KEYS } from "../../data/portalModuleKeys";
 import { fetchMatrixForRole, fetchPortalRoles, upsertMatrixRows } from "../../services/securityService";
 import { matrixCanManagePortalSecurity } from "../../utils/matrixPermissions";
@@ -113,7 +114,7 @@ export function SecurityMatrixPanel() {
       await upsertMatrixRows(matrix);
       await logAudit("rbac_matrix_upsert", "portal_module_matrix", selectedRole, { modules: PORTAL_MODULE_KEYS.length });
       pushToast("Matrix ya ruhusa imehifadhiwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       await loadMatrix(selectedRole);
     } catch (e) {
       reportError(e, "RBAC matrix — hifadhi");

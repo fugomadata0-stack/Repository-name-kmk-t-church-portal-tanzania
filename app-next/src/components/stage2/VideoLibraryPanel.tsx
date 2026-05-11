@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Play, Plus, Trash2, Pencil, Video as VideoIcon, Search, Download } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
 import { mbToBytes, UPLOAD_LIMITS_MB, validateSelectedFile } from "../../lib/fileUploadGuard";
 import { stage2GradHeader } from "../../lib/stage2Theme";
@@ -114,7 +115,7 @@ export function VideoLibraryPanel(props: { highlightRecordId?: string | null }) 
         setRows((p) => [saved, ...p.filter((x) => x.id !== saved.id)]);
       }
       pushToast("Video imehifadhiwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setModal(false);
       setThumbFile(null);
     } catch (e) {
@@ -134,7 +135,7 @@ export function VideoLibraryPanel(props: { highlightRecordId?: string | null }) 
       await deleteVideo(delId);
       setRows((p) => p.filter((x) => x.id !== delId));
       pushToast("Imefutwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setDelId(null);
       setPlayer(null);
     } catch (e) {

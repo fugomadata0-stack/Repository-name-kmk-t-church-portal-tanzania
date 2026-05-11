@@ -58,6 +58,7 @@ import type {
 import { ConfirmModal } from "../common/ConfirmModal";
 import { GlassPanel, MotionCard } from "../stage2/Stage2Motion";
 import { parseAidSubmodule } from "../../lib/aidSubmodule";
+import { exportTableToPdf } from "../../lib/exportHelpers";
 
 const GROUP_OPTIONS: AidGroupCategory[] = [
   "Wazee",
@@ -695,17 +696,11 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
 
   const exportPdf = async () => {
     if (!canExport) return;
-    const [{ jsPDF }, autoTableMod] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
-    const autoTable = autoTableMod.default;
-    const doc = new jsPDF({ orientation: "landscape" });
-    doc.setFontSize(14);
-    doc.text("Ripoti ya Misaada ya Kanisa", 14, 16);
-    doc.setFontSize(10);
-    doc.text(`Tarehe: ${new Date().toLocaleString("sw-TZ")}`, 14, 22);
-    autoTable(doc, {
-      startY: 28,
-      head: [["Jina", "Simu", "Kundi", "Aina ya msaada", "Dharura", "Hali", "Kiasi (TZS)", "Mwezi"]],
-      body: filtered.map((r) => {
+    await exportTableToPdf(
+      "RIPOTI YA MISAADA YA KANISA",
+      `misaada_kanisa_${new Date().toISOString().slice(0, 10)}`,
+      ["Jina", "Simu", "Kundi", "Aina ya msaada", "Dharura", "Hali", "Kiasi (TZS)", "Mwezi"],
+      filtered.map((r) => {
         const b = Array.isArray(r.aid_beneficiaries) ? r.aid_beneficiaries[0] : r.aid_beneficiaries;
         return [
           b?.full_name ?? "",
@@ -718,10 +713,13 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
           r.request_month ?? "",
         ];
       }),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [11, 60, 93] },
-    });
-    doc.save(`misaada_kanisa_${new Date().toISOString().slice(0, 10)}.pdf`);
+      {
+        subtitle: "Taarifa ya misaada, wahusika, kiwango cha uhitaji, hali ya mchakato na ufuatiliaji wa utoaji.",
+        description:
+          "Ripoti hii inasaidia uongozi kufuatilia uwazi wa huduma za misaada, kupanga vipaumbele na kufanya maamuzi kwa rekodi sahihi za wahitaji.",
+        showSignatureLine: true,
+      }
+    );
   };
 
   const printForm = () => {

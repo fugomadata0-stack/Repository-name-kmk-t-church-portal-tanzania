@@ -762,7 +762,7 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
                       value={targetPhone}
                       onChange={(e) => setTargetPhone(e.target.value)}
                       className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
-                      placeholder="+255…"
+                      placeholder=""
                     />
                   </label>
                 </div>

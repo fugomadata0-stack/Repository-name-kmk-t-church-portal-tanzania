@@ -37,6 +37,8 @@ export function mapFamilyRow(row: Record<string, unknown>): ChurchFamilyRecord {
     head_member_id: row.head_member_id ? String(row.head_member_id) : null,
     head_member_name: row.head_member_name ? String(row.head_member_name) : null,
     dayosisi_id: row.dayosisi_id ? String(row.dayosisi_id) : null,
+    jimbo_id: row.jimbo_id ? String(row.jimbo_id) : null,
+    tawi_id: row.tawi_id ? String(row.tawi_id) : null,
     jimbo_name: row.jimbo_name != null ? String(row.jimbo_name) : null,
     tawi_name: row.tawi_name != null ? String(row.tawi_name) : null,
     phone: row.phone != null ? String(row.phone) : null,
@@ -104,6 +106,8 @@ export async function upsertChurchFamily(row: Partial<ChurchFamilyRecord> & { fa
     head_member_id: row.head_member_id || null,
     head_member_name: row.head_member_name?.trim() || null,
     dayosisi_id: row.dayosisi_id || null,
+    jimbo_id: row.jimbo_id && isPersistedUuid(String(row.jimbo_id)) ? String(row.jimbo_id) : null,
+    tawi_id: row.tawi_id && isPersistedUuid(String(row.tawi_id)) ? String(row.tawi_id) : null,
     jimbo_name: row.jimbo_name?.trim() || null,
     tawi_name: row.tawi_name?.trim() || null,
     phone: row.phone?.trim() || null,
@@ -289,6 +293,32 @@ export async function fetchWauminiCounts(): Promise<{
   } catch {
     return { families: 0, members: 0, activeMembers: 0, baptized: 0 };
   }
+}
+
+export async function fetchWauminiCountsStrict(): Promise<{
+  families: number;
+  members: number;
+  activeMembers: number;
+  baptized: number;
+}> {
+  const c = getSupabase();
+  if (!c) throw new Error("Supabase haijasanidiwa.");
+  const [f, m, a, b] = await Promise.all([
+    c.from("church_families").select("id", { count: "exact", head: true }),
+    c.from("church_members").select("id", { count: "exact", head: true }),
+    c.from("church_members").select("id", { count: "exact", head: true }).eq("membership_status", "active"),
+    c.from("church_members").select("id", { count: "exact", head: true }).eq("is_baptized", true),
+  ]);
+  if (f.error) throw new Error(formatPostgrestError(f.error, "church_families.count"));
+  if (m.error) throw new Error(formatPostgrestError(m.error, "church_members.count"));
+  if (a.error) throw new Error(formatPostgrestError(a.error, "church_members.count_active"));
+  if (b.error) throw new Error(formatPostgrestError(b.error, "church_members.count_baptized"));
+  return {
+    families: f.count ?? 0,
+    members: m.count ?? 0,
+    activeMembers: a.count ?? 0,
+    baptized: b.count ?? 0,
+  };
 }
 
 /** Majina ya dayosisi kwa dropdown */

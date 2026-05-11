@@ -118,6 +118,9 @@ export function mapIncomeLineRow(row: Record<string, unknown>): IncomeManagement
     status: uiStatus(row.status as string),
     branchCenter: String(row.branch_center ?? ""),
     remarks: String(row.remarks ?? ""),
+    dayosisi_id: row.dayosisi_id != null ? String(row.dayosisi_id) : undefined,
+    jimbo_id: row.jimbo_id != null ? String(row.jimbo_id) : undefined,
+    tawi_id: row.tawi_id != null ? String(row.tawi_id) : undefined,
   };
 }
 

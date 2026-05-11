@@ -1,4 +1,5 @@
-import { AppLayout } from "../layout/AppLayout";
+import { lazy, Suspense } from "react";
+import { ErrorBoundary } from "../common/ErrorBoundary";
 import { isAcceptInvitePath, isSignupRequestPath, isVerifyMemberPath, usePublicPath } from "../../hooks/usePublicPath";
 import { AcceptInvitePage } from "../../pages/auth/AcceptInvitePage";
 import { LoginPage } from "../../pages/LoginPage";
@@ -8,6 +9,12 @@ import { PortalDirectoryLoadError } from "./PortalDirectoryLoadError";
 import { ProfileGateBlocked } from "./ProfileGateBlocked";
 import { SupabaseEnvMissing } from "./SupabaseEnvMissing";
 import { usePortal } from "../../context/PortalContext";
+
+/** Dashibodi na moduli — lazy ili ukurasa wa kuingia usibebe bundle kubwa (haraka zaidi). */
+const AppLayout = lazy(async () => {
+  const m = await import("../layout/AppLayout");
+  return { default: m.AppLayout };
+});
 
 function AuthSpinner() {
   return (
@@ -64,5 +71,11 @@ export function RootShell() {
     return <ProfileGateBlocked />;
   }
 
-  return <AppLayout />;
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<AuthSpinner />}>
+        <AppLayout />
+      </Suspense>
+    </ErrorBoundary>
+  );
 }

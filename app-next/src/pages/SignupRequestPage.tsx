@@ -7,12 +7,19 @@ import { analyzePasswordStrength, validateEmail, validatePassword, validatePhone
 import { needsVerificationFlag, requestedScopeFromPayload, unitFromPayload } from "../lib/phase33FormUtils";
 import { PHASE33_PUBLIC_ROLES } from "../lib/phase33ReferenceData";
 import {
+  clearPortalDraft,
+  readPortalDraft,
+  writePortalDraft,
+  type PortalDraftField,
+  type PortalDraftScope,
+} from "../lib/portalDraftRecovery";
+import {
   insertPhase33SignupRequest,
   validatePasswordRemote,
 } from "../services/phase33SignupService";
 import { logAuditAction } from "../services/auditLogService";
 import type { SignupReferencePayload } from "../services/signupReferenceFromSupabase";
-import { fetchSignupReferenceFromSupabase } from "../services/signupReferenceFromSupabase";
+import { enrichSignupPayloadWithStructureIds, fetchSignupReferenceFromSupabase } from "../services/signupReferenceFromSupabase";
 
 const RULE_ROWS: { key: keyof ReturnType<typeof analyzePasswordStrength>["checks"]; sw: string }[] = [
   { key: "firstUpper", sw: "Herufi ya kwanza ni kubwa (A–Z)." },
@@ -52,6 +59,60 @@ const initialForm: FormState = {
   responsibilityDeclaration: false,
 };
 
+const signupDraftScope: PortalDraftScope = {
+  userId: null,
+  moduleKey: "registration_requests",
+  submodule: "Phase33 signup",
+  pageKey: "phase33-signup",
+};
+
+function signupFormToDraftFields(step: number, form: FormState): PortalDraftField[] {
+  const dynamicPayload = Object.keys(form.dynamicPayload).length > 0 ? JSON.stringify(form.dynamicPayload) : "";
+  const safeForm = {
+    ...form,
+    password: "",
+    confirmPassword: "",
+    dynamicPayload,
+  };
+  const fields: PortalDraftField[] = Object.entries(safeForm).map(([key, value]) => ({
+    key: `signup:${key}`,
+    selector: `[data-signup-field="${key}"]`,
+    kind: typeof value === "boolean" ? ("checkbox" as const) : ("input" as const),
+    value: typeof value === "boolean" ? undefined : String(value ?? ""),
+    checked: typeof value === "boolean" ? value : undefined,
+  }));
+  const hasMeaningfulDraft = fields.some((field) => Boolean(field.checked || field.value?.trim()));
+  return hasMeaningfulDraft
+    ? [{ key: "signup:step", selector: "[data-signup-step]", kind: "input", value: String(step) }, ...fields]
+    : [];
+}
+
+function signupDraftFieldsToForm(fields: PortalDraftField[]): { step: number; form: FormState } | null {
+  const byKey = new Map(fields.map((field) => [field.key, field]));
+  const rawStep = Number(byKey.get("signup:step")?.value ?? 1);
+  const nextForm: FormState = { ...initialForm };
+  for (const key of Object.keys(initialForm) as Array<keyof FormState>) {
+    if (key === "password" || key === "confirmPassword") continue;
+    const field = byKey.get(`signup:${key}`);
+    if (!field) continue;
+    if (typeof initialForm[key] === "boolean") {
+      (nextForm[key] as boolean) = Boolean(field.checked);
+    } else if (key === "dynamicPayload") {
+      try {
+        nextForm.dynamicPayload = JSON.parse(field.value || "{}") as Record<string, string>;
+      } catch {
+        nextForm.dynamicPayload = {};
+      }
+    } else {
+      (nextForm[key] as string) = field.value ?? "";
+    }
+  }
+  return {
+    step: Number.isFinite(rawStep) ? Math.min(4, Math.max(1, rawStep)) : 1,
+    form: nextForm,
+  };
+}
+
 export function SignupRequestPage() {
   const { supabaseReady, session, pushToast, reportError } = usePortal();
   const [step, setStep] = useState(1);
@@ -64,6 +125,45 @@ export function SignupRequestPage() {
 
   const pwdAnalysis = useMemo(() => analyzePasswordStrength(form.password), [form.password]);
   const pwdMatch = Boolean(form.password && form.password === form.confirmPassword);
+
+  useEffect(() => {
+    const draft = readPortalDraft(signupDraftScope);
+    if (!draft) return;
+    const restored = signupDraftFieldsToForm(draft.fields);
+    if (!restored) return;
+    setForm(restored.form);
+    setStep(restored.step);
+    pushToast("Rasimu imerejeshwa. Tafadhali weka tena nenosiri kwa usalama.", "info");
+  }, [pushToast]);
+
+  useEffect(() => {
+    if (step >= 5) return;
+    const save = () => {
+      return writePortalDraft(signupDraftScope, signupFormToDraftFields(step, form), {
+        scrollTop: window.scrollY || document.documentElement.scrollTop || 0,
+        activeElementKey: null,
+        openDetails: [],
+      });
+    };
+    const timer = window.setTimeout(save, 1400);
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") save();
+    };
+    const onBeforeUnload = (ev: BeforeUnloadEvent) => {
+      if (!save()) return;
+      ev.preventDefault();
+      ev.returnValue = "Una mabadiliko ambayo hayajahifadhiwa. Unataka kuondoka?";
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onVisibility);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onVisibility);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
+  }, [form, step]);
 
   const setField = useCallback(<K extends keyof FormState>(key: K, val: FormState[K]) => {
     setForm((f) => ({ ...f, [key]: val }));
@@ -195,6 +295,13 @@ export function SignupRequestPage() {
         return;
       }
       const dyn = form.dynamicPayload;
+      let submitPayload = dyn;
+      try {
+        submitPayload = enrichSignupPayloadWithStructureIds(dyn, signupRef);
+      } catch {
+        // Fallback: usizuie submit kama lookup ya structure imeshindikana.
+        submitPayload = dyn;
+      }
       const scope = requestedScopeFromPayload(form.requestedRole, dyn);
       const unit = unitFromPayload(dyn);
       const vf = needsVerificationFlag(dyn);
@@ -208,12 +315,13 @@ export function SignupRequestPage() {
         previousResponsibility: form.previousResponsibility.trim(),
         requestedScope: scope,
         unitName: unit,
-        dynamicPayload: dyn,
+        dynamicPayload: submitPayload,
         verificationFlag: vf,
       });
+      clearPortalDraft(signupDraftScope);
       setRequestRef(row.id);
       setStep(5);
-      pushToast("Ombi limepokelewa.", "success");
+      pushToast("Maombi yako yametumwa kwa mafanikio. Subiri kuthibitishwa na msimamizi.", "success");
       await logAuditAction({
         module: "auth",
         action: "signup_request",
@@ -229,7 +337,22 @@ export function SignupRequestPage() {
       });
     } catch (err) {
       reportError(err, "Phase33 signup");
-      pushToast("Imeshindwa kuwasilisha. Jaribu tena.", "error");
+      const msg = formatCaughtError(err).toLowerCase();
+      if (msg.includes("phase33 insert") || msg.includes("phase33_signup_requests")) {
+        pushToast("Imeshindikana kutuma maombi. Tafadhali jaribu tena au wasiliana na msimamizi.", "error");
+      } else if (msg.includes("permission denied") || msg.includes("42501") || msg.includes("rls")) {
+        pushToast("Huna ruhusa ya kusoma taarifa za muundo wa kanisa.", "error");
+      } else if (
+        msg.includes("dayosisi") ||
+        msg.includes("jimbo") ||
+        msg.includes("tawi") ||
+        msg.includes("structure") ||
+        msg.includes("scope")
+      ) {
+        pushToast("Chagua ngazi sahihi ya kanisa.", "error");
+      } else {
+        pushToast("Imeshindikana kutuma maombi ya akaunti.", "error");
+      }
     } finally {
       setBusy(false);
     }

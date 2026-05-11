@@ -83,7 +83,7 @@ const LEVELS = ["National", "Diocese", "Jimbo", "Branch"] as const;
 function emptyDataHint() {
   return (
     <p className="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-      Hakuna data bado kwenye Supabase kwa sehemu hii — ongeza rekodi kwenye Muundo / Jumuiya / Taasisi kisha jaribu tena.
+      Hakuna taarifa bado.
     </p>
   );
 }

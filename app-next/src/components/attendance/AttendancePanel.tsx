@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { PremiumTable } from "../common/PremiumTable";
 import { usePortal } from "../../context/PortalContext";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 import { fetchChurchMembers } from "../../services/wauminiService";
 import { fetchCascadeOptions } from "../../services/churchStructureService";
 import {
@@ -120,7 +122,7 @@ export function AttendancePanel() {
         }))
       );
       pushToast("Mahudhurio yamehifadhiwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setDraft(null);
       await load();
     } catch (e) {
@@ -148,6 +150,7 @@ export function AttendancePanel() {
       <PremiumTable
         title="Mahudhurio"
         subtitle="Ibada, matukio na ushiriki wa waumini"
+        persistenceScope={portalPremiumTableScope(["attendance", "Mahudhurio", "sessions"])}
         rows={rows}
         columns={columns}
         isLoading={loading}
@@ -159,7 +162,7 @@ export function AttendancePanel() {
                 try {
                   await deleteAttendanceSession(id);
                   pushToast("Imefutwa.", "success");
-                  window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+                  dispatchPortalReloadMetrics();
                   await load();
                 } catch (e) {
                   reportError(e, "Mahudhurio — futa");

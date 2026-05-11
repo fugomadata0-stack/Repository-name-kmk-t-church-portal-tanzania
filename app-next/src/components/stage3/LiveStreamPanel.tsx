@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
 import { stage2GradHeader } from "../../lib/stage2Theme";
 import {
@@ -215,7 +216,7 @@ export function LiveStreamPanel(props: { submodule?: string }) {
         return [saved, ...prev];
       });
       pushToast("Imehifadhiwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setModal(false);
     } catch (e) {
       reportError(e, "Live Stream — hifadhi");
@@ -240,7 +241,7 @@ export function LiveStreamPanel(props: { submodule?: string }) {
       await deleteLiveStream(delId);
       setRows((prev) => prev.filter((x) => x.id !== delId));
       pushToast("Imefutwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setDelId(null);
     } catch (e) {
       reportError(e, "Live Stream — futa");

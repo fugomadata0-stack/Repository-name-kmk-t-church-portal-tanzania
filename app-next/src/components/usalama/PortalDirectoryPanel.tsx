@@ -4,6 +4,8 @@ import { PremiumTable } from "../common/PremiumTable";
 import { SettingsSupabaseBanner } from "../settings/SettingsSupabaseBanner";
 import { usePortal } from "../../context/PortalContext";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 import { deleteDirectoryProfile, fetchDirectoryProfiles, fetchPortalRoles, upsertDirectoryProfile } from "../../services/securityService";
 import { matrixCanManagePortalSecurity } from "../../utils/matrixPermissions";
 import type { PortalDirectoryProfile } from "../../types";
@@ -112,7 +114,7 @@ export function PortalDirectoryPanel() {
         });
       }
       pushToast("Rekodi ya mtumiaji imehifadhiwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setDraft(null);
       await load();
     } catch (err) {
@@ -137,6 +139,7 @@ export function PortalDirectoryPanel() {
       <PremiumTable<Row>
         title="Watumiaji waliosajiliwa kisheria"
         subtitle="Orodha ya operesheni (siyo orodha kamili ya GoTrue bila service role)"
+        persistenceScope={portalPremiumTableScope(["usalama", "Users", "directory"])}
         rows={rows}
         columns={[
           { key: "email", label: "Barua pepe", sortable: true },
@@ -166,7 +169,7 @@ export function PortalDirectoryPanel() {
                   await logAudit("portal_directory_delete", "portal_directory_profiles", id);
                   await logAudit("user_role_removed", "portal_directory_profiles", id, { email: target?.email ?? null });
                   pushToast("Rekodi imefutwa.", "success");
-                  window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+                  dispatchPortalReloadMetrics();
                   await load();
                 } catch (err) {
                   reportError(err, "Directory — futa");

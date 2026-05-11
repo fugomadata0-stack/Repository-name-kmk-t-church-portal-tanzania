@@ -1,5 +1,8 @@
 import type { ModuleItem } from "../types";
 
+/** Kipengele cha uongozi wa kina: nafasi zisizo na kikomo, makamati, PDF, realtime. */
+export const ENTERPRISE_VIONGOZI_SUBMODULE = "Enterprise — Nafasi, Makamati & PDF";
+
 /** Orodha ya moduli na submoduli — chanzo cha ukweli wa mpangilio (sio data ya biashara). */
 export const modules: ModuleItem[] = [
   { key: "dashboard", label: "Dashibodi Kuu", color: "from-blue-600 to-indigo-700", submodules: ["Overview", "KPI Cards", "Alerts", "Recent Activity", "Pending Approvals"] },
@@ -64,7 +67,18 @@ export const modules: ModuleItem[] = [
     key: "muundo",
     label: "Muundo wa Kanisa",
     color: "from-cyan-600 to-blue-700",
-    submodules: ["KMK(T)", "Dayosisi", "Majimbo", "Matawi / Vituo", "Idara", "Huduma", "Taasisi", "Jumuiya", "Hierarchy View"],
+    submodules: [
+      "Sajili Muundo",
+      "KMK(T)",
+      "Dayosisi",
+      "Majimbo",
+      "Matawi / Vituo",
+      "Idara",
+      "Huduma",
+      "Taasisi",
+      "Jumuiya",
+      "Hierarchy View",
+    ],
   },
   {
     key: "viongozi",
@@ -79,6 +93,7 @@ export const modules: ModuleItem[] = [
       "Viongozi wa Huduma",
       "Viongozi wa Taasisi",
       "Viongozi wa Jumuiya",
+      ENTERPRISE_VIONGOZI_SUBMODULE,
     ],
   },
   { key: "waumini", label: "Waumini & Familia", color: "from-emerald-600 to-teal-700", submodules: ["Orodha ya Waumini", "Familia", "Ubatizo", "Membership Status", "Member Profiles"] },

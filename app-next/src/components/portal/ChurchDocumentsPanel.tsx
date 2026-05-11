@@ -3,6 +3,7 @@ import { SupabaseListFeedback } from "../common/SupabaseListFeedback";
 import { PremiumTable } from "../common/PremiumTable";
 import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
 import { mbToBytes, UPLOAD_LIMITS_MB, validateSelectedFile } from "../../lib/fileUploadGuard";
 import {
@@ -15,7 +16,10 @@ import {
 } from "../../services/portalDocumentsService";
 import type { ChurchDocumentRecord } from "../../types";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
+import { exportRowsToExcel, exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
 import { safeLower } from "../../lib/safe";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Line, LineChart } from "recharts";
 
 const ACCEPT =
@@ -34,6 +38,32 @@ function fileTypeLabel(url: string) {
   if (low.endsWith(".xlsx")) return "XLSX";
   return "Nyingine";
 }
+
+const DOCUMENTS_EXCEL_HEADERS = [
+  "S/N",
+  "Kichwa",
+  "Kategoria",
+  "Idara",
+  "Uploader",
+  "Dayosisi/Tawi",
+  "Aina",
+  "Status",
+  "Maelezo",
+  "Tarehe",
+  "Kiungo",
+];
+const DOCUMENTS_PDF_HEADERS = [
+  "S/N",
+  "Kichwa",
+  "Kategoria",
+  "Idara",
+  "Uploader",
+  "Dayosisi/Tawi",
+  "Aina",
+  "Status",
+  "Maelezo",
+  "Tarehe",
+];
 
 export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null }) {
   const { pushToast, canPortalCreateModule, canPortalEditModule, canPortalDeleteModule, canPortalExportModule } = usePortal();
@@ -70,7 +100,7 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const dispatchMetricsReload = useCallback(() => {
-    window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+    dispatchPortalReloadMetrics();
   }, []);
 
   const load = useCallback(async () => {
@@ -134,8 +164,10 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
     return ["ALL", ...Array.from(s).sort()];
   }, [rows]);
 
+  const debouncedSearchFilter = useDebouncedValue(searchFilter, 220);
+
   const filteredRows = useMemo(() => {
-    const q = safeLower(searchFilter.trim());
+    const q = safeLower(debouncedSearchFilter.trim());
     return rows.filter((r) => {
       if (categoryFilter !== "ALL" && r.category !== categoryFilter) return false;
       if (typeFilter !== "ALL" && fileTypeLabel(r.file_url) !== typeFilter) return false;
@@ -150,7 +182,18 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
       if (!q) return true;
       return safeLower(`${r.title} ${r.category} ${r.description} ${r.file_url}`).includes(q);
     });
-  }, [rows, categoryFilter, typeFilter, statusFilter, uploaderFilter, departmentFilter, branchFilter, startDateFilter, endDateFilter, searchFilter]);
+  }, [
+    rows,
+    categoryFilter,
+    typeFilter,
+    statusFilter,
+    uploaderFilter,
+    departmentFilter,
+    branchFilter,
+    startDateFilter,
+    endDateFilter,
+    debouncedSearchFilter,
+  ]);
 
   const clearAllFilters = useCallback(() => {
     setSearchFilter("");
@@ -233,78 +276,65 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
   const filterSummary = `Category: ${categoryFilter} | Type: ${typeFilter} | Dept: ${departmentFilter} | Status: ${statusFilter} | UploadedBy: ${uploaderFilter} | Branch: ${branchFilter} | Date: ${startDateFilter || "ALL"} - ${endDateFilter || "ALL"}`;
 
   const exportExcel = useCallback(async () => {
-    const XLSX = await import("xlsx");
-    const ws = XLSX.utils.aoa_to_sheet([
-      ["KMK(T) SYSTEM BUILDER — ORODHA YA NYARAKA"],
-      [`Tarehe ya kutoa: ${new Date().toLocaleString()}`],
-      [`Filters: ${filterSummary}`],
-      [],
-      ["S/N", "Kichwa", "Kategoria", "Idara", "Uploader", "Dayosisi/Tawi", "Aina", "Status", "Maelezo", "Tarehe", "Kiungo"],
-      ...exportRows.map((r) => [r.sn, r.title, r.category, r.department, r.uploadedBy, r.branch, r.type, r.status, r.description, r.createdAt, r.fileUrl]),
-    ]);
-    ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 10 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } }, { s: { r: 2, c: 0 }, e: { r: 2, c: 10 } }];
-    ws["!cols"] = [{ wch: 6 }, { wch: 34 }, { wch: 18 }, { wch: 20 }, { wch: 18 }, { wch: 22 }, { wch: 12 }, { wch: 12 }, { wch: 40 }, { wch: 22 }, { wch: 42 }];
-    ws["!autofilter"] = { ref: `A5:K${Math.max(5, exportRows.length + 5)}` };
-    (ws as Record<string, unknown>)["!freeze"] = { xSplit: 0, ySplit: 5 };
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Nyaraka");
-    XLSX.writeFile(wb, `KMKT_ORODHA_YA_NYARAKA_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    await exportRowsToExcel(
+      `KMKT_ORODHA_YA_NYARAKA_${new Date().toISOString().slice(0, 10)}`,
+      DOCUMENTS_EXCEL_HEADERS,
+      exportRows.map((r) => [
+        r.sn,
+        r.title,
+        r.category,
+        r.department,
+        r.uploadedBy,
+        r.branch,
+        r.type,
+        r.status,
+        r.description,
+        r.createdAt,
+        r.fileUrl,
+      ]),
+      { reportTitle: "ORODHA YA NYARAKA", filterSummary, sheetName: "Nyaraka" }
+    );
   }, [exportRows, filterSummary]);
 
   const exportPdf = useCallback(async () => {
-    const [{ jsPDF }, autoTableMod] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
-    const autoTable = autoTableMod.default;
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    const pageWidth = doc.internal.pageSize.getWidth();
-    doc.setFillColor(11, 31, 58);
-    doc.rect(0, 0, pageWidth, 24, "F");
-    doc.setTextColor(212, 175, 55);
-    doc.setFontSize(14);
-    doc.text("KMK(T) SYSTEM BUILDER", 14, 10);
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(11);
-    doc.text("ORODHA YA NYARAKA", 14, 18);
-    doc.setTextColor(15, 30, 70);
-    doc.setFontSize(9);
-    doc.text(`Tarehe ya kutoa: ${new Date().toLocaleString()}`, 14, 30);
-    doc.text(`Filters: ${filterSummary}`, 14, 35);
-    autoTable(doc, {
-      startY: 38,
-      head: [["S/N", "Kichwa", "Kategoria", "Idara", "Uploader", "Dayosisi/Tawi", "Aina", "Status", "Maelezo", "Tarehe"]],
-      body: exportRows.map((r) => [r.sn, r.title, r.category, r.department, r.uploadedBy, r.branch, r.type, r.status, r.description, r.createdAt]),
-      styles: { fontSize: 8, cellPadding: 2, overflow: "linebreak", valign: "top" },
-      headStyles: { fillColor: [11, 31, 58], textColor: [212, 175, 55], fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      columnStyles: { 0: { cellWidth: 8 }, 1: { cellWidth: 34 }, 2: { cellWidth: 20 }, 3: { cellWidth: 22 }, 4: { cellWidth: 20 }, 5: { cellWidth: 22 }, 6: { cellWidth: 14 }, 7: { cellWidth: 14 }, 8: { cellWidth: 58 }, 9: { cellWidth: 26 } },
-      didDrawPage: () => {
-        const pageCount = doc.getNumberOfPages();
-        const page = doc.getCurrentPageInfo().pageNumber;
-        doc.setFontSize(8);
-        doc.setTextColor(71, 85, 105);
-        doc.text(`Ukurasa ${page} / ${pageCount}`, pageWidth - 35, 205);
-        doc.text("Sahihi: ____________________", 14, 205);
-      },
-      rowPageBreak: "avoid",
-    });
-    doc.save(`KMKT_ORODHA_YA_NYARAKA_${new Date().toISOString().slice(0, 10)}.pdf`);
+    await exportTableToPdf(
+      "ORODHA YA NYARAKA",
+      `KMKT_ORODHA_YA_NYARAKA_${new Date().toISOString().slice(0, 10)}`,
+      DOCUMENTS_PDF_HEADERS,
+      exportRows.map((r) => [
+        r.sn,
+        r.title,
+        r.category,
+        r.department,
+        r.uploadedBy,
+        r.branch,
+        r.type,
+        r.status,
+        r.description,
+        r.createdAt,
+      ]),
+      { filterSummary, showSignatureLine: true }
+    );
   }, [exportRows, filterSummary]);
 
   const printDocuments = useCallback(() => {
-    const win = window.open("", "_blank", "width=1200,height=800");
-    if (!win) return;
-    const bodyRows = exportRows
-      .map(
-        (r) =>
-          `<tr><td>${r.sn}</td><td>${r.title}</td><td>${r.category}</td><td>${r.department}</td><td>${r.uploadedBy}</td><td>${r.branch}</td><td>${r.type}</td><td>${r.status}</td><td>${r.description}</td><td>${r.createdAt}</td></tr>`
-      )
-      .join("");
-    win.document.write(`<!doctype html><html><head><title>ORODHA YA NYARAKA</title>
-      <style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,sans-serif;color:#0B1F3A}.header{background:#0B1F3A;color:#D4AF37;padding:10px 12px;border-radius:8px}
-      h1{font-size:18px;margin:0}p{margin:6px 0 0;color:#fff}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #cbd5e1;padding:6px;vertical-align:top;text-align:left;word-break:break-word}th{background:#0B1F3A;color:#D4AF37}</style>
-      </head><body><div class="header"><h1>ORODHA YA NYARAKA</h1><p>Tarehe ya kutoa: ${new Date().toLocaleString()}</p><p>${filterSummary}</p></div>
-      <table><thead><tr><th>S/N</th><th>Kichwa</th><th>Kategoria</th><th>Idara</th><th>Uploader</th><th>Dayosisi/Tawi</th><th>Aina</th><th>Status</th><th>Maelezo</th><th>Tarehe</th></tr></thead><tbody>${bodyRows}</tbody></table>
-      <script>window.onload=function(){window.print();}</script></body></html>`);
-    win.document.close();
+    openPrintableTable(
+      "ORODHA YA NYARAKA",
+      DOCUMENTS_PDF_HEADERS,
+      exportRows.map((r) => [
+        r.sn,
+        r.title,
+        r.category,
+        r.department,
+        r.uploadedBy,
+        r.branch,
+        r.type,
+        r.status,
+        r.description,
+        r.createdAt,
+      ]),
+      { filterSummary }
+    );
   }, [exportRows, filterSummary]);
 
   const openCreate = () => {
@@ -623,7 +653,7 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
       <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow">
         <h4 className="text-sm font-bold text-[#0B1F3A]">Most Downloaded Documents</h4>
         {docAnalytics.mostDownloaded.length === 0 ? <p className="mt-2 text-xs text-slate-600">Hakuna data bado</p> : (
-          <div className="mt-2 overflow-auto rounded-lg border border-slate-200">
+          <div className="mt-2 overflow-x-auto overflow-y-hidden rounded-lg border border-slate-200 [-webkit-overflow-scrolling:touch]">
             <table className="w-full min-w-[420px] text-sm">
               <thead className="bg-slate-100 text-slate-900">
                 <tr><th className="px-3 py-2 text-left">Kichwa</th><th className="px-3 py-2 text-left">Downloads</th></tr>
@@ -648,6 +678,7 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
       <PremiumTable<ChurchDocumentRecord>
         title="Nyaraka (Documents)"
         subtitle="PDF, DOCX, XLSX — chunguza na pakua"
+        persistenceScope={portalPremiumTableScope(["documents", "Library", "table"])}
         rows={filteredRows}
         columns={[
           { key: "title", label: "Kichwa", render: (r) => <span className="block max-w-[420px] whitespace-normal break-words text-[#0B1F3A]">{r.title || "—"}</span> },

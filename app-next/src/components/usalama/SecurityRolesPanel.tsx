@@ -3,7 +3,9 @@ import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { PremiumTable } from "../common/PremiumTable";
 import { SettingsSupabaseBanner } from "../settings/SettingsSupabaseBanner";
 import { usePortal } from "../../context/PortalContext";
+import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { createPortalRole, fetchPortalRoles, updatePortalRole } from "../../services/securityService";
 import { matrixCanManagePortalSecurity } from "../../utils/matrixPermissions";
 import type { PortalRoleRow } from "../../types";
@@ -67,7 +69,7 @@ export function SecurityRolesPanel() {
       });
       await logAudit("portal_role_update", "portal_roles", editOpen.role_key, { label_sw });
       pushToast("Jukumu limesasishwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setEditOpen(null);
       await load();
     } catch (err) {
@@ -108,7 +110,7 @@ export function SecurityRolesPanel() {
       });
       await logAudit("portal_role_create", "portal_roles", role_key, { label_sw });
       pushToast("Jukumu jipya limeundwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setCreateOpen(false);
       await load();
     } catch (err) {
@@ -133,6 +135,7 @@ export function SecurityRolesPanel() {
       <PremiumTable<Row>
         title="Orodha ya majukumu"
         subtitle="Sasisha lebo na ngazi (si fungu la mfumo wa kitufe)"
+        persistenceScope={portalPremiumTableScope(["usalama", "Roles", "roles_table"])}
         rows={rows}
         columns={[
           { key: "role_key", label: "Fungu", sortable: true },

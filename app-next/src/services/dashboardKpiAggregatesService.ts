@@ -36,6 +36,15 @@ import {
   todayIsoInPortalTz,
   weekMondaySundayIsoPortalTz,
 } from "../lib/tzDates";
+import { fetchPortalPublicDashboardCounts } from "./portalPublicDashboardService";
+
+export type DashboardKpiAggregatesOptions = {
+  /**
+   * chief_admin / super_admin: sawazisha idadi za msingi na RPC ya `portal_public_dashboard_counts`
+   * (security definer = jumla halisi ya DB), ili kuepuka tofauti na strip ya KPI ya umma.
+   */
+  alignCoreCountsWithPublicRpc?: boolean;
+};
 
 /** Mistari ya mapato yanayohesabiwa kama mapato halisi (pamoja na legacy: active). */
 const ACTIVE_FINANCE_STATUSES = ["active", "approved", "posted_to_ledger", "locked", "verified", "submitted"] as const;
@@ -251,13 +260,33 @@ function readCountFrom(result: { count?: number | null; error: PostgrestError | 
 }
 
 /**
- * Jumla salama ya amount_tz baada ya select rows za kawaida.
+ * Jumla salama ya safu ya hesabu (chaguo-msingi: `amount_tz`) baada ya select rows za kawaida.
+ * Pita `field` nyingine wakati safu ya hesabu si `amount_tz` (mfano: `visitors`).
  */
-function readSumFrom(result: { data: unknown; error: PostgrestError | null }, context: KpiQueryContext): number {
+function readSumFrom(
+  result: { data: unknown; error: PostgrestError | null },
+  context: KpiQueryContext,
+  field: string = "amount_tz"
+): number {
   assertNoPostgrestError(result, context);
   if (result.error) return 0;
   const data = Array.isArray(result.data) ? (result.data as Record<string, unknown>[]) : [];
-  return Math.round(safeSumAmount(data, "amount_tz") * 100) / 100;
+  return Math.round(safeSumAmount(data, field) * 100) / 100;
+}
+
+/** Tarehe ya horizon kwa "Expiring Terms" — leo + siku, kama YYYY-MM-DD (UTC-noon hesabu, salama kwa TZ ya portal). */
+function addDaysIsoUtcNoon(ymd: string, days: number): string {
+  const m = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return ymd;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const dt = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getUTCDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
 }
 
 const FINANCE_RECOGNIZED = ACTIVE_FINANCE_STATUSES;
@@ -271,7 +300,7 @@ function safeUnwrapRows<T = Record<string, unknown>>(result: unknown, context: K
   }
 }
 
-export async function fetchDashboardKpiAggregates(): Promise<DashboardKpiSnapshot> {
+export async function fetchDashboardKpiAggregates(opts?: DashboardKpiAggregatesOptions): Promise<DashboardKpiSnapshot> {
   const c = getSupabase();
   if (!c) return emptyDashboardKpiSnapshot();
   kpiFailureCollector = {};
@@ -285,6 +314,8 @@ export async function fetchDashboardKpiAggregates(): Promise<DashboardKpiSnapsho
   const prevMonthStart = `${prevYm}-01`;
   const prevMonthEnd = monthEndIsoPortalTz(prevYm);
   const { mon: wMon, sun: wSun } = weekMondaySundayIsoPortalTz();
+  /** Horizon ya muda mfupi ya "Expiring Terms" — siku 60 zijazo (term inaisha hivi karibuni). */
+  const expiringHorizon = addDaysIsoUtcNoon(today, 60);
 
   const recognizedIncome = Array.from(INCOME_RECOGNIZED);
   const recognizedFinance = Array.from(FINANCE_RECOGNIZED);
@@ -361,13 +392,38 @@ export async function fetchDashboardKpiAggregates(): Promise<DashboardKpiSnapsho
       c.from("church_jimbo").select("*", { count: "exact", head: true }),
       c.from("church_tawi").select("*", { count: "exact", head: true }),
       c.from("church_viongozi").select("*", { count: "exact", head: true }),
-      c.from("church_viongozi").select("*", { count: "exact", head: true }),
-      c.from("church_viongozi").select("*", { count: "exact", head: true }),
-      c.from("church_viongozi").select("*", { count: "exact", head: true }),
-      c.from("church_viongozi").select("*", { count: "exact", head: true }),
-      c.from("church_viongozi").select("*", { count: "exact", head: true }),
-      c.from("church_viongozi").select("*", { count: "exact", head: true }),
-      c.from("church_viongozi").select("*", { count: "exact", head: true }),
+      // Viongozi wa Ngazi Kuu / KMK(T) — leadership_level au ngazi = "Makao Makuu"
+      c
+        .from("church_viongozi")
+        .select("*", { count: "exact", head: true })
+        .or("leadership_level.ilike.Makao Makuu,ngazi.ilike.Makao Makuu"),
+      // Viongozi wa Dayosisi
+      c
+        .from("church_viongozi")
+        .select("*", { count: "exact", head: true })
+        .or("leadership_level.ilike.Dayosisi,ngazi.ilike.Dayosisi"),
+      // Viongozi wa Majimbo
+      c
+        .from("church_viongozi")
+        .select("*", { count: "exact", head: true })
+        .or("leadership_level.ilike.Jimbo,ngazi.ilike.Jimbo"),
+      // Viongozi wa Matawi / Vituo
+      c
+        .from("church_viongozi")
+        .select("*", { count: "exact", head: true })
+        .or("leadership_level.ilike.Tawi,leadership_level.ilike.Kituo,ngazi.ilike.Tawi,ngazi.ilike.Kituo"),
+      // Active leaders (status = 'active')
+      c.from("church_viongozi").select("*", { count: "exact", head: true }).eq("status", "active"),
+      // Pending leaders (status = 'pending')
+      c.from("church_viongozi").select("*", { count: "exact", head: true }).eq("status", "pending"),
+      // Expiring terms — end_date kati ya leo na siku 60 zijazo, term_status active
+      c
+        .from("church_viongozi")
+        .select("*", { count: "exact", head: true })
+        .eq("term_status", "active")
+        .not("end_date", "is", null)
+        .gte("end_date", today)
+        .lte("end_date", expiringHorizon),
       c.from("portal_domain_entities").select("*", { count: "exact", head: true }).eq("module_key", "jumuiya").not("submodule_key", "eq", "Idara"),
       c.from("portal_domain_entities").select("*", { count: "exact", head: true }).eq("module_key", "jumuiya").eq("submodule_key", "Idara"),
       c.from("portal_domain_entities").select("*", { count: "exact", head: true }).eq("module_key", "jumuiya").eq("submodule_key", "Huduma"),
@@ -377,10 +433,12 @@ export async function fetchDashboardKpiAggregates(): Promise<DashboardKpiSnapsho
       c.from("portal_domain_entities").select("*", { count: "exact", head: true }).eq("module_key", "muundo").eq("submodule_key", "Huduma"),
       c.from("portal_domain_entities").select("*", { count: "exact", head: true }).eq("module_key", "muundo").eq("submodule_key", "Taasisi"),
       c.from("documents").select("*", { count: "exact", head: true }),
-      c.from("church_income_sources").select("*", { count: "exact", head: false }),
-      c.from("church_income_sources").select("*", { count: "exact", head: false }).eq("status", "active"),
-      c.from("church_income_sources").select("*", { count: "exact", head: false }),
-      c.from("church_income_sources").select("*", { count: "exact", head: false }),
+      c.from("church_income_sources").select("*", { count: "exact", head: true }),
+      c.from("church_income_sources").select("*", { count: "exact", head: true }).eq("status", "active"),
+      // Custom finance sources — source_type = 'custom'
+      c.from("church_income_sources").select("*", { count: "exact", head: true }).eq("source_type", "custom"),
+      // Restricted finance sources — restricted_fund = 'Yes'
+      c.from("church_income_sources").select("*", { count: "exact", head: true }).eq("restricted_fund", "Yes"),
       c.from("church_viongozi").select("*", { count: "exact", head: true }).or("jimbo_id.is.null,status.eq.needs_review"),
       c.from("dayosisi").select("*", { count: "exact", head: true }).eq("status", "pending"),
       c.from("church_jimbo").select("*", { count: "exact", head: true }).eq("status", "pending"),
@@ -566,12 +624,30 @@ export async function fetchDashboardKpiAggregates(): Promise<DashboardKpiSnapsho
         .lte("collection_date", monthEnd)
         .in("status", recognizedIncome)
         .limit(15000),
-      Promise.resolve({ count: 0, error: null } as any),
-      Promise.resolve({ count: 0, error: null } as any),
-      Promise.resolve({ count: 0, error: null, data: [] } as any),
-      Promise.resolve({ count: 0, error: null, data: [] } as any),
-      Promise.resolve({ count: 0, error: null, data: [] } as any),
-      Promise.resolve({ error: null, data: [] } as any),
+      // church_structure_entities — active count
+      c.from("church_structure_entities").select("*", { count: "exact", head: true }).eq("status", "active"),
+      // church_structure_entities — pending count
+      c.from("church_structure_entities").select("*", { count: "exact", head: true }).eq("status", "pending"),
+      // attendance_sessions — leo
+      c.from("attendance_sessions").select("*", { count: "exact", head: true }).eq("attendance_date", today),
+      // attendance_sessions — wiki ya leo (Jumatatu–Jumapili)
+      c
+        .from("attendance_sessions")
+        .select("*", { count: "exact", head: true })
+        .gte("attendance_date", wMon)
+        .lte("attendance_date", wSun),
+      // attendance_sessions — mwezi wa kalenda
+      c
+        .from("attendance_sessions")
+        .select("*", { count: "exact", head: true })
+        .gte("attendance_date", monthStart)
+        .lte("attendance_date", monthEnd),
+      // attendance_sessions — wageni (visitors) wa mwezi
+      c
+        .from("attendance_sessions")
+        .select("visitors")
+        .gte("attendance_date", monthStart)
+        .lte("attendance_date", monthEnd),
     ]);
 
     const mapatoLeoTotal =
@@ -644,7 +720,7 @@ export async function fetchDashboardKpiAggregates(): Promise<DashboardKpiSnapsho
     const incomeBySourceMwezi = buildIncomeBySourceMwezi(incBySourceRows);
     const categoryBreakdownTruncated = finCatRows.length >= 15000 || incCatRows.length >= 15000;
 
-    return {
+    const snapshot: DashboardKpiSnapshot = {
       dayosisiCount: readCountFrom(dCount, ctx("kpi.dayosisi.count", "dayosisi", "kpi.dayosisi.count")),
       majimboCount: readCountFrom(jCount, ctx("kpi.church_jimbo.count", "church_jimbo", "kpi.church_jimbo.count")),
       matawiCount: readCountFrom(tCount, ctx("kpi.church_tawi.count", "church_tawi", "kpi.church_tawi.count")),
@@ -706,8 +782,32 @@ export async function fetchDashboardKpiAggregates(): Promise<DashboardKpiSnapsho
       attendanceTodayCount: readCountFrom(attTodayCnt, ctx("kpi.attendance_sessions.count_today", "attendance_sessions", "kpi.attendance_sessions.count_today")),
       attendanceWeekCount: readCountFrom(attWeekCnt, ctx("kpi.attendance_sessions.count_week", "attendance_sessions", "kpi.attendance_sessions.count_week")),
       attendanceMonthCount: readCountFrom(attMonthCnt, ctx("kpi.attendance_sessions.count_month", "attendance_sessions", "kpi.attendance_sessions.count_month")),
-      attendanceVisitorsMonth: readSumFrom(attVisitorsMonthSum, ctx("kpi.attendance_sessions.sum_visitors_month", "attendance_sessions", "kpi.attendance_sessions.sum_visitors_month")),
+      attendanceVisitorsMonth: readSumFrom(
+        attVisitorsMonthSum,
+        ctx("kpi.attendance_sessions.sum_visitors_month", "attendance_sessions", "kpi.attendance_sessions.sum_visitors_month"),
+        "visitors"
+      ),
     };
+
+    if (opts?.alignCoreCountsWithPublicRpc) {
+      const { counts: pub, error: pubErr } = await fetchPortalPublicDashboardCounts();
+      if (pub && !pubErr) {
+        snapshot.dayosisiCount = pub.dayosisi;
+        snapshot.majimboCount = pub.majimbo;
+        snapshot.matawiCount = pub.matawi;
+        snapshot.viongoziCount = pub.viongozi;
+        snapshot.documentsCount = pub.nyaraka;
+        const fk = { ...(snapshot.failedKpis ?? {}) };
+        delete fk["kpi.dayosisi.count"];
+        delete fk["kpi.church_jimbo.count"];
+        delete fk["kpi.church_tawi.count"];
+        delete fk["kpi.church_viongozi.count"];
+        delete fk["kpi.documents.count"];
+        snapshot.failedKpis = fk;
+      }
+    }
+
+    return snapshot;
   } catch (error) {
     if (import.meta.env.DEV) console.warn("[Dashboard KPI fetch fatal]", error);
     return {

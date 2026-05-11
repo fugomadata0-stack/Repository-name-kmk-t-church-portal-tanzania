@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "browserslist": [
+    "defaults",
+    "not IE 11"
+  ],
   "engines": {
     "node": ">=18.18.0"
   },
@@ -15,13 +19,19 @@
     "lint": "eslint . --max-warnings 200",
     "lint:fix": "eslint . --fix --max-warnings 200",
     "validate": "run-s build:tsc lint",
+    "icons:pwa": "node scripts/generate-pwa-pngs.mjs",
     "db:push:safe": "npx supabase db push --include-all --yes --workdir ..",
+    "db:migration:list": "npx supabase migration list --workdir ..",
+    "db:advisors:linked": "npx supabase db advisors --linked --workdir ..",
+    "db:advisors:security": "npx supabase db advisors --linked --type security --workdir ..",
+    "db:doctor": "run-s db:migration:list db:advisors:linked",
     "test:e2e": "run-s build test:e2e:run",
     "test:e2e:run": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:install": "playwright install chromium"
   },
   "dependencies": {
+    "@sentry/react": "^9.22.0",
     "@supabase/supabase-js": "^2.49.8",
     "framer-motion": "^12.12.2",
     "jspdf": "^4.2.1",

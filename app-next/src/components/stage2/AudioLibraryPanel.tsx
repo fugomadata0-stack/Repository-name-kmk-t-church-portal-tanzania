@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Download, Mic2, Plus, Trash2, Pencil, Search } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
 import { mbToBytes, UPLOAD_LIMITS_MB, validateSelectedFile } from "../../lib/fileUploadGuard";
 import { stage2GradHeader } from "../../lib/stage2Theme";
@@ -102,7 +103,7 @@ export function AudioLibraryPanel(props: { highlightRecordId?: string | null }) 
       }
       setRows((p) => [saved, ...p.filter((x) => x.id !== saved.id)]);
       pushToast("Sauti imehifadhiwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setModal(false);
       setAudioFile(null);
     } catch (e) {
@@ -122,7 +123,7 @@ export function AudioLibraryPanel(props: { highlightRecordId?: string | null }) 
       await deleteAudio(delId);
       setRows((p) => p.filter((x) => x.id !== delId));
       pushToast("Imefutwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setDelId(null);
     } catch (e) {
       reportError(e, "Audio — futa");

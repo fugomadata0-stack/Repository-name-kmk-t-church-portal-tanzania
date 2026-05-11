@@ -1,55 +1,61 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import { SajiliMuundoPanel } from "../components/muundo/SajiliMuundoPanel";
 import { ModalScrollLayer } from "../components/common/ModalScrollLayer";
 import { ModuleHeader } from "../components/common/ModuleHeader";
 import { PremiumTable } from "../components/common/PremiumTable";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
-import { BrandingTablePanel } from "../components/settings/BrandingTablePanel";
-import { ChurchIdentitySettingsPanel } from "../components/settings/ChurchIdentitySettingsPanel";
-import { SiteTaxonomyPanel } from "../components/settings/SiteTaxonomyPanel";
-import { SystemSettingsPanel } from "../components/settings/SystemSettingsPanel";
-import { MasterSettingsCenterPanel } from "../components/settings/MasterSettingsCenterPanel";
-import { AdvancedSettingsPanel } from "../components/settings/AdvancedSettingsPanel";
-import { SeoPublicSettingsPanel } from "../components/settings/SeoPublicSettingsPanel";
-import { SystemHealthCenterPanel } from "../components/superadmin/SystemHealthCenterPanel";
-import { ChurchAuditLogPanel } from "../components/usalama/ChurchAuditLogPanel";
-import { PortalDirectoryPanel } from "../components/usalama/PortalDirectoryPanel";
-import { SecurityMatrixPanel } from "../components/usalama/SecurityMatrixPanel";
-import { SecurityRolesPanel } from "../components/usalama/SecurityRolesPanel";
-import { SecuritySessionsPanel } from "../components/usalama/SecuritySessionsPanel";
-import { VisibilityRulesPanel } from "../components/usalama/VisibilityRulesPanel";
-import { ChurchFamiliesPanel } from "../components/waumini/ChurchFamiliesPanel";
-import { ChurchMembersPanel } from "../components/waumini/ChurchMembersPanel";
-import { ChurchSchoolLogsPanel } from "../components/taasisi/ChurchSchoolLogsPanel";
-import { DomainEntitiesPanel } from "../components/domain/DomainEntitiesPanel";
-import { HierarchyTreeView } from "../components/muundo/HierarchyTreeView";
-import { NgaziKuuSummary } from "../components/muundo/NgaziKuuSummary";
-import { GenericModuleView } from "../components/modules/GenericModuleView";
+import {
+  AboutKmktPanel,
+  AdvancedSettingsPanel,
+  AIAssistantPanel,
+  AidManagementPanel,
+  AnalyticsDashboardPanel,
+  AttendancePanel,
+  AudioLibraryPanel,
+  BrandingTablePanel,
+  ChurchAuditLogPanel,
+  ChurchDocumentsPanel,
+  ChurchFamiliesPanel,
+  ChurchIdentitySettingsPanel,
+  ChurchMembersPanel,
+  ChurchSchoolLogsPanel,
+  CommunicationsPanel,
+  DeveloperProfilePanel,
+  DomainEntitiesPanel,
+  EventsPanel,
+  FileManagerPanel,
+  GalleryPanel,
+  GenericModuleView,
+  HabariPanel,
+  HierarchyTreeView,
+  InvitePromotePermissionsPanel,
+  LiveStreamPanel,
+  MasterSettingsCenterPanel,
+  NgaziKuuSummary,
+  NotificationsCenterPanel,
+  EnterpriseLeadershipHub,
+  PortalDirectoryPanel,
+  RegistrationRequestsPanel,
+  SecurityMatrixPanel,
+  SecurityRolesPanel,
+  SecuritySessionsPanel,
+  SeoPublicSettingsPanel,
+  SermonsPanel,
+  SiteBrandingPanel,
+  SiteTaxonomyPanel,
+  SystemHealthCenterPanel,
+  SystemSettingsPanel,
+  VideoLibraryPanel,
+  VisibilityRulesPanel,
+} from "./moduleLazyPanels";
 import type { PremiumTableExcelBulk } from "../components/common/PremiumTable";
 import { SubmoduleEmptyState } from "../components/common/SubmoduleEmptyState";
-import { modules } from "../data/portalModules";
-import { ChurchDocumentsPanel } from "../components/portal/ChurchDocumentsPanel";
-import { DeveloperProfilePanel } from "../components/portal/DeveloperProfilePanel";
-import { SermonsPanel } from "../components/portal/SermonsPanel";
-import { EventsPanel } from "../components/stage2/EventsPanel";
-import { GalleryPanel } from "../components/stage2/GalleryPanel";
-import { HabariPanel } from "../components/stage2/HabariPanel";
-import { VideoLibraryPanel } from "../components/stage2/VideoLibraryPanel";
-import { AudioLibraryPanel } from "../components/stage2/AudioLibraryPanel";
-import { AnalyticsDashboardPanel } from "../components/stage3/AnalyticsDashboardPanel";
-import { AIAssistantPanel } from "../components/ai/AIAssistantPanel";
-import { FileManagerPanel } from "../components/stage3/FileManagerPanel";
-import { LiveStreamPanel } from "../components/stage3/LiveStreamPanel";
-import { NotificationsCenterPanel } from "../components/notifications/NotificationsCenterPanel";
-import { AttendancePanel } from "../components/attendance/AttendancePanel";
-import { AidManagementPanel } from "../components/aid/AidManagementPanel";
-import { CommunicationsPanel } from "../components/communications/CommunicationsPanel";
-import { RegistrationRequestsPanel } from "../components/registration/RegistrationRequestsPanel";
-import { InvitePromotePermissionsPanel } from "../components/invite/InvitePromotePermissionsPanel";
-import { AboutKmktPanel } from "../components/site/AboutKmktPanel";
-import { SiteBrandingPanel } from "../components/site/SiteBrandingPanel";
+import { ENTERPRISE_VIONGOZI_SUBMODULE, modules } from "../data/portalModules";
 import { usePortal } from "../context/PortalContext";
 import { getSupabase } from "../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../lib/portalEvents";
+import { exportRowsToExcel, exportTableToPdf, openPrintableTable } from "../lib/exportHelpers";
 import { deleteDayosisi, upsertDayosisi } from "../services/dayosisiService";
 import { FedhaRecordModal } from "../components/fedha/FedhaRecordModal";
 import {
@@ -75,6 +81,11 @@ import {
   upsertChurchTawi,
 } from "../services/muundoHierarchyService";
 import { fetchCascadeOptions } from "../services/churchStructureService";
+import {
+  fetchCommitteeGroups,
+  fetchLeadershipCategories,
+  fetchLeadershipPositions,
+} from "../services/leadershipEnterpriseService";
 import { getPortalExcelFormSpec } from "../lib/excelModuleFormSpecs";
 import {
   bulkImportDayosisi,
@@ -93,9 +104,17 @@ import type {
   IncomeSourceRecord,
   JimboRecord,
   KiongoziRecord,
+  LeadershipCategoryRecord,
+  LeadershipCommitteeRecord,
+  LeadershipPositionRecord,
   TawiRecord,
 } from "../types";
 import { safeArray, safeIncludes, safeLower, safeString } from "../lib/safe";
+import {
+  structuralCreateAllowedDayosisi,
+  structuralCreateAllowedJimbo,
+  structuralCreateAllowedTawi,
+} from "../utils/scopeAccess";
 import {
   createDeveloperSection,
   createDeveloperType,
@@ -104,21 +123,26 @@ import {
   type DeveloperTaxonomyRow,
 } from "../services/developerTaxonomyService";
 import { FINANCE_SOURCE_PRESETS } from "../data/financeSourcePresets";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { mergeModuleSlice, portalPremiumTableScope, readModuleSlice } from "../lib/portalUiPersistence";
+
+const MapatoIncomeCharts = lazy(async () => {
+  const m = await import("../components/fedha/MapatoIncomeCharts");
+  return { default: m.MapatoIncomeCharts };
+});
+
+function ModulePanelSuspenseFallback() {
+  return (
+    <div
+      className="flex min-h-[36vh] flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white/90 p-8 text-slate-600"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#0B1F3A] border-t-transparent" aria-hidden />
+      <p className="text-sm font-medium">Inapakia moduli…</p>
+    </div>
+  );
+}
 
 interface Props {
   moduleKey: string;
@@ -144,6 +168,8 @@ interface Props {
   ) => void;
   /** Kutoka AppLayout: angazia safu mpya kwa muda */
   highlightRecordId?: string | null;
+  /** Sawia na Topbar — zuia Rudi Nyuma wakati hapatiani kurudi */
+  canNavigateBack?: boolean;
 }
 
 function mkId(prefix: string) {
@@ -225,6 +251,9 @@ function filterViongoziBySubmodule(
     case "Viongozi wa Jumuiya":
       filteredList = list.filter((r) => Boolean((r.jumuiya_name || "").trim()));
       break;
+    case ENTERPRISE_VIONGOZI_SUBMODULE:
+      filteredList = list;
+      break;
     default:
       filteredList = list;
   }
@@ -258,9 +287,33 @@ const DOMAIN_ENTITY_MODULE_KEYS = [
   "super_admin",
 ] as const;
 
+/** Vichujio vya dashibodi ya Mapato (hayamo ndani ya PremiumTable). */
+type MapatoDashFilters = {
+  categoryFilter: string;
+  statusFilter: string;
+  levelFilter: string;
+  sourceFilter: string;
+  paymentFilter: string;
+  fromDateFilter: string;
+  toDateFilter: string;
+};
+
 export function ModulePage(props: Props) {
-  const { pushToast, reportError, site, role, saveSite, canPortalCreateModule, canPortalEditModule, canPortalDeleteModule, canPortalExportModule } =
-    usePortal();
+  const {
+    pushToast,
+    reportError,
+    site,
+    role,
+    portalProfile,
+    saveSite,
+    canPortalCreateModule,
+    canPortalEditModule,
+    canPortalDeleteModule,
+    canPortalExportModule,
+    canScopeMutateRecord,
+    notifyScopeDenied,
+    authUser,
+  } = usePortal();
   const [editing, setEditing] = useState<any>(null);
   const [devModal, setDevModal] = useState<null | "category" | "type" | "field" | "section">(null);
   const [devSaving, setDevSaving] = useState(false);
@@ -345,6 +398,51 @@ export function ModulePage(props: Props) {
   const [fromDateFilter, setFromDateFilter] = useState("");
   const [toDateFilter, setToDateFilter] = useState("");
 
+  const mapatoDashSliceKey = useMemo(() => {
+    if (!authUser?.id || props.moduleKey !== "mapato_income") return null;
+    return `dash:${portalPremiumTableScope(["mapato_income", props.submodule, "filters"])}`;
+  }, [authUser?.id, props.moduleKey, props.submodule]);
+
+  useLayoutEffect(() => {
+    if (props.moduleKey !== "mapato_income" || !authUser?.id || !mapatoDashSliceKey) return;
+    const saved = readModuleSlice<MapatoDashFilters>(authUser.id, mapatoDashSliceKey);
+    if (!saved || typeof saved !== "object") return;
+    setCategoryFilter(saved.categoryFilter ?? "ALL");
+    setStatusFilter(saved.statusFilter ?? "ALL");
+    setLevelFilter(saved.levelFilter ?? "ALL");
+    setSourceFilter(saved.sourceFilter ?? "ALL");
+    setPaymentFilter(saved.paymentFilter ?? "ALL");
+    setFromDateFilter(saved.fromDateFilter ?? "");
+    setToDateFilter(saved.toDateFilter ?? "");
+  }, [props.moduleKey, authUser?.id, mapatoDashSliceKey]);
+
+  useEffect(() => {
+    if (props.moduleKey !== "mapato_income" || !authUser?.id || !mapatoDashSliceKey) return;
+    const t = window.setTimeout(() => {
+      mergeModuleSlice(authUser.id, mapatoDashSliceKey, {
+        categoryFilter,
+        statusFilter,
+        levelFilter,
+        sourceFilter,
+        paymentFilter,
+        fromDateFilter,
+        toDateFilter,
+      } satisfies MapatoDashFilters);
+    }, 360);
+    return () => window.clearTimeout(t);
+  }, [
+    props.moduleKey,
+    authUser?.id,
+    mapatoDashSliceKey,
+    categoryFilter,
+    statusFilter,
+    levelFilter,
+    sourceFilter,
+    paymentFilter,
+    fromDateFilter,
+    toDateFilter,
+  ]);
+
   const [distinctFinanceKat, setDistinctFinanceKat] = useState<string[]>([]);
   useEffect(() => {
     if (!getSupabase()) return;
@@ -364,9 +462,17 @@ export function ModulePage(props: Props) {
     return filterFedhaRowsBySubmodule(props.fedha, props.submodule);
   }, [props.moduleKey, props.fedha, props.submodule]);
 
+  const scopeHierarchy = useMemo(
+    () => ({
+      majimbo: props.majimbo.map((j) => ({ id: j.id, dayosisi_id: j.dayosisi_id ?? null })),
+      matawi: props.matawi.map((t) => ({ id: t.id, jimbo_id: t.jimbo_id ?? null })),
+    }),
+    [props.majimbo, props.matawi]
+  );
+
   const emitCrud = useCallback(
     (action: "create" | "update" | "delete", recordId?: string, targetSubmodule?: string) => {
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       props.onCrudSuccess?.(action, {
         moduleKey: props.moduleKey,
         submodule: props.submodule,
@@ -379,14 +485,23 @@ export function ModulePage(props: Props) {
 
   const afterDelete = useCallback((recordId?: string) => emitCrud("delete", recordId), [emitCrud]);
 
+  const canCreateMuundo = canPortalCreateModule("muundo");
+  const canEditMuundoRows = canPortalEditModule("muundo");
+  const canDeleteMuundoRows = canPortalDeleteModule("muundo");
+
   const onSave = async (payload: any) => {
     const isUpdate = Boolean(
       editing && typeof (editing as { id?: string }).id === "string" && String((editing as { id?: string }).id).length > 0
     );
 
     if (props.moduleKey === "muundo" && props.submodule === "Dayosisi") {
-      if (!canManageMuundo) {
-        pushToast("Huna ruhusa ya kusimamia muundo wa kanisa.", "error");
+      const updatingDsEarly = typeof editing?.id === "string" && isPersistedUuid(editing.id);
+      if (updatingDsEarly && !canEditMuundoRows) {
+        pushToast("Huna ruhusa ya kuhariri muundo wa kanisa.", "error");
+        return;
+      }
+      if (!updatingDsEarly && !canCreateMuundo) {
+        pushToast("Huna ruhusa ya kuongeza kwenye muundo wa kanisa.", "error");
         return;
       }
       const merged: DayosisiRecord = editing
@@ -411,6 +526,16 @@ export function ModulePage(props: Props) {
         pushToast("Barua pepe si sahihi.", "error");
         return;
       }
+      const updatingDs = typeof editing?.id === "string" && isPersistedUuid(editing.id);
+      if (!updatingDs && !structuralCreateAllowedDayosisi(role, portalProfile)) {
+        notifyScopeDenied(props.moduleKey, "dayosisi_create");
+        return;
+      }
+      const scopeRowDs = { dayosisi_id: merged.id, jimbo_id: null as string | null, tawi_id: null as string | null };
+      if (!canScopeMutateRecord(updatingDs ? "edit" : "create", scopeRowDs, scopeHierarchy)) {
+        notifyScopeDenied(props.moduleKey, "dayosisi", { record_id: merged.id });
+        return;
+      }
       try {
         const saved = await upsertDayosisi(merged);
         props.setDayosisi((prev) =>
@@ -425,8 +550,13 @@ export function ModulePage(props: Props) {
       return;
     }
     if (props.moduleKey === "muundo" && props.submodule === "Majimbo") {
-      if (!canManageMuundo) {
-        pushToast("Huna ruhusa ya kusimamia muundo wa kanisa.", "error");
+      const updatingJEarly = typeof editing?.id === "string" && isPersistedUuid(editing.id);
+      if (updatingJEarly && !canEditMuundoRows) {
+        pushToast("Huna ruhusa ya kuhariri muundo wa kanisa.", "error");
+        return;
+      }
+      if (!updatingJEarly && !canCreateMuundo) {
+        pushToast("Huna ruhusa ya kuongeza kwenye muundo wa kanisa.", "error");
         return;
       }
       const merged = (editing ? { ...editing, ...payload } : payload) as JimboRecord;
@@ -448,6 +578,19 @@ export function ModulePage(props: Props) {
         pushToast("Namba ya simu si sahihi.", "error");
         return;
       }
+      const updatingJ = typeof editing?.id === "string" && isPersistedUuid(editing.id);
+      if (!updatingJ && !structuralCreateAllowedJimbo(role, portalProfile)) {
+        notifyScopeDenied(props.moduleKey, "jimbo_create");
+        return;
+      }
+      const dIdJ = String(merged.dayosisi_id ?? "").trim() || null;
+      const scopeRowJ = updatingJ
+        ? { dayosisi_id: dIdJ, jimbo_id: String(merged.id), tawi_id: null as string | null }
+        : { dayosisi_id: dIdJ, jimbo_id: null, tawi_id: null as string | null };
+      if (!canScopeMutateRecord(updatingJ ? "edit" : "create", scopeRowJ, scopeHierarchy)) {
+        notifyScopeDenied(props.moduleKey, "church_jimbo", { jimbo_id: merged.id });
+        return;
+      }
       try {
         const saved = await upsertChurchJimbo(merged, props.dayosisi);
         const updating = typeof editing?.id === "string" && isPersistedUuid(editing.id);
@@ -461,8 +604,13 @@ export function ModulePage(props: Props) {
       return;
     }
     if (props.moduleKey === "muundo" && props.submodule.includes("Matawi")) {
-      if (!canManageMuundo) {
-        pushToast("Huna ruhusa ya kusimamia muundo wa kanisa.", "error");
+      const updatingTEarly = typeof editing?.id === "string" && isPersistedUuid(editing.id);
+      if (updatingTEarly && !canEditMuundoRows) {
+        pushToast("Huna ruhusa ya kuhariri muundo wa kanisa.", "error");
+        return;
+      }
+      if (!updatingTEarly && !canCreateMuundo) {
+        pushToast("Huna ruhusa ya kuongeza kwenye muundo wa kanisa.", "error");
         return;
       }
       const merged = (editing ? { ...editing, ...payload } : payload) as TawiRecord;
@@ -482,6 +630,19 @@ export function ModulePage(props: Props) {
       }
       if (merged.simu?.trim() && !/^[0-9+\-\s()]{7,20}$/.test(merged.simu.trim())) {
         pushToast("Namba ya simu si sahihi.", "error");
+        return;
+      }
+      const updatingT = typeof editing?.id === "string" && isPersistedUuid(editing.id);
+      if (!updatingT && !structuralCreateAllowedTawi(role, portalProfile)) {
+        notifyScopeDenied(props.moduleKey, "tawi_create");
+        return;
+      }
+      const jIdT = String(merged.jimbo_id ?? "").trim() || null;
+      const scopeRowT = updatingT
+        ? { dayosisi_id: null as string | null, jimbo_id: jIdT, tawi_id: String(merged.id) }
+        : { dayosisi_id: null as string | null, jimbo_id: jIdT, tawi_id: null as string | null };
+      if (!canScopeMutateRecord(updatingT ? "edit" : "create", scopeRowT, scopeHierarchy)) {
+        notifyScopeDenied(props.moduleKey, "church_tawi", { tawi_id: merged.id });
         return;
       }
       try {
@@ -509,6 +670,16 @@ export function ModulePage(props: Props) {
         pushToast("Nafasi hii tayari ina kiongozi active kwenye entity hili.", "error");
         return;
       }
+      const scopeV = {
+        dayosisi_id: merged.dayosisi_id ?? null,
+        jimbo_id: merged.jimbo_id ?? null,
+        tawi_id: merged.tawi_id ?? null,
+      };
+      const updatingV = typeof editing?.id === "string" && isViongoziUuid(editing.id);
+      if (!canScopeMutateRecord(updatingV ? "edit" : "create", scopeV, scopeHierarchy)) {
+        notifyScopeDenied(props.moduleKey, "church_viongozi", { leader_id: merged.id });
+        return;
+      }
       try {
         const saved = await upsertKiongozi(merged);
         const updating = typeof editing?.id === "string" && isViongoziUuid(editing.id);
@@ -523,6 +694,16 @@ export function ModulePage(props: Props) {
     }
     if (props.moduleKey === "fedha") {
       const merged = (editing ? { ...editing, ...payload } : payload) as FedhaRecord;
+      const scopeF = {
+        dayosisi_id: merged.dayosisi_id ?? null,
+        jimbo_id: merged.jimbo_id ?? null,
+        tawi_id: merged.tawi_id ?? null,
+      };
+      const updatingF = typeof editing?.id === "string" && isPersistedUuid(editing.id);
+      if (!canScopeMutateRecord(updatingF ? "edit" : "create", scopeF, scopeHierarchy)) {
+        notifyScopeDenied(props.moduleKey, "church_finance_entries", { entry_id: merged.id });
+        return;
+      }
       try {
         const saved = await upsertFinanceEntry(merged);
         const updating = typeof editing?.id === "string" && isPersistedUuid(editing.id);
@@ -679,9 +860,11 @@ export function ModulePage(props: Props) {
     props.moduleKey === "communications" ||
     props.moduleKey === "registration_requests" ||
     props.moduleKey === "invite_promote_permissions";
-  const canUseDeveloperActions = role === "super_admin";
-  const canManageMuundo = role === "super_admin";
-  const moduleHeaderCanAdd = (props.moduleKey === "muundo" ? canManageMuundo : shared.canAdd) && !moduleUsesOwnCrudUi;
+  const canUseDeveloperActions = canPortalEditModule("developer") || canPortalCreateModule("developer");
+  const moduleHeaderCanAdd =
+    (props.moduleKey === "muundo" ? canCreateMuundo : shared.canAdd) &&
+    !moduleUsesOwnCrudUi &&
+    !(props.moduleKey === "muundo" && props.submodule === "Sajili Muundo");
 
   const loadDeveloperLists = useCallback(async () => {
     const [types, sections] = await Promise.all([fetchDeveloperTypes(), fetchDeveloperSections()]);
@@ -974,6 +1157,19 @@ export function ModulePage(props: Props) {
     if (props.moduleKey === "fedha" && props.submodule === "Audit Trail") {
       return <ChurchAuditLogPanel contextLabel="Fedha — uchunguzi wa nyumba" />;
     }
+    if (props.moduleKey === "muundo" && props.submodule === "Sajili Muundo") {
+      return (
+        <SajiliMuundoPanel
+          dayosisi={props.dayosisi}
+          majimbo={props.majimbo}
+          matawi={props.matawi}
+          viongozi={props.viongozi}
+          setViongozi={props.setViongozi}
+          highlightRecordId={props.highlightRecordId}
+          onCrudSuccess={props.onCrudSuccess}
+        />
+      );
+    }
     if (props.moduleKey === "muundo" && (props.submodule === "Ngazi Kuu" || props.submodule === "KMK(T)")) {
       return <NgaziKuuSummary dayosisi={props.dayosisi} majimbo={props.majimbo} matawi={props.matawi} />;
     }
@@ -1033,7 +1229,7 @@ export function ModulePage(props: Props) {
         : undefined;
       return (
         <div className="space-y-2">
-          {!canManageMuundo ? (
+          {!canCreateMuundo && !canEditMuundoRows ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Huna ruhusa ya kusimamia muundo wa kanisa.
             </div>
@@ -1041,11 +1237,12 @@ export function ModulePage(props: Props) {
           <PremiumTable
             title="Orodha ya Dayosisi"
             subtitle="Usimamizi wa dayosisi zote"
+            persistenceScope={portalPremiumTableScope([props.moduleKey, props.submodule, "dayosisi"])}
             rows={props.dayosisi}
             columns={[{ key: "jina", label: "Jina la Dayosisi" }, { key: "askofu", label: "Askofu wa Dayosisi" }, { key: "makao", label: "Makao Makuu" }, { key: "simu", label: "Simu" }, { key: "email", label: "Email" }, { key: "status", label: "Status" }]}
-            onAdd={canManageMuundo ? () => setEditing({}) : undefined}
-            onEdit={canManageMuundo ? (r) => setEditing(r) : undefined}
-            onDelete={canManageMuundo ? async (id) => {
+            onAdd={canCreateMuundo ? () => setEditing({}) : undefined}
+            onEdit={canEditMuundoRows ? (r) => setEditing(r) : undefined}
+            onDelete={canDeleteMuundoRows ? async (id) => {
               try {
                 await deleteDayosisi(id);
                 props.setDayosisi((p) => p.filter((x) => x.id !== id));
@@ -1058,9 +1255,15 @@ export function ModulePage(props: Props) {
             highlightRowId={props.highlightRecordId ?? undefined}
             actionsDisabled={!!editing}
             excelBulk={dayosisiExcel}
-            canAdd={canManageMuundo}
-            canEdit={canManageMuundo}
-            canDelete={canManageMuundo}
+            canAdd={canCreateMuundo && structuralCreateAllowedDayosisi(role, portalProfile)}
+            canEdit={canEditMuundoRows}
+            canDelete={canDeleteMuundoRows}
+            rowCanEdit={(r) =>
+              canScopeMutateRecord("edit", { dayosisi_id: r.id, jimbo_id: null, tawi_id: null }, scopeHierarchy)
+            }
+            rowCanDelete={(r) =>
+              canScopeMutateRecord("delete", { dayosisi_id: r.id, jimbo_id: null, tawi_id: null }, scopeHierarchy)
+            }
             canExport={shared.canExport}
           />
         </div>
@@ -1091,7 +1294,7 @@ export function ModulePage(props: Props) {
         : undefined;
       return (
         <div className="space-y-2">
-          {!canManageMuundo ? (
+          {!canCreateMuundo && !canEditMuundoRows ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Huna ruhusa ya kusimamia muundo wa kanisa.
             </div>
@@ -1099,11 +1302,12 @@ export function ModulePage(props: Props) {
           <PremiumTable
             title="Orodha ya Majimbo"
             subtitle="Majimbo kwa dayosisi"
+            persistenceScope={portalPremiumTableScope([props.moduleKey, props.submodule, "majimbo"])}
             rows={props.majimbo}
             columns={[{ key: "jina", label: "Jina la Jimbo" }, { key: "dayosisi", label: "Dayosisi" }, { key: "mkuu", label: "Mkuu wa Jimbo" }, { key: "mkoa", label: "Mkoa" }, { key: "simu", label: "Simu" }, { key: "status", label: "Status" }]}
-            onAdd={canManageMuundo ? () => setEditing({}) : undefined}
-            onEdit={canManageMuundo ? (r) => setEditing(r) : undefined}
-            onDelete={canManageMuundo ? async (id) => {
+            onAdd={canCreateMuundo ? () => setEditing({}) : undefined}
+            onEdit={canEditMuundoRows ? (r) => setEditing(r) : undefined}
+            onDelete={canDeleteMuundoRows ? async (id) => {
               if (getSupabase()) {
                 try {
                   await deleteChurchJimbo(id);
@@ -1120,9 +1324,23 @@ export function ModulePage(props: Props) {
             highlightRowId={props.highlightRecordId ?? undefined}
             actionsDisabled={!!editing}
             excelBulk={majimboExcel}
-            canAdd={canManageMuundo}
-            canEdit={canManageMuundo}
-            canDelete={canManageMuundo}
+            canAdd={canCreateMuundo && structuralCreateAllowedJimbo(role, portalProfile)}
+            canEdit={canEditMuundoRows}
+            canDelete={canDeleteMuundoRows}
+            rowCanEdit={(r) =>
+              canScopeMutateRecord(
+                "edit",
+                { dayosisi_id: r.dayosisi_id ?? null, jimbo_id: r.id, tawi_id: null },
+                scopeHierarchy
+              )
+            }
+            rowCanDelete={(r) =>
+              canScopeMutateRecord(
+                "delete",
+                { dayosisi_id: r.dayosisi_id ?? null, jimbo_id: r.id, tawi_id: null },
+                scopeHierarchy
+              )
+            }
             canExport={shared.canExport}
           />
         </div>
@@ -1153,7 +1371,7 @@ export function ModulePage(props: Props) {
         : undefined;
       return (
         <div className="space-y-2">
-          {!canManageMuundo ? (
+          {!canCreateMuundo && !canEditMuundoRows ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Huna ruhusa ya kusimamia muundo wa kanisa.
             </div>
@@ -1161,11 +1379,12 @@ export function ModulePage(props: Props) {
           <PremiumTable
             title="Orodha ya Matawi / Vituo"
             subtitle="Matawi na vituo vya huduma"
+            persistenceScope={portalPremiumTableScope([props.moduleKey, props.submodule, "matawi"])}
             rows={props.matawi}
             columns={[{ key: "jina", label: "Jina la Tawi/Kituo" }, { key: "aina", label: "Aina" }, { key: "dayosisi", label: "Dayosisi" }, { key: "jimbo", label: "Jimbo" }, { key: "kiongozi", label: "Kiongozi" }, { key: "simu", label: "Simu" }, { key: "status", label: "Status" }]}
-            onAdd={canManageMuundo ? () => setEditing({}) : undefined}
-            onEdit={canManageMuundo ? (r) => setEditing(r) : undefined}
-            onDelete={canManageMuundo ? async (id) => {
+            onAdd={canCreateMuundo ? () => setEditing({}) : undefined}
+            onEdit={canEditMuundoRows ? (r) => setEditing(r) : undefined}
+            onDelete={canDeleteMuundoRows ? async (id) => {
               if (getSupabase()) {
                 try {
                   await deleteChurchTawi(id);
@@ -1182,12 +1401,41 @@ export function ModulePage(props: Props) {
             highlightRowId={props.highlightRecordId ?? undefined}
             actionsDisabled={!!editing}
             excelBulk={matawiExcel}
-            canAdd={canManageMuundo}
-            canEdit={canManageMuundo}
-            canDelete={canManageMuundo}
+            canAdd={canCreateMuundo && structuralCreateAllowedTawi(role, portalProfile)}
+            canEdit={canEditMuundoRows}
+            canDelete={canDeleteMuundoRows}
+            rowCanEdit={(r) =>
+              canScopeMutateRecord(
+                "edit",
+                { dayosisi_id: null, jimbo_id: r.jimbo_id ?? null, tawi_id: r.id },
+                scopeHierarchy
+              )
+            }
+            rowCanDelete={(r) =>
+              canScopeMutateRecord(
+                "delete",
+                { dayosisi_id: null, jimbo_id: r.jimbo_id ?? null, tawi_id: r.id },
+                scopeHierarchy
+              )
+            }
             canExport={shared.canExport}
           />
         </div>
+      );
+    }
+    if (props.moduleKey === "viongozi" && props.submodule === ENTERPRISE_VIONGOZI_SUBMODULE) {
+      return (
+        <Suspense fallback={<ModulePanelSuspenseFallback />}>
+          <EnterpriseLeadershipHub
+            viongozi={props.viongozi}
+            setViongozi={props.setViongozi}
+            dayosisi={props.dayosisi}
+            majimbo={props.majimbo}
+            matawi={props.matawi}
+            canCreate={shared.canAdd}
+            canEdit={shared.canEdit}
+          />
+        </Suspense>
       );
     }
     if (props.moduleKey === "viongozi") {
@@ -1236,6 +1484,7 @@ export function ModulePage(props: Props) {
           <PremiumTable
           title="ORODHA YA VIONGOZI"
           subtitle={`${props.submodule}${filtered ? " · kichujio kimewekwa" : ""} · Leadership registry ya KMK(T)`}
+          persistenceScope={portalPremiumTableScope([props.moduleKey, props.submodule, "viongozi"])}
           rows={displayRows}
           columns={[
             { key: "jina", label: "Jina Kamili" },
@@ -1271,6 +1520,21 @@ export function ModulePage(props: Props) {
           actionsDisabled={!!editing}
           excelBulk={viongoziExcel}
           {...shared}
+          canDelete={shared.canDelete && canPortalDeleteModule("viongozi")}
+          rowCanEdit={(r) =>
+            canScopeMutateRecord(
+              "edit",
+              { dayosisi_id: r.dayosisi_id ?? null, jimbo_id: r.jimbo_id ?? null, tawi_id: r.tawi_id ?? null },
+              scopeHierarchy
+            )
+          }
+          rowCanDelete={(r) =>
+            canScopeMutateRecord(
+              "delete",
+              { dayosisi_id: r.dayosisi_id ?? null, jimbo_id: r.jimbo_id ?? null, tawi_id: r.tawi_id ?? null },
+              scopeHierarchy
+            )
+          }
         />
           ) : null}
         </div>
@@ -1308,6 +1572,7 @@ export function ModulePage(props: Props) {
         <PremiumTable
           title="Miamala ya Fedha"
           subtitle={`${props.submodule} · Mapato, michango, matumizi`}
+          persistenceScope={portalPremiumTableScope([props.moduleKey, props.submodule, "fedha"])}
           rows={fedhaFiltered}
           columns={[{ key: "tarehe", label: "Tarehe" }, { key: "aina", label: "Aina" }, { key: "kategoria", label: "Kategoria" }, { key: "kiasi", label: "Kiasi" }, { key: "ngazi", label: "Ngazi" }, { key: "dayosisi", label: "Dayosisi" }, { key: "jimbo", label: "Jimbo" }, { key: "tawi", label: "Tawi" }, { key: "status", label: "Status" }]}
           onAdd={() => setEditing({})}
@@ -1332,6 +1597,21 @@ export function ModulePage(props: Props) {
           actionsDisabled={!!editing}
           excelBulk={fedhaExcel}
           {...shared}
+          canDelete={shared.canDelete && canPortalDeleteModule("fedha")}
+          rowCanEdit={(r) =>
+            canScopeMutateRecord(
+              "edit",
+              { dayosisi_id: r.dayosisi_id ?? null, jimbo_id: r.jimbo_id ?? null, tawi_id: r.tawi_id ?? null },
+              scopeHierarchy
+            )
+          }
+          rowCanDelete={(r) =>
+            canScopeMutateRecord(
+              "delete",
+              { dayosisi_id: r.dayosisi_id ?? null, jimbo_id: r.jimbo_id ?? null, tawi_id: r.tawi_id ?? null },
+              scopeHierarchy
+            )
+          }
         />
       );
     }
@@ -1362,6 +1642,7 @@ export function ModulePage(props: Props) {
         <PremiumTable
           title="VYANZO VYA MAPATO (CHANZO CHA MAPATO YA KANISA)"
           subtitle="Makundi: Mapato ya Kawaida, Makusudi, Vikundi/Idara, Mengine, na taarifa za msingi"
+          persistenceScope={portalPremiumTableScope([props.moduleKey, props.submodule, "vyanzo"])}
           rows={props.incomeSources}
           columns={[
             { key: "chanzo", label: "Chanzo" },
@@ -1515,65 +1796,49 @@ export function ModulePage(props: Props) {
         { name: "Mobile", value: mobileTotal },
       ];
       const financeFilterSummary = `Category: ${categoryFilter} | Status: ${statusFilter} | Level: ${levelFilter} | Source: ${sourceFilter} | Payment: ${paymentFilter} | Date: ${fromDateFilter || "ALL"} - ${toDateFilter || "ALL"}`;
+      const financeExportHeaders = ["Income Code", "Source", "Category", "Status", "Date", "Payment", "Amount", "Restricted"];
       const exportFinanceExcel = async () => {
-        const XLSX = await import("xlsx");
-        const ws = XLSX.utils.aoa_to_sheet([
-          ["KMK(T) FINANCE REPORT"],
-          [`Generated: ${new Date().toLocaleString()}`],
-          [`Filters: ${financeFilterSummary}`],
-          [],
+        await exportRowsToExcel(
+          `KMKT_FINANCE_REPORT_${new Date().toISOString().slice(0, 10)}`,
           ["Income Code", "Source", "Category", "Status", "Date", "Payment", "Amount", "Restricted Fund"],
-          ...rows.map((r) => [r.incomeCode, r.sourceName, r.mainCategory, r.status, r.collectionDate, r.incomeType, r.amount, r.restrictedFund]),
-        ]);
-        ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }, { s: { r: 2, c: 0 }, e: { r: 2, c: 7 } }];
-        ws["!cols"] = [{ wch: 16 }, { wch: 30 }, { wch: 24 }, { wch: 16 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 14 }];
-        (ws as Record<string, unknown>)["!freeze"] = { xSplit: 0, ySplit: 5 };
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Finance");
-        XLSX.writeFile(wb, `KMKT_FINANCE_REPORT_${new Date().toISOString().slice(0, 10)}.xlsx`);
+          rows.map((r) => [r.incomeCode, r.sourceName, r.mainCategory, r.status, r.collectionDate, r.incomeType, r.amount, r.restrictedFund]),
+          { reportTitle: "ORODHA YA MAPATO — Fedha", filterSummary: financeFilterSummary, sheetName: "Finance" }
+        );
       };
       const exportFinancePdf = async () => {
-        const [{ jsPDF }, autoTableMod] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
-        const autoTable = autoTableMod.default;
-        const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-        const w = doc.internal.pageSize.getWidth();
-        doc.setFillColor(11, 31, 58);
-        doc.rect(0, 0, w, 24, "F");
-        doc.setTextColor(212, 175, 55);
-        doc.setFontSize(14);
-        doc.text("KMK(T) FINANCE REPORT", 14, 10);
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(10);
-        doc.text("ORODHA YA MAPATO", 14, 18);
-        doc.setTextColor(15, 30, 70);
-        doc.setFontSize(9);
-        doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 30);
-        doc.text(`Filters: ${financeFilterSummary}`, 14, 35);
-        autoTable(doc, {
-          startY: 38,
-          head: [["Income Code", "Source", "Category", "Status", "Date", "Payment", "Amount", "Restricted"]],
-          body: rows.map((r) => [r.incomeCode, r.sourceName, r.mainCategory, r.status, r.collectionDate, r.incomeType, r.amount.toLocaleString(), r.restrictedFund]),
-          styles: { fontSize: 8, overflow: "linebreak", valign: "top" },
-          headStyles: { fillColor: [11, 31, 58], textColor: [212, 175, 55], fontStyle: "bold" },
-          didDrawPage: () => {
-            const page = doc.getCurrentPageInfo().pageNumber;
-            const pages = doc.getNumberOfPages();
-            doc.setFontSize(8);
-            doc.setTextColor(71, 85, 105);
-            doc.text(`Ukurasa ${page}/${pages}`, w - 30, 205);
-            doc.text("Sahihi: ____________________", 14, 205);
-          },
-        });
-        doc.save(`KMKT_FINANCE_REPORT_${new Date().toISOString().slice(0, 10)}.pdf`);
+        await exportTableToPdf(
+          "ORODHA YA MAPATO — Ripoti ya Fedha",
+          `KMKT_FINANCE_REPORT_${new Date().toISOString().slice(0, 10)}`,
+          financeExportHeaders,
+          rows.map((r) => [
+            r.incomeCode,
+            r.sourceName,
+            r.mainCategory,
+            r.status,
+            r.collectionDate,
+            r.incomeType,
+            r.amount.toLocaleString(),
+            r.restrictedFund,
+          ]),
+          { filterSummary: financeFilterSummary, showSignatureLine: true }
+        );
       };
       const printFinanceReport = () => {
-        const win = window.open("", "_blank", "width=1200,height=800");
-        if (!win) return;
-        const body = rows
-          .map((r) => `<tr><td>${r.incomeCode}</td><td>${r.sourceName}</td><td>${r.mainCategory}</td><td>${r.status}</td><td>${r.collectionDate}</td><td>${r.incomeType}</td><td>${r.amount.toLocaleString()}</td><td>${r.restrictedFund}</td></tr>`)
-          .join("");
-        win.document.write(`<!doctype html><html><head><title>FINANCE REPORT</title><style>@page{size:A4 landscape;margin:12mm}body{font-family:Arial,sans-serif;color:#0B1F3A}.header{background:#0B1F3A;color:#D4AF37;padding:10px;border-radius:8px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{border:1px solid #cbd5e1;padding:6px;text-align:left;word-break:break-word}th{background:#0B1F3A;color:#D4AF37}</style></head><body><div class="header"><h2>KMK(T) FINANCE REPORT</h2><p>${new Date().toLocaleString()}</p><p>${financeFilterSummary}</p></div><table><thead><tr><th>Income Code</th><th>Source</th><th>Category</th><th>Status</th><th>Date</th><th>Payment</th><th>Amount</th><th>Restricted</th></tr></thead><tbody>${body}</tbody></table><script>window.onload=function(){window.print();}</script></body></html>`);
-        win.document.close();
+        openPrintableTable(
+          "ORODHA YA MAPATO — Ripoti ya Fedha",
+          financeExportHeaders,
+          rows.map((r) => [
+            r.incomeCode,
+            r.sourceName,
+            r.mainCategory,
+            r.status,
+            r.collectionDate,
+            r.incomeType,
+            r.amount.toLocaleString(),
+            r.restrictedFund,
+          ]),
+          { filterSummary: financeFilterSummary }
+        );
       };
       return (
         <div className="space-y-3">
@@ -1592,77 +1857,22 @@ export function ModulePage(props: Props) {
             </div>
           </section>
 
-          <section className="grid gap-3 xl:grid-cols-2">
-            <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow">
-              <h4 className="text-sm font-bold text-[#0B1F3A]">Monthly Income Trend</h4>
-              {monthlyTrendData.length === 0 ? <p className="mt-2 text-xs text-slate-600">Hakuna data bado</p> : (
-                <div className="mt-2 h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={monthlyTrendData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="amount" stroke="#0B1F3A" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </article>
-            <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow">
-              <h4 className="text-sm font-bold text-[#0B1F3A]">Payment Method Breakdown</h4>
-              {paymentMethodData.every((x) => x.value === 0) ? <p className="mt-2 text-xs text-slate-600">Hakuna data bado</p> : (
-                <div className="mt-2 h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={paymentMethodData} dataKey="value" nameKey="name" outerRadius={72} label>
-                        {paymentMethodData.map((_, i) => (
-                          <Cell key={`pay-${i}`} fill={["#0B1F3A", "#123C69", "#D4AF37"][i % 3]} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </article>
-          </section>
-
-          <section className="grid gap-3 xl:grid-cols-2">
-            <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow">
-              <h4 className="text-sm font-bold text-[#0B1F3A]">Income by Category</h4>
-              {incomeByCategoryData.length === 0 ? <p className="mt-2 text-xs text-slate-600">Hakuna data bado</p> : (
-                <div className="mt-2 h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={incomeByCategoryData.slice(0, 10)}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" hide />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="amount" fill="#123C69" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </article>
-            <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow">
-              <h4 className="text-sm font-bold text-[#0B1F3A]">Income by Source</h4>
-              {incomeBySourceData.length === 0 ? <p className="mt-2 text-xs text-slate-600">Hakuna data bado</p> : (
-                <div className="mt-2 h-56">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={incomeBySourceData.slice(0, 10)}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" hide />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="amount" fill="#0B1F3A" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </article>
-          </section>
+          <Suspense
+            fallback={
+              <div className="grid gap-3 xl:grid-cols-2">
+                {[0, 1, 2, 3].map((i) => (
+                  <div key={i} className="h-56 animate-pulse rounded-2xl border border-slate-100 bg-slate-50" />
+                ))}
+              </div>
+            }
+          >
+            <MapatoIncomeCharts
+              monthlyTrendData={monthlyTrendData}
+              paymentMethodData={paymentMethodData}
+              incomeByCategoryData={incomeByCategoryData}
+              incomeBySourceData={incomeBySourceData}
+            />
+          </Suspense>
 
           <section className="rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-900 p-4 text-white shadow-xl">
             <h4 className="text-sm font-bold">Jumla Kuu ya Mapato (All Levels Combined)</h4>
@@ -1952,6 +2162,7 @@ export function ModulePage(props: Props) {
           <PremiumTable
             title="MAPATO / INCOME MANAGEMENT"
             subtitle="Submodules 8 + entry table ya kila ngazi + jumla kuu ya mapato"
+            persistenceScope={portalPremiumTableScope([props.moduleKey, props.submodule, "mapato_lines"])}
             rows={rows}
             columns={[
               { key: "incomeCode", label: "Income Code" },
@@ -2060,7 +2271,9 @@ export function ModulePage(props: Props) {
     paymentFilter,
     fromDateFilter,
     toDateFilter,
-    canManageMuundo,
+    canCreateMuundo,
+    canEditMuundoRows,
+    canDeleteMuundoRows,
     incomeCategoryTabs,
     levelFilterTabs,
     fedhaFiltered,
@@ -2068,6 +2281,11 @@ export function ModulePage(props: Props) {
     emitCrud,
     reportError,
     pushToast,
+    scopeHierarchy,
+    canScopeMutateRecord,
+    role,
+    portalProfile,
+    canPortalDeleteModule,
   ]);
 
   return (
@@ -2075,6 +2293,7 @@ export function ModulePage(props: Props) {
       <ModuleHeader
         title={`${props.submodule}`}
         subtitle="Ongoza, hariri, futa — Excel: Pakua blanki (Maelekezo + Data), jaza jalada Data, Pakia; au Excel orodha, PDF, chapisha."
+        canBack={props.canNavigateBack ?? true}
         onAdd={() => setEditing({})}
         canAdd={moduleHeaderCanAdd}
         addDisabled={!!editing}
@@ -2113,7 +2332,9 @@ export function ModulePage(props: Props) {
             : []
         }
       />
-      {props.moduleKey === "developer" ? <ErrorBoundary>{view}</ErrorBoundary> : view}
+      <Suspense fallback={<ModulePanelSuspenseFallback />}>
+        {props.moduleKey === "developer" ? <ErrorBoundary>{view}</ErrorBoundary> : view}
+      </Suspense>
       {props.moduleKey === "developer" && devModal ? (
         <ErrorBoundary>
           <DeveloperQuickActionModal
@@ -2523,8 +2744,13 @@ function ViongoziRecordFields({
   initial: Partial<KiongoziRecord> & { id?: string };
   hierarchy: { dayosisi: DayosisiRecord[]; majimbo: JimboRecord[]; matawi: TawiRecord[] };
 }) {
+  const cheoRef = useRef<HTMLInputElement>(null);
   const [dayosisiId, setDayosisiId] = useState(() => String(initial?.dayosisi_id ?? ""));
   const [jimboId, setJimboId] = useState(() => String(initial?.jimbo_id ?? ""));
+  const [positionList, setPositionList] = useState<LeadershipPositionRecord[]>([]);
+  const [categoryList, setCategoryList] = useState<LeadershipCategoryRecord[]>([]);
+  const [committeeList, setCommitteeList] = useState<LeadershipCommitteeRecord[]>([]);
+  const [selPosition, setSelPosition] = useState(() => String(initial?.position_id ?? ""));
   const [structureGroups, setStructureGroups] = useState<{
     idara: ChurchStructureEntity[];
     huduma: ChurchStructureEntity[];
@@ -2537,12 +2763,29 @@ function ViongoziRecordFields({
     setJimboId(String(initial?.jimbo_id ?? ""));
   }, [initial?.id, initial?.dayosisi_id, initial?.jimbo_id]);
   useEffect(() => {
+    setSelPosition(String(initial?.position_id ?? ""));
+  }, [initial?.id, initial?.position_id]);
+  useEffect(() => {
     void (async () => {
       try {
         const o = await fetchCascadeOptions();
         setStructureGroups({ idara: o.idara, huduma: o.huduma, taasisi: o.taasisi, jumuiya: o.jumuiya });
       } catch {
         setStructureGroups({ idara: [], huduma: [], taasisi: [], jumuiya: [] });
+      }
+    })();
+  }, []);
+  useEffect(() => {
+    void (async () => {
+      try {
+        const [p, c, g] = await Promise.all([fetchLeadershipPositions(), fetchLeadershipCategories(), fetchCommitteeGroups()]);
+        setPositionList(p);
+        setCategoryList(c);
+        setCommitteeList(g);
+      } catch {
+        setPositionList([]);
+        setCategoryList([]);
+        setCommitteeList([]);
       }
     })();
   }, []);
@@ -2563,27 +2806,30 @@ function ViongoziRecordFields({
         <input name="jina" required defaultValue={initial?.jina ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
       </label>
       <label className="grid gap-1 text-xs md:col-span-2">
-        Cheo
-        <select name="cheo" defaultValue={initial?.cheo ?? ""} className="rounded-lg border px-3 py-2 text-sm">
-          <option value="">— Chagua cheo —</option>
-          {[
-            "Askofu Mkuu",
-            "Askofu",
-            "Katibu Mkuu",
-            "Mhazini Mkuu",
-            "Mchungaji",
-            "Mzee wa Kanisa",
-            "Mwenyekiti",
-            "Katibu",
-            "Mhasibu",
-            "Kiongozi wa Idara",
-            "Mkurugenzi wa Taasisi",
-          ].map((p) => (
-            <option key={p} value={p}>
-              {p}
+        Nafasi iliyosajiliwa (chaguo — si lazima)
+        <select
+          className="rounded-lg border px-3 py-2 text-sm"
+          value={selPosition}
+          onChange={(e) => {
+            const id = e.target.value;
+            setSelPosition(id);
+            const t = positionList.find((p) => p.id === id)?.title;
+            if (cheoRef.current && t) cheoRef.current.value = t;
+          }}
+        >
+          <option value="">— Chagua au andika cheo chini —</option>
+          {positionList.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.title}
+              {p.level_key ? ` · ${p.level_key}` : ""}
             </option>
           ))}
         </select>
+      </label>
+      <input type="hidden" name="position_id" value={selPosition} />
+      <label className="grid gap-1 text-xs md:col-span-2">
+        Cheo (kinachoonekana mfumo — kinaweza kuwa chochote)
+        <input ref={cheoRef} name="cheo" required defaultValue={initial?.cheo ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
       </label>
       <label className="grid gap-1 text-xs md:col-span-2">
         Leadership level
@@ -2667,6 +2913,10 @@ function ViongoziRecordFields({
         <input name="photo_url" defaultValue={initial?.photo_url ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
       </label>
       <label className="grid gap-1 text-xs md:col-span-2">
+        Saini (URL)
+        <input name="signature_url" defaultValue={initial?.signature_url ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+      </label>
+      <label className="grid gap-1 text-xs md:col-span-2">
         Start date
         <input name="start_date" type="date" defaultValue={initial?.start_date ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
       </label>
@@ -2728,6 +2978,129 @@ function ViongoziRecordFields({
         Notes
         <textarea name="notes" defaultValue={initial?.notes ?? ""} className="rounded-lg border px-3 py-2 text-sm" rows={3} />
       </label>
+      <details className="md:col-span-2">
+        <summary className="cursor-pointer text-xs font-semibold text-violet-800">Maelezo ya kina (enterprise)</summary>
+        <div className="mt-2 grid gap-2 md:grid-cols-2">
+          <label className="grid gap-1 text-xs">
+            Tarehe ya kuzaliwa
+            <input name="date_of_birth" type="date" defaultValue={initial?.date_of_birth ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-xs">
+            NIDA
+            <input name="national_id" defaultValue={initial?.national_id ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-xs">
+            Pasipoti
+            <input name="passport_number" defaultValue={initial?.passport_number ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-xs">
+            Kitambulisho cha mwanachama
+            <input name="church_member_id" defaultValue={initial?.church_member_id ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-xs">
+            WhatsApp
+            <input name="whatsapp" defaultValue={initial?.whatsapp ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-xs">
+            Mkoa
+            <input name="mkoa" defaultValue={initial?.mkoa ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-xs">
+            Wilaya
+            <input name="wilaya" defaultValue={initial?.wilaya ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-xs">
+            Kata
+            <input name="kata" defaultValue={initial?.kata ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-xs md:col-span-2">
+            Anwani
+            <input name="address" defaultValue={initial?.address ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-xs">
+            Tarehe ya uteuzi
+            <input name="appointment_date" type="date" defaultValue={initial?.appointment_date ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-xs">
+            Kiongozi anayereport (UUID)
+            <input name="reporting_leader_id" defaultValue={initial?.reporting_leader_id ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-xs">
+            Kundi la uongozi
+            <select name="leadership_category_id" defaultValue={initial?.leadership_category_id ?? ""} className="rounded-lg border px-3 py-2 text-sm">
+              <option value="">—</option>
+              {categoryList.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs">
+            Kamati
+            <select name="committee_group_id" defaultValue={initial?.committee_group_id ?? ""} className="rounded-lg border px-3 py-2 text-sm">
+              <option value="">—</option>
+              {committeeList.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs md:col-span-2">
+            Structure entity (UUID)
+            <input name="structure_entity_id" defaultValue={initial?.structure_entity_id ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="flex items-center gap-2 text-xs md:col-span-2">
+            <input type="checkbox" name="former_leader" value="on" defaultChecked={Boolean(initial?.former_leader)} />
+            Aliyewahi kuwa kiongozi
+          </label>
+          <label className="grid gap-1 text-xs md:col-span-2">
+            Sababu ya kuondoka
+            <textarea name="reason_for_leaving" defaultValue={initial?.reason_for_leaving ?? ""} className="rounded-lg border px-3 py-2 text-sm" rows={2} />
+          </label>
+          <label className="grid gap-1 text-xs md:col-span-2">
+            Elimu
+            <textarea name="education_summary" defaultValue={initial?.education_summary ?? ""} className="rounded-lg border px-3 py-2 text-sm" rows={2} />
+          </label>
+          <label className="grid gap-1 text-xs md:col-span-2">
+            Mafunzo ya theology
+            <textarea name="theology_training" defaultValue={initial?.theology_training ?? ""} className="rounded-lg border px-3 py-2 text-sm" rows={2} />
+          </label>
+          <label className="grid gap-1 text-xs md:col-span-2">
+            Ujuzi wa kitaalamu
+            <textarea name="professional_skills" defaultValue={initial?.professional_skills ?? ""} className="rounded-lg border px-3 py-2 text-sm" rows={2} />
+          </label>
+          <label className="grid gap-1 text-xs md:col-span-2">
+            Vyeti
+            <textarea name="certificates_summary" defaultValue={initial?.certificates_summary ?? ""} className="rounded-lg border px-3 py-2 text-sm" rows={2} />
+          </label>
+          <label className="grid gap-1 text-xs md:col-span-2">
+            Karama / huduma
+            <textarea name="ministry_gifts" defaultValue={initial?.ministry_gifts ?? ""} className="rounded-lg border px-3 py-2 text-sm" rows={2} />
+          </label>
+          <label className="grid gap-1 text-xs md:col-span-2">
+            Uzoefu wa huduma
+            <textarea name="ministry_experience" defaultValue={initial?.ministry_experience ?? ""} className="rounded-lg border px-3 py-2 text-sm" rows={2} />
+          </label>
+          <label className="grid gap-1 text-xs md:col-span-2">
+            Maelezo ya ndani
+            <textarea name="internal_notes" defaultValue={initial?.internal_notes ?? ""} className="rounded-lg border px-3 py-2 text-sm" rows={2} />
+          </label>
+          <label className="grid gap-1 text-xs md:col-span-2">
+            Maelezo ya ukaguzi
+            <textarea name="audit_notes" defaultValue={initial?.audit_notes ?? ""} className="rounded-lg border px-3 py-2 text-sm" rows={2} />
+          </label>
+          <label className="grid gap-1 text-xs">
+            Jina la anayeitoa PDF
+            <input name="pdf_issued_by_name" defaultValue={initial?.pdf_issued_by_name ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+          <label className="grid gap-1 text-xs">
+            Cheo cha anayeitoa PDF
+            <input name="pdf_issued_by_title" defaultValue={initial?.pdf_issued_by_title ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
+          </label>
+        </div>
+      </details>
       <label className="grid gap-1 text-xs md:col-span-2">
         Status
         <input name="status" defaultValue={initial?.status ?? "Active"} className="rounded-lg border px-3 py-2 text-sm" />
@@ -2785,8 +3158,10 @@ function RecordModal({
               "jina",
               "full_name",
               "photo_url",
+              "signature_url",
               "gender",
               "cheo",
+              "position_id",
               "leadership_level",
               "assigned_entity",
               "ngazi",
@@ -2799,8 +3174,11 @@ function RecordModal({
               "jumuiya_name",
               "simu",
               "email",
+              "whatsapp",
+              "address",
               "start_date",
               "end_date",
+              "appointment_date",
               "term_status",
               "appointment_document_url",
               "appointment_document_name",
@@ -2809,10 +3187,33 @@ function RecordModal({
               "appointment_document_type",
               "appointment_uploaded_at",
               "notes",
+              "date_of_birth",
+              "national_id",
+              "passport_number",
+              "church_member_id",
+              "mkoa",
+              "wilaya",
+              "kata",
+              "leadership_category_id",
+              "committee_group_id",
+              "reporting_leader_id",
+              "structure_entity_id",
+              "reason_for_leaving",
+              "education_summary",
+              "theology_training",
+              "professional_skills",
+              "certificates_summary",
+              "ministry_gifts",
+              "ministry_experience",
+              "internal_notes",
+              "audit_notes",
+              "pdf_issued_by_name",
+              "pdf_issued_by_title",
               "status",
             ]) {
               payload[k] = fd.get(k);
             }
+            payload.former_leader = fd.get("former_leader") === "on";
           } else if (moduleKey === "vyanzo_mapato") {
             for (const k of ["source_mode", "source_type", "chanzo", "source_code", "category", "subtitle", "frequency", "restrictedFund", "approvalRequired", "aina", "maelezo", "status"]) {
               payload[k] = fd.get(k);

@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { CalendarDays, MapPin, Plus, Trash2, Pencil, ImagePlus, Megaphone, BellRing, Search, Download } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
 import { validateSelectedFile } from "../../lib/fileUploadGuard";
 import { STAGE2_COLORS, stage2GradHeader } from "../../lib/stage2Theme";
@@ -217,7 +218,7 @@ export function EventsPanel(props: { submodule?: string; highlightRecordId?: str
         });
       }
       pushToast("Tukio limehifadhiwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setModal(false);
     } catch (e) {
       if (orphanPosterUrl) await removeEventPosterIfStored(orphanPosterUrl).catch(() => {});
@@ -236,7 +237,7 @@ export function EventsPanel(props: { submodule?: string; highlightRecordId?: str
       await deleteEvent(delId);
       setRows((p) => p.filter((x) => x.id !== delId));
       pushToast("Tukio limefutwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setDelId(null);
     } catch (e) {
       reportError(e, "Matukio — futa");

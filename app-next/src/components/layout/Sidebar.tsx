@@ -13,8 +13,8 @@ interface Props {
 
 export function Sidebar(props: Props) {
   const content = (
-    <aside className="h-full w-[86vw] max-w-80 overflow-y-auto border-r border-amber-200 bg-gradient-to-b from-slate-950 via-blue-950 to-slate-900 p-3 text-slate-100 sm:w-80">
-      <h1 className="rounded-xl bg-white/5 p-3 text-sm font-bold tracking-wide">KMK(T) Internal Portal</h1>
+    <aside className="h-full max-h-[100dvh] w-[86vw] max-w-sm overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] border-r border-amber-200 bg-gradient-to-b from-slate-950 via-blue-950 to-slate-900 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))] text-slate-100 sm:w-80">
+      <h1 className="rounded-xl bg-white/5 p-3 text-sm font-bold tracking-wide">KMK(T) Tanzania Website</h1>
       <div className="mt-3 space-y-2">
         {props.modules.map((m) => {
           const active = props.activeModule === m.key;
@@ -48,11 +48,11 @@ export function Sidebar(props: Props) {
 
   return (
     <>
-      <div className="hidden lg:block">{content}</div>
+      <div className="hidden shrink-0 lg:block">{content}</div>
       {props.mobileOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className="fixed inset-0 z-[100] lg:hidden" role="dialog" aria-modal="true" aria-label="Menyu ya moduli">
           <div className="absolute inset-0 bg-black/40" onClick={props.onCloseMobile} />
-          <div className="relative h-full">{content}</div>
+          <div className="relative flex h-[100dvh] max-h-[100dvh] min-h-0">{content}</div>
         </div>
       )}
     </>

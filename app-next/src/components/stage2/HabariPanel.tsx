@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Newspaper, Pencil, Plus, Trash2, Search, Download, Eye } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
 import { validateSelectedFile } from "../../lib/fileUploadGuard";
 import { stage2GradHeader } from "../../lib/stage2Theme";
@@ -129,7 +130,7 @@ export function HabariPanel(props: { highlightRecordId?: string | null }) {
       }
       setRows((p) => [saved, ...p.filter((x) => x.id !== saved.id)]);
       pushToast("Habari imehifadhiwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setModal(false);
       setImgFile(null);
     } catch (e) {
@@ -148,7 +149,7 @@ export function HabariPanel(props: { highlightRecordId?: string | null }) {
       await deleteNewsPost(delId);
       setRows((p) => p.filter((x) => x.id !== delId));
       pushToast("Imefutwa.", "success");
-      window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+      dispatchPortalReloadMetrics();
       setDelId(null);
       setDetail(null);
     } catch (e) {
@@ -318,7 +319,7 @@ export function HabariPanel(props: { highlightRecordId?: string | null }) {
                           publish_date: next === "published" ? new Date().toISOString() : r.publish_date ?? null,
                         });
                         setRows((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
-                        window.dispatchEvent(new CustomEvent("kmt-portal-reload-metrics"));
+                        dispatchPortalReloadMetrics();
                         pushToast(next === "published" ? "Habari imechapishwa." : "Habari imeondolewa kwenye chapisho.", "success");
                       }}
                     >
