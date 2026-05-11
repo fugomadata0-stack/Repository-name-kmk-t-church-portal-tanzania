@@ -9,14 +9,14 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  /** Preview / cold start inaweza kuchukua zaidi ya ~30s haswa CI. */
-  timeout: 60_000,
+  /** CI + vite preview baridi — usifikirie spinner / mtandao kwa sekunde 60 tu. */
+  timeout: 120_000,
   reporter: [["list"]],
   use: {
     ...devices["Desktop Chrome"],
     baseURL: process.env.E2E_BASE_URL || "http://127.0.0.1:4173",
     trace: "on-first-retry",
-    navigationTimeout: 60_000,
+    navigationTimeout: 90_000,
   },
   webServer: {
     /** Hakikisha dist ipo: `test:e2e` huanzisha `build` kwanza; ikiwa unatumia `test:e2e:run` peke yake, endesha `npm run build` mwanzo. */

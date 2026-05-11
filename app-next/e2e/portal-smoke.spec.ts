@@ -11,10 +11,18 @@ const gotoPortal = async (page: import("@playwright/test").Page) => {
     waitUntil: "domcontentloaded",
     timeout: 60_000,
   });
-  /** RootShell huonyesha spinner hadi authInitialized — hakuna h2 la “Ingia” kabla. */
-  await page
-    .waitForFunction(() => !document.querySelector('[aria-busy="true"]'), { timeout: 120_000 })
-    .catch(() => undefined);
+  /**
+   * Subiri spinner ya RootShell pekee (si `aria-busy` ya maandalizi ya moduli/mahirika —
+   * `[aria-busy="true"]` ya jumla ilikuwa inaweza kusubiri hadi timeout ya sekunde 120 huku
+   * jaribio likiwa na timeout ya sekunde 60 → CI ilikuwa inashindwa kimya).
+   */
+  const authSpinner = page.getByRole("status", { name: /Inapakia akaunti/i });
+  try {
+    await authSpinner.waitFor({ state: "attached", timeout: 8_000 });
+    await authSpinner.waitFor({ state: "detached", timeout: 90_000 });
+  } catch {
+    /* Spinner haikuonekana au tayari imeondoka — endelea */
+  }
 };
 
 /** Ukurasa wa kuingia (h2) au tatizo la mazingira ya Supabase (h1). */
