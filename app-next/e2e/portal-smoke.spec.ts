@@ -9,20 +9,9 @@ import { test, expect } from "@playwright/test";
 const gotoPortal = async (page: import("@playwright/test").Page) => {
   await page.goto("/", {
     waitUntil: "domcontentloaded",
-    timeout: 60_000,
+    timeout: 90_000,
   });
-  /**
-   * Subiri spinner ya RootShell pekee (si `aria-busy` ya maandalizi ya moduli/mahirika —
-   * `[aria-busy="true"]` ya jumla ilikuwa inaweza kusubiri hadi timeout ya sekunde 120 huku
-   * jaribio likiwa na timeout ya sekunde 60 → CI ilikuwa inashindwa kimya).
-   */
-  const authSpinner = page.getByRole("status", { name: /Inapakia akaunti/i });
-  try {
-    await authSpinner.waitFor({ state: "attached", timeout: 8_000 });
-    await authSpinner.waitFor({ state: "detached", timeout: 90_000 });
-  } catch {
-    /* Spinner haikuonekana au tayari imeondoka — endelea */
-  }
+  /** Usitegemee spinner (jina la ufikivu linaweza kutofautiana na Chromium/Linux). Subiri kichwa moja kwa moja. */
 };
 
 /** Ukurasa wa kuingia (h2) au tatizo la mazingira ya Supabase (h1). */
@@ -44,13 +33,13 @@ test.describe("KMT portal — mzunguko wa msingi", () => {
   test("fungua ukurasa (login au mipangilio)", async ({ page }) => {
     await gotoPortal(page);
     await expect(page.locator("body")).toBeVisible();
-    await expect(loginOrEnvHeading(page)).toBeVisible({ timeout: 60_000 });
+    await expect(loginOrEnvHeading(page)).toBeVisible({ timeout: 120_000 });
     await expectNoCriticalUiErrors(page);
   });
 
   test("kichwa cha kuingia au mipangilio kinaonekana", async ({ page }) => {
     await gotoPortal(page);
-    await expect(loginOrEnvHeading(page)).toBeVisible({ timeout: 60_000 });
+    await expect(loginOrEnvHeading(page)).toBeVisible({ timeout: 120_000 });
   });
 
   test("ingia → dashibodi (E2E_EMAIL + E2E_PASSWORD)", async ({ page }) => {

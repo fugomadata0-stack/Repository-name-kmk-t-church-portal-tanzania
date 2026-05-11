@@ -25,8 +25,10 @@ jobs:
       run:
         working-directory: app-next
     env:
+      CI: true
       VITE_SUPABASE_URL: https://ci-build-placeholder.supabase.co
       VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ci-build-placeholder-not-secret
+      NODE_OPTIONS: --max-old-space-size=6144
 
     steps:
       - uses: actions/checkout@v4
@@ -50,6 +52,4 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: E2E smoke tests
-        env:
-          CI: true
         run: npm run test:e2e:run
