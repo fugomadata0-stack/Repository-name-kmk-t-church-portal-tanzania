@@ -19,7 +19,8 @@
     "db:push:cli": "npx supabase db push",
     "build:app": "npm run build --prefix app-next",
     "validate": "npm run validate --prefix app-next",
-    "lint": "npm run lint --prefix app-next"
+    "lint": "npm run lint --prefix app-next",
+    "tls:windows": "powershell -ExecutionPolicy Bypass -NoProfile -File scripts/windows-node-tls.ps1"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
