@@ -1,3 +1,11 @@
+import {
+  assertValidEmailOptional,
+  assertValidGpsOptional,
+  isValidInternationalPhone,
+  normalizeOptionalHttpsUrl,
+  normalizeOptionalImageOrDocUrl,
+  normalizePhoneStored,
+} from "../lib/structureFieldValidation";
 import { formatPostgrestError, isMissingTableError } from "../lib/supabaseErrors";
 import { getSupabase } from "../lib/supabaseClient";
 import type { ChurchStructureEntity, ChurchStructureLevel } from "../types";
@@ -9,9 +17,6 @@ type StructureFilters = {
   includeInactive?: boolean;
 };
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^[0-9+\-\s()]{7,20}$/;
-
 async function authUserId(): Promise<string | null> {
   const c = getSupabase();
   if (!c) return null;
@@ -19,23 +24,6 @@ async function authUserId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
-/** Thibitisha URL; rudisha undefined ikiwa tupu; ongeza https:// ikiwa inakosa. */
-function normalizeOptionalHttpUrl(raw: string | undefined, label: string): string | undefined {
-  const t = raw?.trim();
-  if (!t) return undefined;
-  const isValid = (s: string): boolean => {
-    try {
-      new URL(s);
-      return true;
-    } catch {
-      return false;
-    }
-  };
-  if (isValid(t)) return t;
-  const withProto = /^https?:\/\//i.test(t) ? t : `https://${t}`;
-  if (isValid(withProto)) return withProto;
-  throw new Error(`${label} si kiungo halali.`);
-}
 let warnedMissingStructureTable = false;
 let structureTableMissing = false;
 
@@ -107,21 +95,29 @@ function validatePayload(
   if (!String(payload.code ?? "").trim()) throw new Error("Jaza taarifa muhimu.");
   if (!String(payload.level ?? "").trim()) throw new Error("Jaza taarifa muhimu.");
   if (opts?.requireParent && !String(payload.parent_id ?? "").trim()) throw new Error("Chagua ngazi ya juu kwanza.");
-  if (payload.email && String(payload.email).trim() && !EMAIL_RE.test(String(payload.email).trim())) {
-    throw new Error("Barua pepe si sahihi.");
+  assertValidEmailOptional(payload.email as string | undefined, "Barua pepe");
+  if (payload.phone != null && String(payload.phone).trim() && !isValidInternationalPhone(String(payload.phone))) {
+    throw new Error("Namba ya simu si sahihi (tumia tarakimu 9–15, pamoja na namba ya nchi ikiwa ipo).");
   }
-  if (payload.phone && String(payload.phone).trim() && !PHONE_RE.test(String(payload.phone).trim())) {
-    throw new Error("Namba ya simu si sahihi.");
-  }
-  if (payload.whatsapp && String(payload.whatsapp).trim() && !PHONE_RE.test(String(payload.whatsapp).trim())) {
-    throw new Error("Namba ya WhatsApp si sahihi.");
+  if (payload.whatsapp != null && String(payload.whatsapp).trim() && !isValidInternationalPhone(String(payload.whatsapp))) {
+    throw new Error("WhatsApp si sahihi (tumia tarakimu 9–15).");
   }
   if (payload.website != null && String(payload.website).trim()) {
-    normalizeOptionalHttpUrl(String(payload.website), "Tovuti");
+    normalizeOptionalHttpsUrl(String(payload.website), "Tovuti");
   }
   if (payload.google_maps_url != null && String(payload.google_maps_url).trim()) {
-    normalizeOptionalHttpUrl(String(payload.google_maps_url), "Kiungo cha Google Maps");
+    normalizeOptionalHttpsUrl(String(payload.google_maps_url), "Kiungo cha Google Maps");
   }
+  if (payload.logo_url != null && String(payload.logo_url).trim()) {
+    normalizeOptionalImageOrDocUrl(String(payload.logo_url), "Logo URL");
+  }
+  if (payload.photo_url != null && String(payload.photo_url).trim()) {
+    normalizeOptionalImageOrDocUrl(String(payload.photo_url), "Picha URL");
+  }
+  if (payload.signature_url != null && String(payload.signature_url).trim()) {
+    normalizeOptionalImageOrDocUrl(String(payload.signature_url), "Saini URL");
+  }
+  assertValidGpsOptional(payload.gps_coordinates as string | undefined);
 }
 
 export async function fetchStructureByLevel(
@@ -210,17 +206,19 @@ export async function createStructureEntity(payload: Partial<ChurchStructureEnti
   validatePayload(payload, { requireParent: payload.level !== "kmkt" });
   await ensureUnique(payload);
   const uid = await authUserId();
-  const websiteNorm = payload.website != null ? normalizeOptionalHttpUrl(payload.website, "Tovuti") : undefined;
+  const websiteNorm = payload.website != null ? normalizeOptionalHttpsUrl(payload.website, "Tovuti") : undefined;
   const mapsNorm =
-    payload.google_maps_url != null ? normalizeOptionalHttpUrl(payload.google_maps_url, "Kiungo cha Google Maps") : undefined;
+    payload.google_maps_url != null ? normalizeOptionalHttpsUrl(payload.google_maps_url, "Kiungo cha Google Maps") : undefined;
   const row = {
     name: String(payload.name ?? "").trim(),
     code: String(payload.code ?? "").trim(),
     official_name: payload.official_name?.trim() || null,
     short_code: payload.short_code?.trim() || null,
-    logo_url: payload.logo_url?.trim() || null,
-    photo_url: payload.photo_url?.trim() || null,
-    signature_url: payload.signature_url?.trim() || null,
+    logo_url: payload.logo_url?.trim() ? normalizeOptionalImageOrDocUrl(payload.logo_url, "Logo URL") ?? null : null,
+    photo_url: payload.photo_url?.trim() ? normalizeOptionalImageOrDocUrl(payload.photo_url, "Picha URL") ?? null : null,
+    signature_url: payload.signature_url?.trim()
+      ? normalizeOptionalImageOrDocUrl(payload.signature_url, "Saini URL") ?? null
+      : null,
     entity_type: payload.entity_type?.trim() || null,
     level: String(payload.level ?? "kmkt"),
     parent_id: payload.parent_id ?? null,
@@ -230,12 +228,12 @@ export async function createStructureEntity(payload: Partial<ChurchStructureEnti
     ward: payload.ward?.trim() || null,
     village_street: payload.village_street?.trim() || null,
     address: payload.address?.trim() || null,
-    website: websiteNorm ?? (payload.website?.trim() || null),
-    google_maps_url: mapsNorm ?? (payload.google_maps_url?.trim() || null),
+    website: websiteNorm ?? null,
+    google_maps_url: mapsNorm ?? null,
     gps_coordinates: payload.gps_coordinates?.trim() || null,
     contact_person: payload.contact_person?.trim() || null,
-    phone: payload.phone?.trim() || null,
-    whatsapp: payload.whatsapp?.trim() || null,
+    phone: normalizePhoneStored(payload.phone),
+    whatsapp: normalizePhoneStored(payload.whatsapp),
     email: payload.email?.trim() || null,
     established_date: payload.established_date || null,
     leader_name: payload.leader_name?.trim() || null,
@@ -279,9 +277,19 @@ export async function updateStructureEntity(
     ...(payload.code != null ? { code: String(payload.code).trim() } : {}),
     ...(payload.official_name !== undefined ? { official_name: payload.official_name?.trim() || null } : {}),
     ...(payload.short_code !== undefined ? { short_code: payload.short_code?.trim() || null } : {}),
-    ...(payload.logo_url !== undefined ? { logo_url: payload.logo_url?.trim() || null } : {}),
-    ...(payload.photo_url !== undefined ? { photo_url: payload.photo_url?.trim() || null } : {}),
-    ...(payload.signature_url !== undefined ? { signature_url: payload.signature_url?.trim() || null } : {}),
+    ...(payload.logo_url !== undefined
+      ? { logo_url: payload.logo_url?.trim() ? normalizeOptionalImageOrDocUrl(payload.logo_url, "Logo URL") ?? null : null }
+      : {}),
+    ...(payload.photo_url !== undefined
+      ? { photo_url: payload.photo_url?.trim() ? normalizeOptionalImageOrDocUrl(payload.photo_url, "Picha URL") ?? null : null }
+      : {}),
+    ...(payload.signature_url !== undefined
+      ? {
+          signature_url: payload.signature_url?.trim()
+            ? normalizeOptionalImageOrDocUrl(payload.signature_url, "Saini URL") ?? null
+            : null,
+        }
+      : {}),
     ...(payload.entity_type !== undefined ? { entity_type: payload.entity_type?.trim() || null } : {}),
     ...(payload.level != null ? { level: payload.level } : {}),
     ...(payload.parent_id !== undefined ? { parent_id: payload.parent_id } : {}),
@@ -292,19 +300,19 @@ export async function updateStructureEntity(
     ...(payload.village_street !== undefined ? { village_street: payload.village_street?.trim() || null } : {}),
     ...(payload.address !== undefined ? { address: payload.address?.trim() || null } : {}),
     ...(payload.website !== undefined
-      ? { website: payload.website?.trim() ? normalizeOptionalHttpUrl(payload.website, "Tovuti") ?? null : null }
+      ? { website: payload.website?.trim() ? normalizeOptionalHttpsUrl(payload.website, "Tovuti") ?? null : null }
       : {}),
     ...(payload.google_maps_url !== undefined
       ? {
           google_maps_url: payload.google_maps_url?.trim()
-            ? normalizeOptionalHttpUrl(payload.google_maps_url, "Kiungo cha Google Maps") ?? null
+            ? normalizeOptionalHttpsUrl(payload.google_maps_url, "Kiungo cha Google Maps") ?? null
             : null,
         }
       : {}),
     ...(payload.gps_coordinates !== undefined ? { gps_coordinates: payload.gps_coordinates?.trim() || null } : {}),
     ...(payload.contact_person !== undefined ? { contact_person: payload.contact_person?.trim() || null } : {}),
-    ...(payload.phone !== undefined ? { phone: payload.phone?.trim() || null } : {}),
-    ...(payload.whatsapp !== undefined ? { whatsapp: payload.whatsapp?.trim() || null } : {}),
+    ...(payload.phone !== undefined ? { phone: normalizePhoneStored(payload.phone) } : {}),
+    ...(payload.whatsapp !== undefined ? { whatsapp: normalizePhoneStored(payload.whatsapp) } : {}),
     ...(payload.email !== undefined ? { email: payload.email?.trim() || null } : {}),
     ...(payload.established_date !== undefined ? { established_date: payload.established_date || null } : {}),
     ...(payload.leader_name !== undefined ? { leader_name: payload.leader_name?.trim() || null } : {}),

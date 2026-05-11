@@ -1,4 +1,14 @@
 import { mbToBytes, validateSelectedFile } from "../lib/fileUploadGuard";
+import {
+  assertTermOrder,
+  assertValidEmailOptional,
+  assertValidLeaderAppointmentStoragePath,
+  isValidInternationalPhone,
+  normalizeAppointmentDocumentStored,
+  normalizeOptionalHttpsUrl,
+  normalizeOptionalImageOrDocUrl,
+  normalizePhoneStored,
+} from "../lib/structureFieldValidation";
 import { formatPostgrestError, formatStorageError, isMissingTableError } from "../lib/supabaseErrors";
 import { getSupabase } from "../lib/supabaseClient";
 import { buildSafeStoragePath } from "../lib/storageUpload";
@@ -33,24 +43,31 @@ function mapLeader(row: Record<string, unknown>): ChurchStructureLeader {
   };
 }
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RE = /^[0-9+\-\s()]{7,20}$/;
-
-function validateLeaderPayload(p: Partial<ChurchStructureLeader>, mode: "create" | "update"): void {
+function validateLeaderPayload(
+  p: Partial<ChurchStructureLeader>,
+  mode: "create" | "update",
+  structureEntityId?: string
+): void {
   const needTitle = mode === "create" || p.position_title !== undefined;
   const needName = mode === "create" || p.full_name !== undefined;
   if (needTitle && !String(p.position_title ?? "").trim()) throw new Error("Cheo cha kiongozi linahitajika.");
   if (needName && !String(p.full_name ?? "").trim()) throw new Error("Jina kamili la kiongozi linahitajika.");
-  if (p.email?.trim() && !EMAIL_RE.test(p.email.trim())) throw new Error("Barua pepe ya kiongozi si sahihi.");
-  if (p.phone?.trim() && !PHONE_RE.test(p.phone.trim())) throw new Error("Simu ya kiongozi si sahihi.");
+  assertValidEmailOptional(p.email, "Barua pepe ya kiongozi");
+  if (p.phone?.trim() && !isValidInternationalPhone(p.phone)) {
+    throw new Error("Simu ya kiongozi si sahihi (tumia tarakimu 9–15).");
+  }
+  assertTermOrder(p.term_start, p.term_end);
   const doc = p.appointment_document_url?.trim();
-  if (doc && /^https?:\/\//i.test(doc)) {
-    try {
-      new URL(doc);
-    } catch {
-      throw new Error("Kiungo cha hati ya uteuzi si sahihi.");
+  if (doc) {
+    if (/^https?:\/\//i.test(doc)) {
+      normalizeOptionalHttpsUrl(doc, "Hati ya uteuzi");
+    } else {
+      const seg = doc.split("/")[0] ?? "";
+      assertValidLeaderAppointmentStoragePath(doc, structureEntityId ?? seg);
     }
   }
+  if (p.photo_url?.trim()) normalizeOptionalImageOrDocUrl(p.photo_url, "Picha ya kiongozi");
+  if (p.signature_url?.trim()) normalizeOptionalImageOrDocUrl(p.signature_url, "Saini ya kiongozi");
 }
 
 /** Pakia hati ya uteuzi (PDF/picha) — rudisha njia ndani ya bucket (si URL ya umma). */
@@ -81,6 +98,12 @@ export async function signStructureLeaderAppointmentPath(
 ): Promise<string | null> {
   const t = objectPath?.trim();
   if (!t || /^https?:\/\//i.test(t)) return null;
+  const seg = t.split("/")[0] ?? "";
+  try {
+    assertValidLeaderAppointmentStoragePath(t, seg);
+  } catch {
+    return null;
+  }
   const c = getSupabase();
   if (!c) return null;
   const { data, error } = await c.storage.from(STRUCTURE_LEADERS_STORAGE_BUCKET).createSignedUrl(t, expiresSec);
@@ -114,7 +137,7 @@ export async function createStructureLeader(
 ): Promise<ChurchStructureLeader> {
   const c = getSupabase();
   if (!c) throw new Error("Supabase haijasanidiwa.");
-  validateLeaderPayload(payload, "create");
+  validateLeaderPayload(payload, "create", entityId);
   const { data: userData } = await c.auth.getUser();
   const uid = userData?.user?.id ?? null;
   const row = {
@@ -122,11 +145,13 @@ export async function createStructureLeader(
     position_title: String(payload.position_title ?? "").trim(),
     leadership_category: payload.leadership_category?.trim() || null,
     full_name: String(payload.full_name ?? "").trim(),
-    phone: payload.phone?.trim() || null,
+    phone: normalizePhoneStored(payload.phone),
     email: payload.email?.trim() || null,
-    photo_url: payload.photo_url?.trim() || null,
-    signature_url: payload.signature_url?.trim() || null,
-    appointment_document_url: payload.appointment_document_url?.trim() || null,
+    photo_url: payload.photo_url?.trim() ? normalizeOptionalImageOrDocUrl(payload.photo_url, "Picha ya kiongozi") ?? null : null,
+    signature_url: payload.signature_url?.trim()
+      ? normalizeOptionalImageOrDocUrl(payload.signature_url, "Saini ya kiongozi") ?? null
+      : null,
+    appointment_document_url: normalizeAppointmentDocumentStored(payload.appointment_document_url),
     term_start: payload.term_start || null,
     term_end: payload.term_end || null,
     status: payload.status ?? "active",
@@ -152,7 +177,11 @@ export async function updateStructureLeader(
 ): Promise<ChurchStructureLeader> {
   const c = getSupabase();
   if (!c) throw new Error("Supabase haijasanidiwa.");
-  validateLeaderPayload(payload, "update");
+  const { data: existingRow } = await c.from("church_structure_leaders").select("entity_id").eq("id", id).maybeSingle();
+  const ent = existingRow && typeof existingRow === "object" && "entity_id" in existingRow
+    ? String((existingRow as { entity_id?: unknown }).entity_id ?? "")
+    : "";
+  validateLeaderPayload(payload, "update", ent || undefined);
   const { data: userData } = await c.auth.getUser();
   const uid = userData?.user?.id ?? null;
   const patch: Record<string, unknown> = {
@@ -161,11 +190,21 @@ export async function updateStructureLeader(
   if (payload.position_title !== undefined) patch.position_title = String(payload.position_title).trim();
   if (payload.leadership_category !== undefined) patch.leadership_category = payload.leadership_category?.trim() || null;
   if (payload.full_name !== undefined) patch.full_name = String(payload.full_name).trim();
-  if (payload.phone !== undefined) patch.phone = payload.phone?.trim() || null;
+  if (payload.phone !== undefined) patch.phone = normalizePhoneStored(payload.phone);
   if (payload.email !== undefined) patch.email = payload.email?.trim() || null;
-  if (payload.photo_url !== undefined) patch.photo_url = payload.photo_url?.trim() || null;
-  if (payload.signature_url !== undefined) patch.signature_url = payload.signature_url?.trim() || null;
-  if (payload.appointment_document_url !== undefined) patch.appointment_document_url = payload.appointment_document_url?.trim() || null;
+  if (payload.photo_url !== undefined) {
+    patch.photo_url = payload.photo_url?.trim()
+      ? normalizeOptionalImageOrDocUrl(payload.photo_url, "Picha ya kiongozi") ?? null
+      : null;
+  }
+  if (payload.signature_url !== undefined) {
+    patch.signature_url = payload.signature_url?.trim()
+      ? normalizeOptionalImageOrDocUrl(payload.signature_url, "Saini ya kiongozi") ?? null
+      : null;
+  }
+  if (payload.appointment_document_url !== undefined) {
+    patch.appointment_document_url = normalizeAppointmentDocumentStored(payload.appointment_document_url);
+  }
   if (payload.term_start !== undefined) patch.term_start = payload.term_start || null;
   if (payload.term_end !== undefined) patch.term_end = payload.term_end || null;
   if (payload.status !== undefined) patch.status = payload.status;
