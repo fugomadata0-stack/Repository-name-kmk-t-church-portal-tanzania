@@ -5,6 +5,8 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "e2e",
   fullyParallel: true,
+  /** CI: `vite preview` moja — epuka msongamano wa workers. */
+  workers: process.env.CI ? 1 : undefined,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   /** Preview / cold start inaweza kuchukua zaidi ya ~30s haswa CI. */

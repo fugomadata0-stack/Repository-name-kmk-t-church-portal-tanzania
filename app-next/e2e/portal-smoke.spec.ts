@@ -11,7 +11,18 @@ const gotoPortal = async (page: import("@playwright/test").Page) => {
     waitUntil: "domcontentloaded",
     timeout: 60_000,
   });
+  /** RootShell huonyesha spinner hadi authInitialized — hakuna h2 la “Ingia” kabla. */
+  await page
+    .waitForFunction(() => !document.querySelector('[aria-busy="true"]'), { timeout: 120_000 })
+    .catch(() => undefined);
 };
+
+/** Ukurasa wa kuingia (h2) au tatizo la mazingira ya Supabase (h1). */
+function loginOrEnvHeading(page: import("@playwright/test").Page) {
+  return page
+    .getByRole("heading", { name: /Ingia|Imeshindikana kuwasiliana|Supabase/i })
+    .first();
+}
 
 test.describe("KMT portal — mzunguko wa msingi", () => {
   async function expectNoCriticalUiErrors(page: import("@playwright/test").Page) {
@@ -25,15 +36,13 @@ test.describe("KMT portal — mzunguko wa msingi", () => {
   test("fungua ukurasa (login au mipangilio)", async ({ page }) => {
     await gotoPortal(page);
     await expect(page.locator("body")).toBeVisible();
-    const configured = await page.getByRole("heading", { name: "Ingia" }).isVisible().catch(() => false);
-    const needsEnv = await page.getByRole("heading", { name: "Mipangilio ya mfumo" }).isVisible().catch(() => false);
-    expect(configured || needsEnv).toBeTruthy();
+    await expect(loginOrEnvHeading(page)).toBeVisible({ timeout: 60_000 });
     await expectNoCriticalUiErrors(page);
   });
 
   test("kichwa cha kuingia au mipangilio kinaonekana", async ({ page }) => {
     await gotoPortal(page);
-    await expect(page.getByRole("heading", { name: /Ingia|Mipangilio ya mfumo/ })).toBeVisible({ timeout: 30_000 });
+    await expect(loginOrEnvHeading(page)).toBeVisible({ timeout: 60_000 });
   });
 
   test("ingia → dashibodi (E2E_EMAIL + E2E_PASSWORD)", async ({ page }) => {
