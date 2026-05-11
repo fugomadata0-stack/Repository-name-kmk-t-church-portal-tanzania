@@ -1,4 +1,15 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type FormEvent,
+  type SetStateAction,
+} from "react";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { PremiumTable } from "../common/PremiumTable";
 import { usePortal } from "../../context/PortalContext";
@@ -23,6 +34,8 @@ import {
   archiveStructureLeader,
   createStructureLeader,
   fetchLeadersForEntity,
+  signStructureLeaderAppointmentPath,
+  uploadStructureLeaderAppointmentDoc,
 } from "../../services/churchStructureLeadersService";
 import {
   archiveStructureEntity,
@@ -74,6 +87,7 @@ function StructureLeadersInline({
   const [rows, setRows] = useState<ChurchStructureLeader[]>([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const docInputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState({
     position_title: "",
     leadership_category: "",
@@ -102,6 +116,21 @@ function StructureLeadersInline({
     void reload();
   }, [reload]);
 
+  const openLeaderAppointment = useCallback(
+    async (raw: string) => {
+      const t = raw.trim();
+      if (!t) return;
+      if (/^https?:\/\//i.test(t)) {
+        window.open(t, "_blank", "noopener,noreferrer");
+        return;
+      }
+      const u = await signStructureLeaderAppointmentPath(t, 7200);
+      if (u) window.open(u, "_blank", "noopener,noreferrer");
+      else pushToast("Haiwezi kufungua hati (ruhusa au faili haipo).", "error");
+    },
+    [pushToast]
+  );
+
   if (!entityId) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-xs text-amber-950">
@@ -114,7 +143,11 @@ function StructureLeadersInline({
     <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/90 p-3 md:col-span-2">
       <h4 className="text-sm font-bold text-slate-900">Viongozi wa jedwali (idadi isiyo na kikomo)</h4>
       {loading ? (
-        <p className="text-xs text-slate-600">Inapakia orodha…</p>
+        <div className="space-y-2 py-1" aria-busy="true" aria-live="polite">
+          <div className="h-3 w-[72%] max-w-md animate-pulse rounded bg-slate-200" />
+          <div className="h-3 w-[48%] max-w-sm animate-pulse rounded bg-slate-200" />
+          <p className="text-xs text-slate-500">Inapakia orodha…</p>
+        </div>
       ) : rows.filter((r) => r.status !== "archived").length === 0 ? (
         <p className="text-xs text-slate-600">Bado hakuna kiongozi aliyeongezwa kwenye jedwali.</p>
       ) : (
@@ -126,30 +159,41 @@ function StructureLeadersInline({
                 <span className="font-medium text-slate-800">
                   {r.position_title} — {r.full_name}
                 </span>
-                {canMutate ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    className="rounded border border-slate-300 px-2 py-0.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
-                    onClick={() =>
-                      void (async () => {
-                        setBusy(true);
-                        try {
-                          await archiveStructureLeader(r.id);
-                          pushToast("Kiongozi amewekwa archived.", "success");
-                          await reload();
-                          onChanged();
-                        } catch (e) {
-                          reportError(e, "Kiongozi — archive");
-                        } finally {
-                          setBusy(false);
-                        }
-                      })()
-                    }
-                  >
-                    Archive
-                  </button>
-                ) : null}
+                <span className="flex flex-wrap gap-1">
+                  {r.appointment_document_url?.trim() ? (
+                    <button
+                      type="button"
+                      className="rounded border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-900 hover:bg-blue-100"
+                      onClick={() => void openLeaderAppointment(r.appointment_document_url!)}
+                    >
+                      Hati
+                    </button>
+                  ) : null}
+                  {canMutate ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="rounded border border-slate-300 px-2 py-0.5 text-[10px] font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                      onClick={() =>
+                        void (async () => {
+                          setBusy(true);
+                          try {
+                            await archiveStructureLeader(r.id);
+                            pushToast("Kiongozi amewekwa sanifu (archived).", "success");
+                            await reload();
+                            onChanged();
+                          } catch (e) {
+                            reportError(e, "Kiongozi — archive");
+                          } finally {
+                            setBusy(false);
+                          }
+                        })()
+                      }
+                    >
+                      Weka sanifu
+                    </button>
+                  ) : null}
+                </span>
               </li>
             ))}
         </ul>
@@ -196,6 +240,15 @@ function StructureLeadersInline({
               onChange={(e) => setDraft((d) => ({ ...d, email: e.target.value }))}
             />
           </label>
+          <label className="grid gap-0.5 text-[11px] md:col-span-2">
+            Hati ya uteuzi (PDF / picha, hadi 12MB)
+            <input
+              ref={docInputRef}
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*"
+              className="text-xs file:mr-2 file:rounded file:border-0 file:bg-slate-100 file:px-2 file:py-1"
+            />
+          </label>
           <div className="md:col-span-2">
             <button
               type="button"
@@ -205,14 +258,21 @@ function StructureLeadersInline({
                 void (async () => {
                   setBusy(true);
                   try {
+                    const file = docInputRef.current?.files?.[0] ?? null;
+                    let appointmentPath: string | undefined;
+                    if (file) {
+                      appointmentPath = await uploadStructureLeaderAppointmentDoc(entityId, file);
+                    }
                     await createStructureLeader(entityId, {
                       position_title: draft.position_title,
                       leadership_category: draft.leadership_category,
                       full_name: draft.full_name,
                       phone: draft.phone,
                       email: draft.email,
+                      appointment_document_url: appointmentPath,
                     });
                     setDraft({ position_title: "", leadership_category: "", full_name: "", phone: "", email: "" });
+                    if (docInputRef.current) docInputRef.current.value = "";
                     pushToast("Kiongozi ameongezwa.", "success");
                     await reload();
                     onChanged();

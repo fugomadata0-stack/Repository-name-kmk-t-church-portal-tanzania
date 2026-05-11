@@ -1,8 +1,13 @@
-import { formatPostgrestError, isMissingTableError } from "../lib/supabaseErrors";
+import { mbToBytes, validateSelectedFile } from "../lib/fileUploadGuard";
+import { formatPostgrestError, formatStorageError, isMissingTableError } from "../lib/supabaseErrors";
 import { getSupabase } from "../lib/supabaseClient";
+import { buildSafeStoragePath } from "../lib/storageUpload";
 import type { ChurchStructureLeader } from "../types";
 
 let leadersTableMissing = false;
+
+/** Bucket ya faragha — inalingana na migration `storage_structure_leaders_bucket`. */
+export const STRUCTURE_LEADERS_STORAGE_BUCKET = "structure-leaders" as const;
 
 function mapLeader(row: Record<string, unknown>): ChurchStructureLeader {
   return {
@@ -38,6 +43,49 @@ function validateLeaderPayload(p: Partial<ChurchStructureLeader>, mode: "create"
   if (needName && !String(p.full_name ?? "").trim()) throw new Error("Jina kamili la kiongozi linahitajika.");
   if (p.email?.trim() && !EMAIL_RE.test(p.email.trim())) throw new Error("Barua pepe ya kiongozi si sahihi.");
   if (p.phone?.trim() && !PHONE_RE.test(p.phone.trim())) throw new Error("Simu ya kiongozi si sahihi.");
+  const doc = p.appointment_document_url?.trim();
+  if (doc && /^https?:\/\//i.test(doc)) {
+    try {
+      new URL(doc);
+    } catch {
+      throw new Error("Kiungo cha hati ya uteuzi si sahihi.");
+    }
+  }
+}
+
+/** Pakia hati ya uteuzi (PDF/picha) — rudisha njia ndani ya bucket (si URL ya umma). */
+export async function uploadStructureLeaderAppointmentDoc(entityId: string, file: File): Promise<string> {
+  const c = getSupabase();
+  if (!c) throw new Error("Supabase haijasanidiwa.");
+  const guard = validateSelectedFile(file, {
+    allowedExtensions: [".pdf", ".png", ".jpg", ".jpeg", ".webp"],
+    maxBytes: mbToBytes(12),
+    allowedMimePrefixes: ["image/", "application/pdf"],
+    labelSw: "Hati ya uteuzi",
+  });
+  if (guard) throw new Error(guard);
+  const path = buildSafeStoragePath(`${entityId}/uteuzi`, file.name);
+  const { error } = await c.storage.from(STRUCTURE_LEADERS_STORAGE_BUCKET).upload(path, file, {
+    upsert: true,
+    contentType: file.type || undefined,
+    cacheControl: "3600",
+  });
+  if (error) throw new Error(formatStorageError(error, STRUCTURE_LEADERS_STORAGE_BUCKET));
+  return path;
+}
+
+/** URL ya muda mfupi kwa faili ya ndani ya bucket (faragha). */
+export async function signStructureLeaderAppointmentPath(
+  objectPath: string,
+  expiresSec = 3600
+): Promise<string | null> {
+  const t = objectPath?.trim();
+  if (!t || /^https?:\/\//i.test(t)) return null;
+  const c = getSupabase();
+  if (!c) return null;
+  const { data, error } = await c.storage.from(STRUCTURE_LEADERS_STORAGE_BUCKET).createSignedUrl(t, expiresSec);
+  if (error || !data?.signedUrl) return null;
+  return data.signedUrl;
 }
 
 export async function fetchLeadersForEntity(entityId: string): Promise<ChurchStructureLeader[]> {
