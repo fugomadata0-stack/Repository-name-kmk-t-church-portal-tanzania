@@ -2,17 +2,20 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ClipboardList, Loader2, Eye } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { entryIsoInSameCalendarMonth } from "../../lib/tzDates";
 import { formatMoneyTz } from "../../lib/money";
 import { fetchAidRequestsJoined, normalizeAidRequestRow, upsertAidRequest } from "../../services/aidManagementService";
 import { upsertIncomeLine } from "../../services/incomeModuleService";
 import { upsertFinanceEntry } from "../../services/financeEntriesService";
-import type { AidRequestJoinedRow, FedhaRecord, IncomeManagementRecord } from "../../types";
+import type { AidRequestJoinedRow, FedhaRecord, IncomeManagementRecord, JimboRecord, TawiRecord } from "../../types";
 import { safeLower } from "../../lib/safe";
 import { SupabaseListFeedback } from "../common/SupabaseListFeedback";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
 import { GradientKpiCard } from "../common/GradientKpiCard";
+import type { ScopeHierarchy } from "../../utils/scopeAccess";
+import { SCOPE_TOOLTIP_SW } from "../../utils/scopeAccess";
 
 function badgeIncome(status: string) {
   const s = safeLower(status);
@@ -40,13 +43,56 @@ function badgeFedha(status: string) {
 interface Props {
   incomeManagement: IncomeManagementRecord[];
   fedha: FedhaRecord[];
+  majimbo: JimboRecord[];
+  matawi: TawiRecord[];
+}
+
+function incomeScopeTriple(row: IncomeManagementRecord) {
+  return {
+    dayosisi_id: row.dayosisi_id ?? null,
+    jimbo_id: row.jimbo_id ?? null,
+    tawi_id: row.tawi_id ?? null,
+  };
+}
+
+function fedhaScopeTriple(row: FedhaRecord) {
+  return {
+    dayosisi_id: row.dayosisi_id ?? null,
+    jimbo_id: row.jimbo_id ?? null,
+    tawi_id: row.tawi_id ?? null,
+  };
+}
+
+/** Misaada bado hayajaunganishwa na IDs za muundo kwenye UI — triple tupu mpaka DB iongeze */
+function aidScopeTriple(_row: AidRequestJoinedRow) {
+  return { dayosisi_id: null as string | null, jimbo_id: null as string | null, tawi_id: null as string | null };
 }
 
 export function PendingApprovalsDashboard(props: Props) {
-  const { reportError, pushToast, authUser, canPortalEditModule } = usePortal();
-  const canIncome = canPortalEditModule("mapato_income");
-  const canFedha = canPortalEditModule("fedha");
-  const canAid = canPortalEditModule("aid_management");
+  const {
+    reportError,
+    pushToast,
+    authUser,
+    canPortalEditModule,
+    canPortalApproveModule,
+    canPortalRejectModule,
+    canScopeMutateRecord,
+    notifyScopeDenied,
+  } = usePortal();
+
+  const scopeHierarchy: ScopeHierarchy = useMemo(
+    () => ({
+      majimbo: props.majimbo.map((j) => ({ id: j.id, dayosisi_id: j.dayosisi_id ?? null })),
+      matawi: props.matawi.map((t) => ({ id: t.id, jimbo_id: t.jimbo_id ?? null })),
+    }),
+    [props.majimbo, props.matawi]
+  );
+  const canIncomeApprove = canPortalApproveModule("mapato_income") || canPortalEditModule("mapato_income");
+  const canIncomeReject = canPortalRejectModule("mapato_income") || canPortalEditModule("mapato_income");
+  const canFedhaApprove = canPortalApproveModule("fedha") || canPortalEditModule("fedha");
+  const canFedhaReject = canPortalRejectModule("fedha") || canPortalEditModule("fedha");
+  const canAidApprove = canPortalApproveModule("aid_management") || canPortalEditModule("aid_management");
+  const canAidReject = canPortalRejectModule("aid_management") || canPortalEditModule("aid_management");
 
   const [aidRows, setAidRows] = useState<AidRequestJoinedRow[]>([]);
   const [aidLoading, setAidLoading] = useState(true);
@@ -138,12 +184,29 @@ export function PendingApprovalsDashboard(props: Props) {
   const totalPending = incomePending.length + fedhaPending.length + aidPending.length;
 
   const reloadParent = () => {
-    window.dispatchEvent(new Event("kmt-portal-reload-metrics"));
+    dispatchPortalReloadMetrics();
   };
 
+  const incomeMutationAllowed = useCallback(
+    (row: IncomeManagementRecord) => canScopeMutateRecord("edit", incomeScopeTriple(row), scopeHierarchy),
+    [canScopeMutateRecord, scopeHierarchy]
+  );
+  const fedhaMutationAllowed = useCallback(
+    (row: FedhaRecord) => canScopeMutateRecord("edit", fedhaScopeTriple(row), scopeHierarchy),
+    [canScopeMutateRecord, scopeHierarchy]
+  );
+  const aidMutationAllowed = useCallback(
+    (row: AidRequestJoinedRow) => canScopeMutateRecord("edit", aidScopeTriple(row), scopeHierarchy),
+    [canScopeMutateRecord, scopeHierarchy]
+  );
+
   const runIncomeAction = async (row: IncomeManagementRecord, action: "approve" | "reject", notes: string) => {
-    if (!canIncome) {
+    if (action === "approve" ? !canIncomeApprove : !canIncomeReject) {
       pushToast("Huna ruhusa ya kuidhinisha mapato.", "error");
+      return;
+    }
+    if (!canScopeMutateRecord("edit", incomeScopeTriple(row), scopeHierarchy)) {
+      notifyScopeDenied("mapato_income", "income_line_approval", { income_line_id: row.id });
       return;
     }
     setBusyId(`inc-${row.id}`);
@@ -175,8 +238,12 @@ export function PendingApprovalsDashboard(props: Props) {
   };
 
   const runFedhaAction = async (row: FedhaRecord, action: "approve" | "reject", _notes: string) => {
-    if (!canFedha) {
+    if (action === "approve" ? !canFedhaApprove : !canFedhaReject) {
       pushToast("Huna ruhusa ya kuidhinisha fedha.", "error");
+      return;
+    }
+    if (!canScopeMutateRecord("edit", fedhaScopeTriple(row), scopeHierarchy)) {
+      notifyScopeDenied("fedha", "finance_entry_approval", { fedha_id: row.id });
       return;
     }
     setBusyId(`fed-${row.id}`);
@@ -198,8 +265,12 @@ export function PendingApprovalsDashboard(props: Props) {
   };
 
   const runAidAction = async (row: AidRequestJoinedRow, action: "approve" | "reject", notes: string) => {
-    if (!canAid) {
+    if (action === "approve" ? !canAidApprove : !canAidReject) {
       pushToast("Huna ruhusa ya msaada.", "error");
+      return;
+    }
+    if (!canScopeMutateRecord("edit", aidScopeTriple(row), scopeHierarchy)) {
+      notifyScopeDenied("aid_management", "aid_request_approval", { aid_request_id: row.id });
       return;
     }
     setBusyId(`aid-${row.id}`);
@@ -273,9 +344,11 @@ export function PendingApprovalsDashboard(props: Props) {
 
   return (
     <div className="space-y-6" role="region" aria-label="Dashibodi ya idhini">
-      <header className="rounded-2xl border border-amber-200/80 bg-gradient-to-r from-[#0a1628] to-[#1e3a6e] p-5 text-white shadow-lg">
-        <h1 className="text-xl font-bold">Vibali vinavyosubiri</h1>
-        <p className="mt-1 text-sm text-blue-100">
+      <header className="rounded-2xl border border-amber-300/50 bg-gradient-to-r from-[#071426] via-[#0B1F3A] to-[#1e3a6e] p-5 text-white shadow-xl ring-1 ring-white/10">
+        <h1 className="text-xl font-extrabold tracking-tight text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.35)]">
+          Vibali vinavyosubiri
+        </h1>
+        <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-100">
           Mapato, misaada, na miamala ya fedha — idhini kwa kiwango cha ruhusa yako (RBAC). Data halisi kutoka Supabase.
         </p>
       </header>
@@ -293,43 +366,50 @@ export function PendingApprovalsDashboard(props: Props) {
             Mapato — yanayosubiri idhini
           </h2>
         </div>
-        <div className="mt-3 overflow-auto rounded-lg border">
-          <table className="w-full min-w-[720px] text-left text-xs">
-            <thead className="border-b border-slate-200 bg-slate-100 text-slate-900">
+        <div className="mt-3 overflow-auto rounded-lg border border-slate-200 bg-slate-50/40 shadow-inner">
+          <table className="w-full min-w-[720px] text-left text-[13px] text-slate-900">
+            <thead className="sticky top-0 z-10 border-b-2 border-slate-300 bg-slate-200 text-slate-950">
               <tr>
-                <th className="px-2 py-2">Code</th>
-                <th className="px-2 py-2">Chanzo</th>
-                <th className="px-2 py-2">Kiasi</th>
-                <th className="px-2 py-2">Hali</th>
-                <th className="px-2 py-2">Idhinishwa na</th>
-                <th className="px-2 py-2 w-40">Vitendo</th>
+                <th className="px-3 py-2.5 font-bold">Code</th>
+                <th className="px-3 py-2.5 font-bold">Chanzo</th>
+                <th className="px-3 py-2.5 font-bold">Kiasi</th>
+                <th className="px-3 py-2.5 font-bold">Hali</th>
+                <th className="px-3 py-2.5 font-bold">Idhinishwa na</th>
+                <th className="px-3 py-2.5 w-40 font-bold">Vitendo</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white">
               {incomePending.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
+                  <td colSpan={6} className="px-3 py-6 text-center text-slate-600">
                     Hakuna mistari ya mapato yanayosubiri.
                   </td>
                 </tr>
               ) : (
                 incomePending.map((r) => (
-                  <tr key={r.id} className="border-t border-slate-100">
-                    <td className="px-2 py-2 font-mono">{r.incomeCode}</td>
-                    <td className="px-2 py-2">{r.sourceName}</td>
-                    <td className="px-2 py-2 font-semibold tabular-nums">TZS {r.amount.toLocaleString()}</td>
-                    <td className="px-2 py-2">
+                  <tr key={r.id} className="border-t border-slate-200 odd:bg-slate-50/90">
+                    <td className="px-3 py-2.5 font-mono text-slate-900">{r.incomeCode}</td>
+                    <td className="px-3 py-2.5 font-medium text-slate-800">{r.sourceName}</td>
+                    <td className="px-3 py-2.5 font-bold tabular-nums text-[#0B1F3A]">TZS {r.amount.toLocaleString()}</td>
+                    <td className="px-3 py-2.5">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${badgeIncome(r.status)}`}>
                         {r.status}
                       </span>
                     </td>
-                    <td className="px-2 py-2 text-slate-600">{r.approvedBy || "—"}</td>
-                    <td className="px-2 py-2">
+                    <td className="px-3 py-2.5 text-slate-700">{r.approvedBy || "—"}</td>
+                    <td className="px-3 py-2.5">
                       <div className="flex flex-wrap gap-1">
                         <button
                           type="button"
-                          disabled={!canIncome || !!busyId}
-                          className="rounded-lg bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-50"
+                          disabled={!canIncomeApprove || !!busyId || !incomeMutationAllowed(r)}
+                          title={
+                            !canIncomeApprove
+                              ? "Huna ruhusa ya kuidhinisha mapato."
+                              : !incomeMutationAllowed(r)
+                                ? SCOPE_TOOLTIP_SW
+                                : "Idhinisha mstari huu"
+                          }
+                          className="rounded-lg bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                           onClick={() => setNoteModal({ kind: "income", id: r.id, action: "approve" })}
                         >
                           {busyId === `inc-${r.id}` ? (
@@ -341,8 +421,15 @@ export function PendingApprovalsDashboard(props: Props) {
                         </button>
                         <button
                           type="button"
-                          disabled={!canIncome || busyId === `inc-${r.id}`}
-                          className="rounded-lg bg-red-700 px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-50"
+                          disabled={!canIncomeReject || busyId === `inc-${r.id}` || !incomeMutationAllowed(r)}
+                          title={
+                            !canIncomeReject
+                              ? "Huna ruhusa ya kukataa mapato."
+                              : !incomeMutationAllowed(r)
+                                ? SCOPE_TOOLTIP_SW
+                                : "Kataa mstari huu"
+                          }
+                          className="rounded-lg bg-red-700 px-2 py-1 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                           onClick={() => setNoteModal({ kind: "income", id: r.id, action: "reject" })}
                         >
                           Kataa
@@ -378,51 +465,65 @@ export function PendingApprovalsDashboard(props: Props) {
             Inapakia misaada…
           </div>
         ) : aidLoadError ? null : (
-          <div className="mt-3 overflow-auto rounded-lg border">
-            <table className="w-full min-w-[720px] text-left text-xs">
-              <thead className="border-b border-slate-200 bg-slate-100 text-slate-900">
+          <div className="mt-3 overflow-auto rounded-lg border border-slate-200 bg-slate-50/40 shadow-inner">
+            <table className="w-full min-w-[720px] text-left text-[13px] text-slate-900">
+              <thead className="sticky top-0 z-10 border-b-2 border-slate-300 bg-slate-200 text-slate-950">
                 <tr>
-                  <th className="px-2 py-2">Tarehe</th>
-                  <th className="px-2 py-2">Maelezo</th>
-                  <th className="px-2 py-2">Kiasi</th>
-                  <th className="px-2 py-2">Hali</th>
-                  <th className="px-2 py-2">Idhinishwa na</th>
-                  <th className="px-2 py-2 w-40">Vitendo</th>
+                  <th className="px-3 py-2.5 font-bold">Tarehe</th>
+                  <th className="px-3 py-2.5 font-bold">Maelezo</th>
+                  <th className="px-3 py-2.5 font-bold">Kiasi</th>
+                  <th className="px-3 py-2.5 font-bold">Hali</th>
+                  <th className="px-3 py-2.5 font-bold">Idhinishwa na</th>
+                  <th className="px-3 py-2.5 w-40 font-bold">Vitendo</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="bg-white">
                 {aidPending.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-3 py-6 text-center text-slate-500">
+                    <td colSpan={6} className="px-3 py-6 text-center text-slate-600">
                       Hakuna maombi yanayosubiri.
                     </td>
                   </tr>
                 ) : (
                   aidPending.map((r) => (
-                    <tr key={r.id} className="border-t border-slate-100">
-                      <td className="px-2 py-2 tabular-nums">{String(r.request_date).slice(0, 10)}</td>
-                      <td className="max-w-[200px] truncate px-2 py-2">{r.description}</td>
-                      <td className="px-2 py-2 font-semibold">{formatMoneyTz(r.amount)}</td>
-                      <td className="px-2 py-2">
+                    <tr key={r.id} className="border-t border-slate-200 odd:bg-slate-50/90">
+                      <td className="px-3 py-2.5 tabular-nums font-medium text-slate-900">{String(r.request_date).slice(0, 10)}</td>
+                      <td className="max-w-[200px] truncate px-3 py-2.5 text-slate-800">{r.description}</td>
+                      <td className="px-3 py-2.5 font-bold text-[#0B1F3A]">{formatMoneyTz(r.amount)}</td>
+                      <td className="px-3 py-2.5">
                         <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${badgeAid(r.status)}`}>
                           {r.status}
                         </span>
                       </td>
-                      <td className="px-2 py-2 text-slate-600">{r.approved_by || "—"}</td>
-                      <td className="px-2 py-2">
+                      <td className="px-3 py-2.5 text-slate-700">{r.approved_by || "—"}</td>
+                      <td className="px-3 py-2.5">
                         <div className="flex flex-wrap gap-1">
                           <button
                             type="button"
-                            disabled={!canAid || busyId === `aid-${r.id}`}
-                            className="rounded-lg bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-50"
+                            disabled={!canAidApprove || busyId === `aid-${r.id}` || !aidMutationAllowed(r)}
+                            title={
+                              !canAidApprove
+                                ? "Huna ruhusa ya kuidhinisha misaada."
+                                : !aidMutationAllowed(r)
+                                  ? SCOPE_TOOLTIP_SW
+                                  : "Idhinisha ombi hili"
+                            }
+                            className="rounded-lg bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                             onClick={() => setNoteModal({ kind: "aid", id: r.id, action: "approve" })}
                           >
                             Idhinisha
                           </button>
                           <button
                             type="button"
-                            disabled={!canAid || busyId === `aid-${r.id}`}
-                            className="rounded-lg bg-red-700 px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-50"
+                            disabled={!canAidReject || busyId === `aid-${r.id}` || !aidMutationAllowed(r)}
+                            title={
+                              !canAidReject
+                                ? "Huna ruhusa ya kukataa misaada."
+                                : !aidMutationAllowed(r)
+                                  ? SCOPE_TOOLTIP_SW
+                                  : "Kataa ombi hili"
+                            }
+                            className="rounded-lg bg-red-700 px-2 py-1 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                             onClick={() => setNoteModal({ kind: "aid", id: r.id, action: "reject" })}
                           >
                             Kataa
@@ -452,49 +553,63 @@ export function PendingApprovalsDashboard(props: Props) {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-md">
         <h2 className="text-sm font-bold text-slate-900">Fedha — miamala inayosubiri</h2>
-        <div className="mt-3 overflow-auto rounded-lg border">
-          <table className="w-full min-w-[680px] text-left text-xs">
-            <thead className="border-b border-slate-200 bg-slate-100 text-slate-900">
+        <div className="mt-3 overflow-auto rounded-lg border border-slate-200 bg-slate-50/40 shadow-inner">
+          <table className="w-full min-w-[680px] text-left text-[13px] text-slate-900">
+            <thead className="sticky top-0 z-10 border-b-2 border-slate-300 bg-slate-200 text-slate-950">
               <tr>
-                <th className="px-2 py-2">Tarehe</th>
-                <th className="px-2 py-2">Kategoria</th>
-                <th className="px-2 py-2">Kiasi</th>
-                <th className="px-2 py-2">Hali</th>
-                <th className="px-2 py-2 w-36">Vitendo</th>
+                <th className="px-3 py-2.5 font-bold">Tarehe</th>
+                <th className="px-3 py-2.5 font-bold">Kategoria</th>
+                <th className="px-3 py-2.5 font-bold">Kiasi</th>
+                <th className="px-3 py-2.5 font-bold">Hali</th>
+                <th className="px-3 py-2.5 w-36 font-bold">Vitendo</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="bg-white">
               {fedhaPending.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-slate-500">
+                  <td colSpan={5} className="px-3 py-6 text-center text-slate-600">
                     Hakuna miamala ya fedha yenye hali Pending.
                   </td>
                 </tr>
               ) : (
                 fedhaPending.map((r) => (
-                  <tr key={r.id} className="border-t border-slate-100">
-                    <td className="px-2 py-2 tabular-nums">{String(r.tarehe).slice(0, 10)}</td>
-                    <td className="px-2 py-2">{r.kategoria}</td>
-                    <td className="px-2 py-2 font-semibold tabular-nums">TZS {formatMoneyTz(r.kiasi)}</td>
-                    <td className="px-2 py-2">
+                  <tr key={r.id} className="border-t border-slate-200 odd:bg-slate-50/90">
+                    <td className="px-3 py-2.5 tabular-nums font-medium text-slate-900">{String(r.tarehe).slice(0, 10)}</td>
+                    <td className="px-3 py-2.5 font-medium text-slate-800">{r.kategoria}</td>
+                    <td className="px-3 py-2.5 font-bold tabular-nums text-[#0B1F3A]">TZS {formatMoneyTz(r.kiasi)}</td>
+                    <td className="px-3 py-2.5">
                       <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ${badgeFedha(String(r.status))}`}>
                         {r.status}
                       </span>
                     </td>
-                    <td className="px-2 py-2">
+                    <td className="px-3 py-2.5">
                       <div className="flex flex-wrap gap-1">
                         <button
                           type="button"
-                          disabled={!canFedha || busyId === `fed-${r.id}`}
-                          className="rounded-lg bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-50"
+                          disabled={!canFedhaApprove || busyId === `fed-${r.id}` || !fedhaMutationAllowed(r)}
+                          title={
+                            !canFedhaApprove
+                              ? "Huna ruhusa ya kuidhinisha fedha."
+                              : !fedhaMutationAllowed(r)
+                                ? SCOPE_TOOLTIP_SW
+                                : "Idhinisha muamala huu"
+                          }
+                          className="rounded-lg bg-emerald-700 px-2 py-1 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                           onClick={() => setNoteModal({ kind: "fedha", id: r.id, action: "approve" })}
                         >
                           Idhinisha
                         </button>
                         <button
                           type="button"
-                          disabled={!canFedha || busyId === `fed-${r.id}`}
-                          className="rounded-lg bg-red-700 px-2 py-1 text-[10px] font-semibold text-white disabled:opacity-50"
+                          disabled={!canFedhaReject || busyId === `fed-${r.id}` || !fedhaMutationAllowed(r)}
+                          title={
+                            !canFedhaReject
+                              ? "Huna ruhusa ya kukataa fedha."
+                              : !fedhaMutationAllowed(r)
+                                ? SCOPE_TOOLTIP_SW
+                                : "Kataa muamala huu"
+                          }
+                          className="rounded-lg bg-red-700 px-2 py-1 text-[10px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                           onClick={() => setNoteModal({ kind: "fedha", id: r.id, action: "reject" })}
                         >
                           Kataa
