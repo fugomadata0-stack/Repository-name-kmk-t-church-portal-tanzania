@@ -144,20 +144,72 @@ export interface ChurchStructureEntity {
   id: string;
   name: string;
   code: string;
+  official_name?: string;
+  short_code?: string;
+  logo_url?: string;
+  photo_url?: string;
+  signature_url?: string;
+  /** Aina ya kitengo (mf. parokia, kituo) */
+  entity_type?: string | null;
   level: ChurchStructureLevel;
   parent_id: string | null;
   parent_name: string | null;
   region: string;
   district: string;
   ward: string;
+  village_street?: string;
   address: string;
+  website?: string;
+  gps_coordinates?: string;
   contact_person: string;
   phone: string;
+  whatsapp?: string | null;
   email: string;
+  established_date?: string | null;
+  leader_name?: string | null;
+  assistant_leaders?: string | null;
+  secretary_name?: string | null;
+  treasurer_name?: string | null;
+  notes?: string | null;
+  attachment_urls?: string[];
+  custom_fields?: Record<string, unknown>;
+  category_tags?: string[];
+  hierarchy_summary?: string | null;
+  profile_completeness?: number;
+  children_count?: number;
+  members_count?: number;
+  families_count?: number;
   status: "active" | "inactive" | "pending" | "archived";
   description: string;
+  created_by?: string | null;
+  updated_by?: string | null;
   created_at: string;
   updated_at: string;
+  /** Kiungo cha Google Maps / ramani rasmi */
+  google_maps_url?: string | null;
+}
+
+/** Viongozi wengi kwa kila rekodi ya church_structure_entities (jedwali tofauti). */
+export interface ChurchStructureLeader {
+  id: string;
+  entity_id: string;
+  position_title: string;
+  leadership_category: string;
+  full_name: string;
+  phone: string;
+  email: string;
+  photo_url: string;
+  signature_url: string;
+  appointment_document_url: string;
+  term_start: string | null;
+  term_end: string | null;
+  status: "active" | "ended" | "suspended" | "archived";
+  notes: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+  created_by?: string | null;
+  updated_by?: string | null;
 }
 
 export interface KiongoziRecord {
@@ -165,6 +217,7 @@ export interface KiongoziRecord {
   jina: string;
   full_name?: string;
   photo_url?: string | null;
+  signature_url?: string | null;
   gender?: string | null;
   cheo: string;
   position_id?: string | null;
@@ -176,12 +229,15 @@ export interface KiongoziRecord {
   tawi: string;
   simu: string;
   email?: string | null;
+  whatsapp?: string | null;
+  address?: string | null;
   idara_name?: string | null;
   huduma_name?: string | null;
   taasisi_name?: string | null;
   jumuiya_name?: string | null;
   start_date?: string | null;
   end_date?: string | null;
+  appointment_date?: string | null;
   term_status?: "active" | "ended" | "suspended" | "pending";
   appointment_document_url?: string | null;
   appointment_document_name?: string | null;
@@ -190,6 +246,29 @@ export interface KiongoziRecord {
   appointment_document_type?: string | null;
   appointment_uploaded_at?: string | null;
   notes?: string | null;
+  date_of_birth?: string | null;
+  national_id?: string | null;
+  passport_number?: string | null;
+  church_member_id?: string | null;
+  mkoa?: string | null;
+  wilaya?: string | null;
+  kata?: string | null;
+  leadership_category_id?: string | null;
+  committee_group_id?: string | null;
+  reporting_leader_id?: string | null;
+  structure_entity_id?: string | null;
+  former_leader?: boolean;
+  reason_for_leaving?: string | null;
+  education_summary?: string | null;
+  theology_training?: string | null;
+  professional_skills?: string | null;
+  certificates_summary?: string | null;
+  ministry_gifts?: string | null;
+  ministry_experience?: string | null;
+  internal_notes?: string | null;
+  audit_notes?: string | null;
+  pdf_issued_by_name?: string | null;
+  pdf_issued_by_title?: string | null;
   status: Status;
   /** Kutoka DB — kusajili kiunga sahihi */
   dayosisi_id?: string | null;
@@ -201,6 +280,34 @@ export interface LeadershipPositionRecord {
   id: string;
   title: string;
   level_key: string | null;
+  active: boolean;
+  sort_order?: number;
+  code?: string | null;
+  description?: string | null;
+  category_id?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface LeadershipCategoryRecord {
+  id: string;
+  name: string;
+  description?: string | null;
+  level_key?: string | null;
+  sort_order: number;
+  active: boolean;
+}
+
+export interface LeadershipCommitteeRecord {
+  id: string;
+  name: string;
+  description?: string | null;
+  level_key?: string | null;
+  dayosisi_id?: string | null;
+  jimbo_id?: string | null;
+  tawi_id?: string | null;
+  structure_entity_id?: string | null;
+  sort_order: number;
   active: boolean;
 }
 
@@ -317,6 +424,10 @@ export interface IncomeManagementRecord {
   status: Status;
   branchCenter: string;
   remarks: string;
+  /** UUID za muundo (wakati zipo kwenye church_income_lines) — kwa mipaka ya eneo */
+  dayosisi_id?: string | null;
+  jimbo_id?: string | null;
+  tawi_id?: string | null;
 }
 
 export type MembershipStatusDb = "active" | "visitor" | "transferred" | "deceased" | "suspended";
@@ -328,6 +439,9 @@ export interface ChurchFamilyRecord {
   head_member_id?: string | null;
   head_member_name?: string | null;
   dayosisi_id: string | null;
+  /** FK za kihesabu (migration); zikiwa tupu tunatumia tu majina ya maandishi */
+  jimbo_id?: string | null;
+  tawi_id?: string | null;
   jimbo_name: string | null;
   tawi_name: string | null;
   phone: string | null;
@@ -533,6 +647,10 @@ export interface DomainEntityRecord {
   reference_code: string;
   event_date: string;
   extra: Record<string, unknown>;
+  profile_completeness?: number;
+  hierarchy_summary?: string | null;
+  attachment_urls?: string[];
+  category_tags?: string[];
   status: Status;
 }
 
@@ -630,6 +748,26 @@ export interface PortalSecurityPoliciesRow {
 
 export type HealthBadgeStatus = "healthy" | "warning" | "critical";
 
+export interface SystemHealthAlertDetail {
+  id: string;
+  title: string;
+  type: string;
+  module: string;
+  priority: "info" | "success" | "warning" | "critical";
+  status: "open" | "resolved";
+  created_at: string;
+  message: string;
+}
+
+export interface SystemHealthAuditFailureDetail {
+  id: string;
+  time: string;
+  module: string;
+  action: string;
+  status: string;
+  message: string;
+}
+
 export interface SystemHealthSnapshot {
   badges: {
     database: HealthBadgeStatus;
@@ -659,6 +797,30 @@ export interface SystemHealthSnapshot {
     latest_backup_at: string | null;
     latest_alert_at: string | null;
   };
+  storage: {
+    read_allowed: boolean;
+    read_note: string | null;
+    bucket_file_counts: Record<string, number>;
+    total_files: number;
+  };
+  notifications: {
+    total: number;
+    unread: number;
+    failed: number;
+    last_notification_at: string | null;
+    realtime_channel_status: "online" | "degraded" | "offline";
+    empty: boolean;
+  };
+  backups: {
+    auto_backup_enabled: boolean;
+    provider_status: string;
+    restore_verification_status: string;
+    backup_frequency: string | null;
+    retention_period: string | null;
+    configured: boolean;
+  };
+  alert_details: SystemHealthAlertDetail[];
+  audit_failure_details: SystemHealthAuditFailureDetail[];
   warnings: string[];
   cleanup_recommendations: string[];
   checked_at: string;
