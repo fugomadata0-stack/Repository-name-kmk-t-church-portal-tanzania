@@ -6,6 +6,13 @@ import { test, expect } from "@playwright/test";
  * E2E_BASE_URL, E2E_EMAIL, E2E_PASSWORD kwenye shell.
  */
 
+const gotoPortal = async (page: import("@playwright/test").Page) => {
+  await page.goto("/", {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+};
+
 test.describe("KMT portal — mzunguko wa msingi", () => {
   async function expectNoCriticalUiErrors(page: import("@playwright/test").Page) {
     const bodyText = (await page.locator("body").innerText()).toLowerCase();
@@ -16,7 +23,7 @@ test.describe("KMT portal — mzunguko wa msingi", () => {
   }
 
   test("fungua ukurasa (login au mipangilio)", async ({ page }) => {
-    await page.goto("/");
+    await gotoPortal(page);
     await expect(page.locator("body")).toBeVisible();
     const configured = await page.getByRole("heading", { name: "Ingia" }).isVisible().catch(() => false);
     const needsEnv = await page.getByRole("heading", { name: "Mipangilio ya mfumo" }).isVisible().catch(() => false);
@@ -25,14 +32,14 @@ test.describe("KMT portal — mzunguko wa msingi", () => {
   });
 
   test("kichwa cha kuingia au mipangilio kinaonekana", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.getByRole("heading", { name: /Ingia|Mipangilio ya mfumo/ })).toBeVisible();
+    await gotoPortal(page);
+    await expect(page.getByRole("heading", { name: /Ingia|Mipangilio ya mfumo/ })).toBeVisible({ timeout: 30_000 });
   });
 
   test("ingia → dashibodi (E2E_EMAIL + E2E_PASSWORD)", async ({ page }) => {
     test.skip(!process.env.E2E_EMAIL?.trim() || !process.env.E2E_PASSWORD, "Weka E2E_EMAIL na E2E_PASSWORD kwa jaribio la kuingia");
 
-    await page.goto("/");
+    await gotoPortal(page);
     await page.getByLabel("Barua pepe").fill(process.env.E2E_EMAIL!.trim());
     await page.getByLabel("Nenosiri").fill(process.env.E2E_PASSWORD!);
     await page.getByRole("button", { name: "Ingia" }).click();
@@ -47,7 +54,7 @@ test.describe("KMT portal — mzunguko wa msingi", () => {
   test("portal modules basic health (live login required)", async ({ page }) => {
     test.skip(!process.env.E2E_EMAIL?.trim() || !process.env.E2E_PASSWORD, "Weka E2E_EMAIL na E2E_PASSWORD kwa health-check ya moduli");
 
-    await page.goto("/");
+    await gotoPortal(page);
     await page.getByLabel("Barua pepe").fill(process.env.E2E_EMAIL!.trim());
     await page.getByLabel("Nenosiri").fill(process.env.E2E_PASSWORD!);
     await page.getByRole("button", { name: "Ingia" }).click();

@@ -28,6 +28,7 @@ export function DashboardSubnav({ active }: { active?: string }) {
             <button
               key={label}
               type="button"
+              aria-current={isActive ? "page" : undefined}
               onClick={() => navigateDashboard(label)}
               className={`min-h-[44px] rounded-full px-3.5 py-2 text-center text-xs font-semibold leading-snug transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-300 sm:min-h-0 sm:px-4 sm:text-sm ${
                 isActive
