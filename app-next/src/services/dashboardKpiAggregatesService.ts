@@ -5,7 +5,7 @@
  * Jumla ya Dayosisi → dayosisi → count exact
  * Jumla ya Majimbo → church_jimbo → count exact
  * Jumla ya Matawi / Vituo → church_tawi → count exact
- * Jumla ya Viongozi → church_viongozi → count exact
+ * Jumla ya Viongozi → church_viongozi → count exact (haihesabi archived)
  * Jumla ya Waumini → church_members → count exact
  * Jumla ya Jumuiya → portal_domain_entities → count (module_key=jumuiya, submodule_key≠Idara)
  * Jumla ya Idara → portal_domain_entities → count (module_key=jumuiya, submodule_key=Idara)
@@ -391,26 +391,30 @@ export async function fetchDashboardKpiAggregates(opts?: DashboardKpiAggregatesO
       c.from("dayosisi").select("*", { count: "exact", head: true }),
       c.from("church_jimbo").select("*", { count: "exact", head: true }),
       c.from("church_tawi").select("*", { count: "exact", head: true }),
-      c.from("church_viongozi").select("*", { count: "exact", head: true }),
+      c.from("church_viongozi").select("*", { count: "exact", head: true }).not("status", "eq", "archived"),
       // Viongozi wa Ngazi Kuu / KMK(T) — leadership_level au ngazi = "Makao Makuu"
       c
         .from("church_viongozi")
         .select("*", { count: "exact", head: true })
+        .not("status", "eq", "archived")
         .or("leadership_level.ilike.Makao Makuu,ngazi.ilike.Makao Makuu"),
       // Viongozi wa Dayosisi
       c
         .from("church_viongozi")
         .select("*", { count: "exact", head: true })
+        .not("status", "eq", "archived")
         .or("leadership_level.ilike.Dayosisi,ngazi.ilike.Dayosisi"),
       // Viongozi wa Majimbo
       c
         .from("church_viongozi")
         .select("*", { count: "exact", head: true })
+        .not("status", "eq", "archived")
         .or("leadership_level.ilike.Jimbo,ngazi.ilike.Jimbo"),
       // Viongozi wa Matawi / Vituo
       c
         .from("church_viongozi")
         .select("*", { count: "exact", head: true })
+        .not("status", "eq", "archived")
         .or("leadership_level.ilike.Tawi,leadership_level.ilike.Kituo,ngazi.ilike.Tawi,ngazi.ilike.Kituo"),
       // Active leaders (status = 'active')
       c.from("church_viongozi").select("*", { count: "exact", head: true }).eq("status", "active"),
@@ -420,6 +424,7 @@ export async function fetchDashboardKpiAggregates(opts?: DashboardKpiAggregatesO
       c
         .from("church_viongozi")
         .select("*", { count: "exact", head: true })
+        .not("status", "eq", "archived")
         .eq("term_status", "active")
         .not("end_date", "is", null)
         .gte("end_date", today)
@@ -439,7 +444,11 @@ export async function fetchDashboardKpiAggregates(opts?: DashboardKpiAggregatesO
       c.from("church_income_sources").select("*", { count: "exact", head: true }).eq("source_type", "custom"),
       // Restricted finance sources — restricted_fund = 'Yes'
       c.from("church_income_sources").select("*", { count: "exact", head: true }).eq("restricted_fund", "Yes"),
-      c.from("church_viongozi").select("*", { count: "exact", head: true }).or("jimbo_id.is.null,status.eq.needs_review"),
+      c
+        .from("church_viongozi")
+        .select("*", { count: "exact", head: true })
+        .not("status", "eq", "archived")
+        .or("jimbo_id.is.null,status.eq.needs_review"),
       c.from("dayosisi").select("*", { count: "exact", head: true }).eq("status", "pending"),
       c.from("church_jimbo").select("*", { count: "exact", head: true }).eq("status", "pending"),
       c.from("church_tawi").select("*", { count: "exact", head: true }).eq("status", "pending"),

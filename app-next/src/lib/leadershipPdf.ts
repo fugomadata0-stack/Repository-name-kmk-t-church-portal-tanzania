@@ -1,5 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import type { CellHookData } from "jspdf-autotable";
+import { drawKmktPdfWatermark, fitPdfLinesToWidth, normalizePdfReadableText } from "./pdfInstitutional";
 import type { KiongoziRecord, LeadershipCvBundle } from "../types";
 
 const navyRgb = [11, 31, 58] as const;
@@ -27,11 +29,29 @@ async function imageDataUrl(url: string): Promise<string | null> {
 function fitTitle(doc: jsPDF, text: string, maxWidth: number, startSize: number, minSize: number): number {
   let size = startSize;
   doc.setFontSize(size);
-  while (size > minSize && doc.getTextWidth(text) > maxWidth) {
+  const raw = normalizePdfReadableText(text);
+  while (size > minSize && doc.getTextWidth(raw) > maxWidth) {
     size -= 0.35;
     doc.setFontSize(size);
   }
   return size;
+}
+
+const columnStripeFills: [number, number, number][] = [
+  [255, 255, 255],
+  [247, 249, 253],
+  [252, 253, 255],
+  [243, 246, 252],
+];
+
+function stripeAutoTableOpts() {
+  return {
+    didParseCell: (data: CellHookData) => {
+      if (data.section === "body") {
+        data.cell.styles.fillColor = columnStripeFills[data.column.index % columnStripeFills.length];
+      }
+    },
+  };
 }
 
 /** Nafasi chini ya maudhui kwa footer (nambari ya ukurasa + muda). */
@@ -74,14 +94,17 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: Le
   const margin = 14;
   let y = 12;
 
+  drawKmktPdfWatermark(doc, { line1: "KMK(T)", line2: "WASIFU RASMI · DATA LIVE SUPABASE" });
+
   const churchName = (opts?.churchName || "KMK(T) — Kanisa la Mennonite la Kiinjili Tanzania").toUpperCase();
   const verifyUrl = `${(opts?.portalBaseUrl || window.location.origin).replace(/\/$/, "")}/portal`;
   const bundle = opts?.bundle ?? null;
 
+  const headerBandMm = 62;
   doc.setFillColor(...navyRgb);
-  doc.rect(0, 0, pageWidth, 46, "F");
+  doc.rect(0, 0, pageWidth, headerBandMm, "F");
   doc.setFillColor(...goldRgb);
-  doc.rect(0, 44, pageWidth, 1.2, "F");
+  doc.rect(0, headerBandMm - 2, pageWidth, 1.2, "F");
 
   const logo = opts?.logoDataUrl?.trim() ? opts.logoDataUrl : null;
   if (logo) {
@@ -96,17 +119,33 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: Le
 
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  const title1 = "WASIFU RASMI WA KIONGOZI";
-  fitTitle(doc, title1, pageWidth - margin * 2 - 30, 14, 10);
-  doc.text(title1, pageWidth / 2, 12, { align: "center" });
-  doc.setFontSize(9.5);
-  const title2 = "KANISA LA MENNONITE LA KIINJILI TANZANIA KMK(T)";
-  fitTitle(doc, title2, pageWidth - margin * 2 - 30, 9.5, 7.5);
-  doc.text(title2, pageWidth / 2, 20, { align: "center" });
+  const title1 = normalizePdfReadableText("WASIFU RASMI WA KIONGOZI — DIRA YA UONGOZI NA HUDUMA");
+  const bandW = pageWidth - margin * 2 - 34;
+  const t1 = fitPdfLinesToWidth(doc, title1, bandW, 13, 9.5, 3);
+  doc.setFontSize(t1.fontSize);
+  let hy = 11;
+  for (const ln of t1.lines) {
+    doc.text(ln, pageWidth / 2, hy, { align: "center" });
+    hy += t1.lineHeight;
+  }
+  doc.setFontSize(9);
+  const title2 = normalizePdfReadableText("KANISA LA MENNONITE LA KIINJILI TANZANIA KMK(T)");
+  const t2 = fitPdfLinesToWidth(doc, title2, bandW, 9.5, 7.5, 3);
+  doc.setFontSize(t2.fontSize);
+  for (const ln of t2.lines) {
+    doc.text(ln, pageWidth / 2, hy, { align: "center" });
+    hy += t2.lineHeight;
+  }
+  hy += 1.2;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.2);
-  doc.text(churchName, pageWidth / 2, 28, { align: "center", maxWidth: pageWidth - margin * 2 - 28 });
-  doc.text(`Imetolewa: ${new Date().toLocaleString("sw-TZ")}`, pageWidth / 2, 35, { align: "center" });
+  const churchLines = doc.splitTextToSize(churchName, bandW) as string[];
+  for (const ln of churchLines) {
+    doc.text(ln, pageWidth / 2, hy, { align: "center" });
+    hy += 4.1;
+  }
+  doc.text(`Imetolewa: ${new Date().toLocaleString("sw-TZ")}`, pageWidth / 2, hy + 1, { align: "center" });
+  hy += 5;
 
   const qr = await imageDataUrl(
     `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${verifyUrl} · ${leader.id}`)}`
@@ -121,7 +160,7 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: Le
     }
   }
 
-  y = 52;
+  y = Math.max(headerBandMm + 8, hy + 10);
   doc.setTextColor(...navyRgb);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
@@ -170,6 +209,7 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: Le
   const ensureSpace = (h: number) => {
     if (y + h > pageBottom()) {
       doc.addPage();
+      drawKmktPdfWatermark(doc, { line1: "KMK(T)", line2: "WASIFU RASMI · LIVE" });
       y = 14;
     }
   };
@@ -261,9 +301,9 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: Le
         ex.institution || "—",
         (ex.description || "—").slice(0, 500),
       ]),
-      styles: { fontSize: 8, cellPadding: 1.4, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.1 },
-      headStyles: { fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]], textColor: 255, fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [252, 252, 253] },
+      styles: { fontSize: 8, cellPadding: 1.4, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.1, overflow: "linebreak" },
+      headStyles: { fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]], textColor: 255, fontStyle: "bold", overflow: "linebreak" },
+      ...stripeAutoTableOpts(),
     });
     const fy = tableFinalY();
     y = (typeof fy === "number" ? fy : y) + 8;
@@ -286,9 +326,9 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: Le
         ed.year != null ? String(ed.year) : "—",
         ed.specialization || "—",
       ]),
-      styles: { fontSize: 8, cellPadding: 1.4, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.1 },
-      headStyles: { fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]], textColor: 255, fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [252, 252, 253] },
+      styles: { fontSize: 8, cellPadding: 1.4, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.1, overflow: "linebreak" },
+      headStyles: { fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]], textColor: 255, fontStyle: "bold", overflow: "linebreak" },
+      ...stripeAutoTableOpts(),
     });
     const fy = tableFinalY();
     y = (typeof fy === "number" ? fy : y) + 8;
@@ -328,8 +368,9 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: Le
         c.year != null ? String(c.year) : "—",
         (c.notes || "—").slice(0, 280),
       ]),
-      styles: { fontSize: 8, cellPadding: 1.3, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.1 },
-      headStyles: { fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: 8, cellPadding: 1.3, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.1, overflow: "linebreak" },
+      headStyles: { fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]], textColor: 255, fontStyle: "bold", overflow: "linebreak" },
+      ...stripeAutoTableOpts(),
     });
     const fy = tableFinalY();
     y = (typeof fy === "number" ? fy : y) + 8;
@@ -346,8 +387,9 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: Le
       margin: { left: margin, right: margin },
       head: [["Aina", "Jina la faili", "Ukubwa (baiti)"]],
       body: bundle.attachments.map((a) => [a.attachment_kind, a.file_name || "—", a.file_size != null ? String(a.file_size) : "—"]),
-      styles: { fontSize: 8, cellPadding: 1.2, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.1 },
-      headStyles: { fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: 8, cellPadding: 1.2, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.1, overflow: "linebreak" },
+      headStyles: { fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]], textColor: 255, fontStyle: "bold", overflow: "linebreak" },
+      ...stripeAutoTableOpts(),
     });
     const fy = tableFinalY();
     y = (typeof fy === "number" ? fy : y) + 8;
@@ -381,62 +423,75 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: Le
 export async function downloadLeadershipDirectoryPdf(leaders: KiongoziRecord[], opts?: { title?: string; churchName?: string }) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 12;
-  const contentBottom = pageHeight - FOOTER_RESERVE_MM;
-  let y = 14;
+  const footerReserve = FOOTER_RESERVE_MM;
 
-  doc.setFillColor(...navyRgb);
-  doc.rect(0, 0, pageWidth, 36, "F");
-  doc.setFillColor(...goldRgb);
-  doc.rect(0, 34, pageWidth, 1.1, "F");
+  drawKmktPdfWatermark(doc, { line1: "KMK(T)", line2: "ORODHA YA VIONGOZI · LIVE SUPABASE" });
+
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  const mainTitle = (opts?.title || "ORODHA YA VIONGOZI — DIRA YA UONGOZI").toUpperCase();
-  fitTitle(doc, mainTitle, pageWidth - margin * 2, 14, 9);
-  doc.text(mainTitle, pageWidth / 2, 12, { align: "center" });
+  const mainTitle = normalizePdfReadableText((opts?.title || "ORODHA KAMILI YA VIONGOZI — DIRA YA UONGOZI NA VIWANGO").toUpperCase());
+  const titleFit = fitPdfLinesToWidth(doc, mainTitle, pageWidth - margin * 2, 13, 9, 5);
+  const nTitle = titleFit.lines.length;
+  const lh = titleFit.lineHeight;
+  const jumlaBaseline = 11 + nTitle * lh + 1.2 + 4.6;
+  const headerH = Math.max(42, jumlaBaseline + 10);
+
+  doc.setFillColor(...navyRgb);
+  doc.rect(0, 0, pageWidth, headerH, "F");
+  doc.setFillColor(...goldRgb);
+  doc.rect(0, headerH - 1.1, pageWidth, 1.1, "F");
+
+  doc.setFontSize(titleFit.fontSize);
+  let hy = 11;
+  for (const ln of titleFit.lines) {
+    doc.text(ln, pageWidth / 2, hy, { align: "center" });
+    hy += titleFit.lineHeight;
+  }
+  hy += 1.2;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
-  doc.text((opts?.churchName || "KMK(T) Portal").toUpperCase(), pageWidth / 2, 22, { align: "center" });
-  doc.text(`Jumla: ${leaders.length} · ${new Date().toLocaleDateString("sw-TZ")}`, pageWidth / 2, 28, { align: "center" });
+  doc.text(normalizePdfReadableText((opts?.churchName || "KMK(T) Portal").toUpperCase()), pageWidth / 2, hy, { align: "center" });
+  hy += 4.6;
+  doc.text(`Jumla: ${leaders.length} · ${new Date().toLocaleDateString("sw-TZ")}`, pageWidth / 2, hy, { align: "center" });
 
-  y = 42;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(...navyRgb);
-  const cols = [8, 52, 92, 128, 162] as const;
-  const headers = ["#", "Jina", "Cheo", "Ngazi", "Simu"];
-  headers.forEach((h, i) => doc.text(h, cols[i], y));
-  y += 4;
-  doc.setDrawColor(...goldRgb);
-  doc.line(margin, y, pageWidth - margin, y);
-  y += 3;
+  const tableStart = Math.max(headerH + 6, hy + 8);
 
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(30, 41, 59);
-  const colWidths = [10, 38, 36, 34, 34] as const;
-  leaders.forEach((L, idx) => {
-    const nameRaw = L.jina || L.full_name || "—";
-    const cheoRaw = L.cheo || "—";
-    const ngaziRaw = L.leadership_level || L.ngazi || "—";
-    const simuRaw = L.simu || "—";
-    doc.setFontSize(6.8);
-    const nameLines = doc.splitTextToSize(nameRaw, colWidths[1] - 1) as string[];
-    const cheoLines = doc.splitTextToSize(cheoRaw, colWidths[2] - 1) as string[];
-    const ngaziLines = doc.splitTextToSize(ngaziRaw, colWidths[3] - 1) as string[];
-    const simuLines = doc.splitTextToSize(simuRaw, colWidths[4] - 1) as string[];
-    const maxLines = Math.max(1, nameLines.length, cheoLines.length, ngaziLines.length, simuLines.length);
-    const rowH = maxLines * 3.2 + 1.5;
-    if (y + rowH > contentBottom) {
-      doc.addPage();
-      y = 14;
-    }
-    doc.text(String(idx + 1), cols[0], y);
-    doc.text(nameLines, cols[1], y);
-    doc.text(cheoLines, cols[2], y);
-    doc.text(ngaziLines, cols[3], y);
-    doc.text(simuLines, cols[4], y);
-    y += rowH;
+  autoTable(doc, {
+    startY: tableStart,
+    margin: { left: margin, right: margin, bottom: footerReserve },
+    head: [["#", "Jina", "Cheo", "Ngazi", "Simu"]],
+    body: leaders.map((L, idx) => [
+      String(idx + 1),
+      L.jina || L.full_name || "—",
+      L.cheo || "—",
+      L.leadership_level || L.ngazi || "—",
+      L.simu || "—",
+    ]),
+    styles: {
+      fontSize: 7.2,
+      cellPadding: 1.45,
+      overflow: "linebreak",
+      valign: "top",
+      lineColor: [226, 232, 240],
+      lineWidth: 0.12,
+      textColor: [30, 41, 59],
+    },
+    headStyles: {
+      fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]],
+      textColor: 255,
+      fontStyle: "bold",
+      halign: "center",
+      valign: "middle",
+      overflow: "linebreak",
+    },
+    ...stripeAutoTableOpts(),
+    tableLineColor: [navyRgb[0], navyRgb[1], navyRgb[2]],
+    theme: "grid",
+    willDrawPage: (data: { pageNumber: number; doc: jsPDF }) => {
+      if (data.pageNumber <= 1) return;
+      drawKmktPdfWatermark(data.doc, { line1: "KMK(T)", line2: "ORODHA · LIVE SUPABASE" });
+    },
   });
 
   applyLeadershipPdfFooters(doc, { rightTag: `Jumla: ${leaders.length} viongozi` });

@@ -472,7 +472,7 @@ export function ModulePage(props: Props) {
 
   const emitCrud = useCallback(
     (action: "create" | "update" | "delete", recordId?: string, targetSubmodule?: string) => {
-      dispatchPortalReloadMetrics();
+      dispatchPortalReloadMetrics(action === "delete" ? { immediate: true } : undefined);
       props.onCrudSuccess?.(action, {
         moduleKey: props.moduleKey,
         submodule: props.submodule,
@@ -1505,17 +1505,19 @@ export function ModulePage(props: Props) {
               try {
                 await deleteKiongozi(id);
                 props.setViongozi((p) => p.filter((x) => x.id !== id));
-                pushToast("Kiongozi amewekwa archive.", "success");
+                pushToast("Kiongozi amefutwa kabisa kwenye hifadhidata.", "success");
                 afterDelete(id);
               } catch (err) {
                 reportError(err, "Kufuta kiongozi");
               }
             } else {
               props.setViongozi((p) => p.filter((x) => x.id !== id));
-              pushToast("Kiongozi amewekwa archive kwenye orodha ya ndani.", "info");
+              pushToast("Kiongozi amefutwa kwenye orodha ya ndani (Supabase haijasajiliwa).", "info");
               afterDelete(id);
             }
           }}
+          deleteConfirmTitle="Thibitisha kufuta kabisa"
+          deleteConfirmMessage="Rekodi itafutwa kabisa kwenye Supabase (uteuzi huu hauwezi kutenduliwa kwa urahisi). Viongozi rasmi wa taifa waliofungwa hawawezi kufutwa."
           highlightRowId={props.highlightRecordId ?? undefined}
           actionsDisabled={!!editing}
           excelBulk={viongoziExcel}

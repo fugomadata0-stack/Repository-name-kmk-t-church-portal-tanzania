@@ -177,10 +177,32 @@ export async function fetchChurchViongozi(limit = 800): Promise<KiongoziRecord[]
   const res = await c
     .from("church_viongozi")
     .select("*, dayosisi ( jina ), church_jimbo ( jina ), church_tawi ( jina )")
+    .not("status", "eq", "archived")
     .order("jina", { ascending: true })
     .limit(limit);
   const rows = unwrapList(res, "church_viongozi.list");
   return rows.map((r) => mapViongoziRow(r as unknown as Record<string, unknown>));
+}
+
+export type OfficialLeadershipSigner = {
+  full_name: string;
+  title: string;
+};
+
+/** Chanzo rasmi kwa PDF signer dropdowns (view iliyolockiwa). */
+export async function fetchOfficialLeadershipSigners(limit = 25): Promise<OfficialLeadershipSigner[]> {
+  const c = getSupabase();
+  if (!c) return [];
+  const res = await c
+    .from("v_official_national_leadership")
+    .select("full_name,title")
+    .order("title", { ascending: true })
+    .limit(limit);
+  const rows = unwrapList(res, "v_official_national_leadership.list");
+  return rows.map((row) => ({
+    full_name: String((row as Record<string, unknown>).full_name ?? "").trim(),
+    title: String((row as Record<string, unknown>).title ?? "").trim(),
+  }));
 }
 
 export async function upsertKiongozi(row: Partial<KiongoziRecord> & { jina: string }): Promise<KiongoziRecord> {
@@ -313,7 +335,28 @@ function sEmb() {
   return "*, dayosisi ( jina ), church_jimbo ( jina ), church_tawi ( jina )";
 }
 
+/**
+ * Kufuta rekodi kabisa kwenye `church_viongozi` (utaunganisha CASCADE kwenye CV / terms kadhalika).
+ * Viongozi rasmi wenye `official_locked` hawawezi kufutwa — trigger ya DB.
+ */
 export async function deleteKiongozi(id: string): Promise<void> {
+  const c = getSupabase();
+  if (!c || !isViongoziUuid(id)) return;
+  const { error } = await c.from("church_viongozi").delete().eq("id", id);
+  if (error) {
+    const raw = formatPostgrestError(error, "church_viongozi.delete");
+    const combined = `${raw} ${(error as { details?: string }).details ?? ""} ${(error as { hint?: string }).hint ?? ""}`;
+    if (/locked|cannot be deleted|national leadership/i.test(combined)) {
+      throw new Error(
+        "Huwezi kufuta kiongozi rasmi wa taifa aliye fungwa. Rekodi hizi zinalindwa na sera ya KMK(T)."
+      );
+    }
+    throw new Error(raw);
+  }
+}
+
+/** Soft-delete: weka archived (hufuti kabisa). Tumia tu unapohitaji kuondoa kwenye orodha bila kufuta DB. */
+export async function archiveKiongoziSoft(id: string): Promise<void> {
   const c = getSupabase();
   if (!c || !isViongoziUuid(id)) return;
   const { error } = await c

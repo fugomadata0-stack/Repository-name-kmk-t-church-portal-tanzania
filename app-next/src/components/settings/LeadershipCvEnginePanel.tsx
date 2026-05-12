@@ -11,7 +11,7 @@ import {
   subscribeLeadershipCvEngine,
   uploadLeadershipCvObject,
 } from "../../services/leadershipCvEngineService";
-import { fetchChurchViongozi, upsertKiongozi } from "../../services/viongoziService";
+import { fetchChurchViongozi, fetchOfficialLeadershipSigners, upsertKiongozi } from "../../services/viongoziService";
 import type {
   KiongoziRecord,
   LeadershipCvAttachmentRow,
@@ -65,6 +65,22 @@ const ATT_KINDS = [
 ] as const;
 
 /** Chuja ngazi: preset na thamani za DB zinaweza kutofanana (mf. "Dayosisi" vs "Dayosisi Level"). */
+/** Chagua ngazi ya kawaida kutoka kwa cheo + muundo (wakati `leadership_level` tupu). */
+function inferLeadershipLevelPreset(r: KiongoziRecord): string {
+  const cheo = `${r.cheo ?? ""}`.toUpperCase();
+  if (/ASKOFU\s+MKUU|KATIBU\s+MKUU|NAIBU\s+KATIBU|MHASIBU\s+WA\s+KMK/i.test(cheo)) {
+    return "KMK(T) National Level";
+  }
+  if ((r.jumuiya_name ?? "").trim()) return "Jumuiya Level";
+  if ((r.taasisi_name ?? "").trim()) return "Taasisi Level";
+  if ((r.huduma_name ?? "").trim()) return "Huduma Level";
+  if ((r.idara_name ?? "").trim()) return "Idara Level";
+  if ((r.tawi ?? "").trim()) return "Tawi/Kituo Level";
+  if ((r.jimbo ?? "").trim()) return "Jimbo Level";
+  if ((r.dayosisi ?? "").trim()) return "Dayosisi Level";
+  return "";
+}
+
 function rowMatchesLeadershipLevelPreset(r: KiongoziRecord, filter: string): boolean {
   const needle = filter.trim().toLowerCase();
   if (!needle) return true;
@@ -125,6 +141,7 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
   const [busy, setBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [live, setLive] = useState<"idle" | "synced" | "pending" | "error">("idle");
+  const [officialSigners, setOfficialSigners] = useState<{ full_name: string; title: string }[]>([]);
 
   const [leader, setLeader] = useState<KiongoziRecord | null>(null);
   const [profile, setProfile] = useState<LeadershipProfileCvRecord | null>(null);
@@ -171,6 +188,22 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
       mounted.current = false;
     };
   }, [reloadList, reportError]);
+
+  useEffect(() => {
+    if (!supabaseReady || !canViewViongozi) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const rows = await fetchOfficialLeadershipSigners();
+        if (!cancelled) setOfficialSigners(rows);
+      } catch {
+        if (!cancelled) setOfficialSigners([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [supabaseReady, canViewViongozi]);
 
   useEffect(() => {
     if (!supabaseReady || !canViewViongozi) {
@@ -237,7 +270,11 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
       return;
     }
     const L = leaders.find((x) => x.id === selectedId);
-    if (L) setLeader(L);
+    if (L) {
+      const inferred = inferLeadershipLevelPreset(L);
+      const lv = (L.leadership_level ?? "").trim();
+      setLeader({ ...L, leadership_level: lv || inferred || null });
+    }
   }, [selectedId, leaders]);
 
   useEffect(() => {
@@ -617,7 +654,22 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
                   <Field label="Jina" value={leader.jina} onChange={(v) => setLeader({ ...leader, jina: v })} ro={!props.canEdit} />
                   <Field label="Jina kamili" value={leader.full_name ?? ""} onChange={(v) => setLeader({ ...leader, full_name: v })} ro={!props.canEdit} />
                   <Field label="Cheo" value={leader.cheo} onChange={(v) => setLeader({ ...leader, cheo: v })} ro={!props.canEdit} />
-                  <Field label="Leadership level" value={leader.leadership_level ?? ""} onChange={(v) => setLeader({ ...leader, leadership_level: v })} ro={!props.canEdit} />
+                  <label className="grid gap-1 text-xs font-medium text-slate-700">
+                    Leadership level (chaguo otomatiki kutoka muundo)
+                    <select
+                      disabled={!props.canEdit}
+                      className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                      value={leader.leadership_level ?? ""}
+                      onChange={(e) => setLeader({ ...leader, leadership_level: e.target.value || null })}
+                    >
+                      <option value="">—</option>
+                      {LEVEL_PRESETS.filter(Boolean).map((lv) => (
+                        <option key={lv} value={lv}>
+                          {lv}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <Field label="Assigned entity" value={leader.assigned_entity ?? ""} onChange={(v) => setLeader({ ...leader, assigned_entity: v })} ro={!props.canEdit} />
                   <Field label="Ngazi (orodha)" value={leader.ngazi} onChange={(v) => setLeader({ ...leader, ngazi: v })} ro={!props.canEdit} />
                   <Field label="Simu" value={leader.simu} onChange={(v) => setLeader({ ...leader, simu: v })} ro={!props.canEdit} />
@@ -847,13 +899,20 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
                     value={leader.pdf_issued_by_name ?? ""}
                     onChange={(v) => setLeader({ ...leader, pdf_issued_by_name: v || null })}
                     ro={!props.canEdit}
+                    listId="official-signer-name-list"
                   />
                   <Field
                     label="Cheo cha mtoaji wa PDF"
                     value={leader.pdf_issued_by_title ?? ""}
                     onChange={(v) => setLeader({ ...leader, pdf_issued_by_title: v || null })}
                     ro={!props.canEdit}
+                    listId="official-signer-title-list"
                   />
+                  {officialSigners.length ? (
+                    <p className="md:col-span-2 text-[11px] text-emerald-700">
+                      Tumia mapendekezo ya viongozi rasmi wa taifa kwa signer consistency kwenye PDF.
+                    </p>
+                  ) : null}
                 </div>
               </Collapsible>
 
@@ -1072,6 +1131,16 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
           )}
         </div>
       </div>
+      <datalist id="official-signer-name-list">
+        {officialSigners.map((s) => (
+          <option key={`name-${s.full_name}`} value={s.full_name} />
+        ))}
+      </datalist>
+      <datalist id="official-signer-title-list">
+        {officialSigners.map((s) => (
+          <option key={`title-${s.title}`} value={s.title} />
+        ))}
+      </datalist>
     </div>
   );
 }
@@ -1099,11 +1168,17 @@ function RowsToolbar(props: { disabled: boolean; onAdd: () => void }) {
   );
 }
 
-function Field(props: { label: string; value: string; onChange: (v: string) => void; ro: boolean }) {
+function Field(props: { label: string; value: string; onChange: (v: string) => void; ro: boolean; listId?: string }) {
   return (
     <label className="grid gap-1 text-xs font-medium text-slate-700">
       {props.label}
-      <input className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm" value={props.value} disabled={props.ro} onChange={(e) => props.onChange(e.target.value)} />
+      <input
+        className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+        value={props.value}
+        disabled={props.ro}
+        list={props.listId}
+        onChange={(e) => props.onChange(e.target.value)}
+      />
     </label>
   );
 }

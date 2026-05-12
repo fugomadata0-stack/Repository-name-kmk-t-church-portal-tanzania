@@ -196,7 +196,11 @@ export async function fetchPortalAnalyticsDashboard(params: {
   ] = await Promise.all([
     safe("members", applyDate(c.from("church_members").select("*"), "created_at"), [] as any[]),
     safe("families", applyDate(c.from("church_families").select("*"), "created_at"), [] as any[]),
-    safe("leaders", applyDate(c.from("church_viongozi").select("*"), "created_at"), [] as any[]),
+    safe(
+      "leaders",
+      applyDate(c.from("church_viongozi").select("*").not("status", "eq", "archived"), "created_at"),
+      [] as any[]
+    ),
     safe("finance", applyDate(c.from("church_finance_entries").select("*"), "entry_date"), [] as any[]),
     safe("income_lines", applyDate(c.from("church_income_lines").select("*"), "collection_date"), [] as any[]),
     safe("documents", applyDate(c.from("documents").select("*"), "created_at"), [] as any[]),

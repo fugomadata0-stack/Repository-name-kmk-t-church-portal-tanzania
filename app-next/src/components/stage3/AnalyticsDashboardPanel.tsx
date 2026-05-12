@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   BarChart3,
@@ -17,6 +17,7 @@ import { fetchPortalAnalyticsDashboard } from "../../services/stage3/analyticsSe
 import type { AnalyticsDashboardPayload } from "../../types";
 import { GlassPanel, MotionCard } from "../stage2/Stage2Motion";
 import { exportTableToPdf } from "../../lib/exportHelpers";
+import { KMT_PORTAL_RELOAD_METRICS_EVENT } from "../../lib/portalEvents";
 import {
   ResponsiveContainer,
   LineChart,
@@ -79,6 +80,7 @@ export function AnalyticsDashboardPanel(props: { variant?: "dashibodi" | "ripoti
   const [source, setSource] = useState("");
   const [leadershipLevel, setLeadershipLevel] = useState("");
   const [department, setDepartment] = useState("");
+  const reloadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async () => {
     if (!getSupabase()) {
@@ -112,6 +114,42 @@ export function AnalyticsDashboardPanel(props: { variant?: "dashibodi" | "ripoti
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  useEffect(() => {
+    const c = getSupabase();
+    if (!c) return;
+    const scheduleLoad = () => {
+      if (reloadDebounceRef.current) clearTimeout(reloadDebounceRef.current);
+      reloadDebounceRef.current = setTimeout(() => {
+        reloadDebounceRef.current = null;
+        void load();
+      }, 500);
+    };
+    const onPortalReload = (ev: Event) => {
+      const immediate = Boolean((ev as CustomEvent<{ immediate?: boolean }>).detail?.immediate);
+      if (immediate) {
+        if (reloadDebounceRef.current) clearTimeout(reloadDebounceRef.current);
+        reloadDebounceRef.current = null;
+        void load();
+        return;
+      }
+      scheduleLoad();
+    };
+    window.addEventListener(KMT_PORTAL_RELOAD_METRICS_EVENT, onPortalReload);
+    const ch = c
+      .channel("analytics-dashboard-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "church_finance_entries" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "church_income_lines" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "church_members" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "church_viongozi" }, scheduleLoad)
+      .on("postgres_changes", { event: "*", schema: "public", table: "audit_logs" }, scheduleLoad)
+      .subscribe();
+    return () => {
+      window.removeEventListener(KMT_PORTAL_RELOAD_METRICS_EVENT, onPortalReload);
+      if (reloadDebounceRef.current) clearTimeout(reloadDebounceRef.current);
+      void c.removeChannel(ch);
+    };
   }, [load]);
 
   const chartMax = useMemo(() => {
