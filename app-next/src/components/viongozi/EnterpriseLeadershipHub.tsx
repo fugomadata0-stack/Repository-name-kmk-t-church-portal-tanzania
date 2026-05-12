@@ -131,6 +131,7 @@ export function EnterpriseLeadershipHub(props: {
       onCategories: () => scheduleRealtimeRefresh(),
       onCommittees: () => scheduleRealtimeRefresh(),
       onLeaders: () => scheduleRealtimeRefresh(),
+      onLeadershipProfiles: () => scheduleRealtimeRefresh(),
       onSubscribeStatus: (status) => {
         if (!mountedRef.current) return;
         if (status === "SUBSCRIBED") setLiveSync("synced");

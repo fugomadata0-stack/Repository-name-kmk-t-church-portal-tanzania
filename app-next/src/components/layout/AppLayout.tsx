@@ -13,6 +13,7 @@ import { fetchChurchFinanceEntries } from "../../services/financeEntriesService"
 import { fetchChurchIncomeLines, fetchChurchIncomeSources } from "../../services/incomeModuleService";
 import { fetchChurchJimbo, fetchChurchTawi } from "../../services/muundoHierarchyService";
 import { fetchChurchViongozi } from "../../services/viongoziService";
+import { refreshMasterSettingsCache } from "../../services/masterSettingsService";
 import {
   emptyDashboardKpiSnapshot,
   fetchDashboardKpiAggregates,
@@ -341,6 +342,8 @@ export function AppLayout() {
   }, [reportError]);
 
   const dashboardDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const globalRealtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const masterSettingsRealtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!authInitialized || !authUser) return;
@@ -485,6 +488,82 @@ export function AppLayout() {
     };
   }, [activeModule, loadIncomeModuleData, authInitialized, authUser]);
 
+  /**
+   * Global realtime sync (all modules):
+   * Any change in public schema triggers a debounced refresh of shared datasets
+   * and dispatches the cross-module reload event used by dashboard/widgets.
+   */
+  useEffect(() => {
+    if (!authInitialized || !authUser) return;
+    if (!getSupabase()) return;
+    if (!isSupabaseRealtimeEnabled()) return;
+
+    let cancelled = false;
+    const client = getSupabase()!;
+    const scheduleGlobalRefresh = () => {
+      if (globalRealtimeDebounceRef.current) clearTimeout(globalRealtimeDebounceRef.current);
+      globalRealtimeDebounceRef.current = setTimeout(() => {
+        globalRealtimeDebounceRef.current = null;
+        if (cancelled) return;
+        dispatchPortalReloadMetrics();
+        void loadDashboardMetrics();
+        void loadIncomeModuleData();
+        void loadFinanceEntries();
+        void loadViongoziList();
+        void loadMuundoLists();
+      }, 550);
+    };
+
+    const channel = client
+      .channel("portal-global-live-sync")
+      .on("postgres_changes", { event: "*", schema: "public" }, scheduleGlobalRefresh)
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      if (globalRealtimeDebounceRef.current) clearTimeout(globalRealtimeDebounceRef.current);
+      void client.removeChannel(channel);
+    };
+  }, [
+    authInitialized,
+    authUser,
+    loadDashboardMetrics,
+    loadIncomeModuleData,
+    loadFinanceEntries,
+    loadViongoziList,
+    loadMuundoLists,
+  ]);
+
+  useEffect(() => {
+    if (!authInitialized || !authUser) return;
+    if (!getSupabase()) return;
+    if (!isSupabaseRealtimeEnabled()) return;
+
+    let cancelled = false;
+    const client = getSupabase()!;
+    const scheduleMasterRefresh = () => {
+      if (masterSettingsRealtimeDebounceRef.current) clearTimeout(masterSettingsRealtimeDebounceRef.current);
+      masterSettingsRealtimeDebounceRef.current = setTimeout(() => {
+        masterSettingsRealtimeDebounceRef.current = null;
+        if (cancelled) return;
+        void refreshMasterSettingsCache();
+      }, 420);
+    };
+
+    const channel = client
+      .channel("portal-master-settings-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "portal_master_settings" }, scheduleMasterRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "portal_theme_settings" }, scheduleMasterRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "portal_template_settings" }, scheduleMasterRefresh)
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      if (masterSettingsRealtimeDebounceRef.current) clearTimeout(masterSettingsRealtimeDebounceRef.current);
+      void client.removeChannel(channel);
+    };
+  }, [authInitialized, authUser]);
+
   const visibleModules = useMemo(() => modules.filter((m) => canPortalViewModule(m.key)), [canPortalViewModule]);
   const draftScope = useMemo<PortalDraftScope>(
     () => ({ userId: authUser?.id, moduleKey: activeModule, submodule: activeSubmodule }),
@@ -514,7 +593,9 @@ export function AppLayout() {
   const reloadMetricsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const onReloadMetrics = () => {
+    const onReloadMetrics = (ev: Event) => {
+      const immediate = Boolean((ev as CustomEvent<{ immediate?: boolean }>).detail?.immediate);
+      const ms = immediate ? 0 : 380;
       if (reloadMetricsDebounceRef.current) clearTimeout(reloadMetricsDebounceRef.current);
       reloadMetricsDebounceRef.current = setTimeout(() => {
         reloadMetricsDebounceRef.current = null;
@@ -522,14 +603,15 @@ export function AppLayout() {
         void loadIncomeModuleData();
         void loadFinanceEntries();
         void loadViongoziList();
-      }, 380);
+        void loadMuundoLists();
+      }, ms);
     };
     window.addEventListener(KMT_PORTAL_RELOAD_METRICS_EVENT, onReloadMetrics);
     return () => {
       window.removeEventListener(KMT_PORTAL_RELOAD_METRICS_EVENT, onReloadMetrics);
       if (reloadMetricsDebounceRef.current) clearTimeout(reloadMetricsDebounceRef.current);
     };
-  }, [loadDashboardMetrics, loadIncomeModuleData, loadFinanceEntries, loadViongoziList]);
+  }, [loadDashboardMetrics, loadIncomeModuleData, loadFinanceEntries, loadViongoziList, loadMuundoLists]);
 
   useEffect(() => {
     const onNavigate = (ev: Event) => {

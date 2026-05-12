@@ -1,4 +1,5 @@
 ﻿import { formatCaughtError, formatPostgrestError, isMissingTableError } from "../lib/supabaseErrors";
+import { dispatchMasterSettingsUpdated } from "../lib/portalEvents";
 import { getSupabase, getSupabaseOrThrow } from "../lib/supabaseClient";
 import { safeStorage } from "../lib/security";
 
@@ -182,6 +183,14 @@ export async function fetchMasterSettings(): Promise<MasterSettingsRow> {
   return fetchFromTables(c);
 }
 
+/** Pakua mipangilio kutoka Supabase na sasisha localStorage — tumia baada ya Realtime au kabla ya chapishi. */
+export async function refreshMasterSettingsCache(): Promise<MasterSettingsRow> {
+  const row = await fetchMasterSettingsOptional();
+  const merged = row ?? readMasterSettingsCache();
+  dispatchMasterSettingsUpdated();
+  return merged;
+}
+
 export async function saveMasterSettings(payload: MasterSettingsRow): Promise<MasterSettingsRow> {
   const c = getSupabaseOrThrow();
   const clean = mergeSettings(payload);
@@ -216,6 +225,7 @@ export async function saveMasterSettings(payload: MasterSettingsRow): Promise<Ma
   });
 
   writeCache(merged);
+  dispatchMasterSettingsUpdated();
   return merged;
 }
 

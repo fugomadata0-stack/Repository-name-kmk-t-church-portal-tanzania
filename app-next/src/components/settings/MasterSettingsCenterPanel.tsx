@@ -21,13 +21,14 @@ import {
   emptyMasterSettings,
   fetchMasterSettings,
   normalizeSettingsError,
+  readMasterSettingsCache,
   saveMasterSettings,
   type MasterSettingsRow,
   validateEmail,
   validateHexColor,
   validatePhone,
 } from "../../services/masterSettingsService";
-import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
+import { dispatchPortalReloadMetrics, KMT_MASTER_SETTINGS_UPDATED_EVENT } from "../../lib/portalEvents";
 
 type TabKey =
   | "identity"
@@ -43,15 +44,15 @@ type TabKey =
 
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: "identity", label: "Utambulisho wa KMK(T)", icon: Building2 },
-  { key: "branding", label: "Logo & Branding", icon: ImageIcon },
-  { key: "theme", label: "Rangi & mandhari", icon: Paintbrush },
-  { key: "exports", label: "PDF / Excel / Print", icon: FileStack },
+  { key: "branding", label: "Nembo na vitambulisho vya kuona", icon: ImageIcon },
+  { key: "theme", label: "Rangi na mandhari", icon: Paintbrush },
+  { key: "exports", label: "PDF · Excel · Chapishi", icon: FileStack },
   { key: "email_templates", label: "Mifano ya barua pepe", icon: Mail },
   { key: "sms_templates", label: "Mifano ya SMS", icon: MessageSquareText },
   { key: "language", label: "Mipangilio ya lugha", icon: Languages },
-  { key: "dashboard", label: "Chaguo-msingi dashibodi", icon: LayoutDashboard },
+  { key: "dashboard", label: "Chaguo-msingi za dashibodi", icon: LayoutDashboard },
   { key: "footer", label: "Kijachini cha mfumo", icon: PanelBottom },
-  { key: "leadership_cv", label: "Wasifu & CV — Viongozi", icon: IdCard },
+  { key: "leadership_cv", label: "Wasifu na CV — Viongozi", icon: IdCard },
 ];
 
 const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
@@ -69,22 +70,33 @@ export function MasterSettingsCenterPanel() {
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [form, setForm] = useState<MasterSettingsRow>(() => emptyMasterSettings());
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const row = await fetchMasterSettings();
-      setForm(row);
-    } catch (err) {
-      reportError(err, "Master Settings — pakua");
-      setForm(emptyMasterSettings());
-    } finally {
-      setLoading(false);
-    }
-  }, [reportError]);
+  const load = useCallback(
+    async (silent?: boolean) => {
+      if (!silent) setLoading(true);
+      try {
+        const row = await fetchMasterSettings();
+        setForm(row);
+      } catch (err) {
+        if (!silent) {
+          reportError(err, "Master Settings — pakua");
+          setForm(emptyMasterSettings());
+        }
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [reportError]
+  );
 
   useEffect(() => {
-    void load();
+    void load(false);
   }, [load]);
+
+  useEffect(() => {
+    const onRemote = () => setForm(readMasterSettingsCache());
+    window.addEventListener(KMT_MASTER_SETTINGS_UPDATED_EVENT, onRemote);
+    return () => window.removeEventListener(KMT_MASTER_SETTINGS_UPDATED_EVENT, onRemote);
+  }, []);
 
   function updateIdentity<K extends keyof MasterSettingsRow["identity"]>(key: K, value: MasterSettingsRow["identity"][K]) {
     setForm((prev) => ({ ...prev, identity: { ...prev.identity, [key]: value } }));
@@ -99,9 +111,9 @@ export function MasterSettingsCenterPanel() {
   }
 
   function validateBeforeSave(): string | null {
-    if (!form.identity.official_name.trim()) return "Official name ni lazima.";
+    if (!form.identity.official_name.trim()) return "Jina rasmi linahitajika.";
     if (!validateEmail(form.identity.email)) return "Barua pepe si sahihi.";
-    if (!validatePhone(form.identity.phone)) return "Namba ya simu si sahihi.";
+    if (!validatePhone(form.identity.phone)) return "Nambari ya simu si sahihi.";
 
     const colors = [
       form.theme.primary_color,
@@ -110,10 +122,10 @@ export function MasterSettingsCenterPanel() {
       form.theme.background_color,
       form.theme.text_color,
     ];
-    if (colors.some((c) => !validateHexColor(c))) return "Rangi zote lazima ziwe format ya HEX (#RRGGBB).";
-    if (form.identity.language_ratio_sw + form.identity.language_ratio_en !== 100) return "Uwiano wa lugha lazima uwe 100 kwa jumla.";
-    if (form.identity.dashboard_refresh_interval_sec < 15) return "Dashboard refresh interval lazima iwe angalau sekunde 15.";
-    if (form.identity.default_date_range_days < 1) return "Default date range lazima iwe angalau siku 1.";
+    if (colors.some((c) => !validateHexColor(c))) return "Rangi zote lazima ziwe katika umbizo la HEX (#RRGGBB).";
+    if (form.identity.language_ratio_sw + form.identity.language_ratio_en !== 100) return "Uwiano wa lugha lazima ujumlishwe hadi 100%.";
+    if (form.identity.dashboard_refresh_interval_sec < 15) return "Muda wa kuonyesha upya wa dashibodi lazima uwe angalau sekunde 15.";
+    if (form.identity.default_date_range_days < 1) return "Masafa ya tarehe chaguo-msingi lazima yawe angalau siku 1.";
     return null;
   }
 
@@ -165,7 +177,7 @@ export function MasterSettingsCenterPanel() {
       window.dispatchEvent(new CustomEvent("kmt-portal-settings-updated"));
       dispatchPortalReloadMetrics();
 
-      pushToast("Master Settings zimehifadhiwa.", "success");
+      pushToast("Mipangilio mikuu yamehifadhiwa.", "success");
     } catch (err) {
       pushToast(normalizeSettingsError(err), "error");
       reportError(err, "Master Settings — hifadhi");
@@ -197,13 +209,13 @@ export function MasterSettingsCenterPanel() {
             </p>
             <h2 className="font-kmkt-display text-2xl font-bold leading-tight tracking-tight sm:text-3xl">Kituo cha utambulisho na uendeshaji</h2>
             <p className="max-w-2xl text-sm leading-relaxed text-blue-100/95">
-              Chanzo kimoja cha ukweli: utambulisho wa jumla, nembo, rangi, vichwa vya hati, mifano ya barua na SMS, lugha, na chaguo-msingi za dashibodi. Badiliko hapa linaonekana katika PDF, dashibodi na hati rasmi.
+              Chanzo kimoja cha ukweli: utambulisho wa jumla, nembo, rangi, vichwa vya hati, mifano ya barua na SMS, lugha, na chaguo-msingi za dashibodi. Mabadiliko haya yanaonekana katika PDF, dashibodi na hati rasmi.
             </p>
           </div>
           <aside className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-xs text-amber-50 backdrop-blur-sm">
             <p className="font-semibold text-amber-200">Utaratibu wa kitaasisi</p>
             <p className="mt-1.5 max-w-[16rem] leading-relaxed text-blue-100/85">
-              Tumia sehemu za kushoto kama ramani — anza kwa Utambulisho, kisha Branding na Rangi kabla ya mifano ya ujumbe.
+              Tumia sehemu za kushoto kama ramani: anza kwa Utambulisho, kisha Nembo na rangi, kabla ya mifano ya ujumbe.
             </p>
           </aside>
         </div>
@@ -257,26 +269,33 @@ export function MasterSettingsCenterPanel() {
             })}
           </nav>
 
+          <div className="rounded-xl border border-[#0B1F3A]/10 bg-gradient-to-r from-[#0B1F3A]/5 via-white to-[#D4AF37]/10 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#0B1F3A]">Viwango vya uendeshaji (Pro)</p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-600">
+              Mipangilio hii ni chanzo kimoja cha ukweli: taarifa za viongozi, nembo, PDF na CV zinasomwa moja kwa moja kutoka Supabase (data hai).
+            </p>
+          </div>
+
           {activeTab === "identity" ? (
             <div className="grid gap-3 md:grid-cols-2">
-              <Field label="Official Name *" value={form.identity.official_name} onChange={(v) => updateIdentity("official_name", v)} disabled={!canEdit} />
-              <Field label="Short Name" value={form.identity.short_name} onChange={(v) => updateIdentity("short_name", v)} disabled={!canEdit} />
-              <Field label="Motto" value={form.identity.motto} onChange={(v) => updateIdentity("motto", v)} disabled={!canEdit} />
-              <Field label="Address" value={form.identity.address} onChange={(v) => updateIdentity("address", v)} disabled={!canEdit} />
-              <Field label="Phone" value={form.identity.phone} onChange={(v) => updateIdentity("phone", v)} disabled={!canEdit} />
-              <Field label="Email" value={form.identity.email} onChange={(v) => updateIdentity("email", v)} disabled={!canEdit} />
-              <Field label="Website" value={form.identity.website} onChange={(v) => updateIdentity("website", v)} disabled={!canEdit} />
-              <Field label="Country" value={form.identity.country} onChange={(v) => updateIdentity("country", v)} disabled={!canEdit} />
-              <Field label="Timezone" value={form.identity.timezone} onChange={(v) => updateIdentity("timezone", v)} disabled={!canEdit} />
-              <Field label="Registration Info" value={form.identity.registration_info} onChange={(v) => updateIdentity("registration_info", v)} disabled={!canEdit} />
-              <Field label="Official Seal Text" value={form.identity.official_seal_text} onChange={(v) => updateIdentity("official_seal_text", v)} disabled={!canEdit} />
+              <Field label="Jina rasmi *" value={form.identity.official_name} onChange={(v) => updateIdentity("official_name", v)} disabled={!canEdit} />
+              <Field label="Jina fupi" value={form.identity.short_name} onChange={(v) => updateIdentity("short_name", v)} disabled={!canEdit} />
+              <Field label="Kauli mbiu (motto)" value={form.identity.motto} onChange={(v) => updateIdentity("motto", v)} disabled={!canEdit} />
+              <Field label="Anwani" value={form.identity.address} onChange={(v) => updateIdentity("address", v)} disabled={!canEdit} />
+              <Field label="Simu" value={form.identity.phone} onChange={(v) => updateIdentity("phone", v)} disabled={!canEdit} />
+              <Field label="Barua pepe" value={form.identity.email} onChange={(v) => updateIdentity("email", v)} disabled={!canEdit} />
+              <Field label="Tovuti" value={form.identity.website} onChange={(v) => updateIdentity("website", v)} disabled={!canEdit} />
+              <Field label="Nchi" value={form.identity.country} onChange={(v) => updateIdentity("country", v)} disabled={!canEdit} />
+              <Field label="Ukanda wa saa (timezone)" value={form.identity.timezone} onChange={(v) => updateIdentity("timezone", v)} disabled={!canEdit} />
+              <Field label="Maelezo ya usajili" value={form.identity.registration_info} onChange={(v) => updateIdentity("registration_info", v)} disabled={!canEdit} />
+              <Field label="Maandishi ya muhuri rasmi" value={form.identity.official_seal_text} onChange={(v) => updateIdentity("official_seal_text", v)} disabled={!canEdit} />
             </div>
           ) : null}
 
           {activeTab === "branding" ? (
             <div className="grid gap-4 md:grid-cols-2">
               <UploadField
-                label="Logo"
+                label="Nembo kuu (logo)"
                 accept={IMAGE_ACCEPT}
                 value={form.theme.logo_url}
                 busy={uploadingKey === "logo_url"}
@@ -285,7 +304,7 @@ export function MasterSettingsCenterPanel() {
                 disabled={!canEdit}
               />
               <UploadField
-                label="Favicon"
+                label="Aikoni ya kivinjari (favicon)"
                 accept={IMAGE_ACCEPT}
                 value={form.theme.favicon_url}
                 busy={uploadingKey === "favicon_url"}
@@ -294,7 +313,7 @@ export function MasterSettingsCenterPanel() {
                 disabled={!canEdit}
               />
               <UploadField
-                label="Letterhead Image"
+                label="Picha ya kichwa cha barua"
                 accept={IMAGE_ACCEPT}
                 value={form.theme.letterhead_url}
                 busy={uploadingKey === "letterhead_url"}
@@ -303,7 +322,7 @@ export function MasterSettingsCenterPanel() {
                 disabled={!canEdit}
               />
               <UploadField
-                label="Signature Image"
+                label="Picha ya saini"
                 accept={IMAGE_ACCEPT}
                 value={form.theme.signature_image_url}
                 busy={uploadingKey === "signature_image_url"}
@@ -312,7 +331,7 @@ export function MasterSettingsCenterPanel() {
                 disabled={!canEdit}
               />
               <UploadField
-                label="Official Stamp/Seal Image"
+                label="Picha ya muhuri rasmi"
                 accept={IMAGE_ACCEPT}
                 value={form.theme.seal_image_url}
                 busy={uploadingKey === "seal_image_url"}
@@ -325,50 +344,50 @@ export function MasterSettingsCenterPanel() {
 
           {activeTab === "theme" ? (
             <div className="grid gap-4 md:grid-cols-2">
-              <ColorField label="Primary Color" value={form.theme.primary_color} onChange={(v) => updateTheme("primary_color", v)} disabled={!canEdit} />
-              <ColorField label="Secondary Color" value={form.theme.secondary_color} onChange={(v) => updateTheme("secondary_color", v)} disabled={!canEdit} />
-              <ColorField label="Accent/Gold Color" value={form.theme.accent_color} onChange={(v) => updateTheme("accent_color", v)} disabled={!canEdit} />
-              <ColorField label="Background Color" value={form.theme.background_color} onChange={(v) => updateTheme("background_color", v)} disabled={!canEdit} />
-              <ColorField label="Text Color" value={form.theme.text_color} onChange={(v) => updateTheme("text_color", v)} disabled={!canEdit} />
+              <ColorField label="Rangi kuu (primary)" value={form.theme.primary_color} onChange={(v) => updateTheme("primary_color", v)} disabled={!canEdit} />
+              <ColorField label="Rangi ya pili (secondary)" value={form.theme.secondary_color} onChange={(v) => updateTheme("secondary_color", v)} disabled={!canEdit} />
+              <ColorField label="Rangi ya msisitizo (dhahabu)" value={form.theme.accent_color} onChange={(v) => updateTheme("accent_color", v)} disabled={!canEdit} />
+              <ColorField label="Rangi ya usuli" value={form.theme.background_color} onChange={(v) => updateTheme("background_color", v)} disabled={!canEdit} />
+              <ColorField label="Rangi ya maandishi" value={form.theme.text_color} onChange={(v) => updateTheme("text_color", v)} disabled={!canEdit} />
               <div className="rounded-xl border p-3" style={previewStyle}>
-                <p className="text-sm font-semibold">Theme Preview</p>
-                <p className="text-xs">Navy/Gold/White style ya KMK(T) inaonekana hapa.</p>
+                <p className="text-sm font-semibold">Hakiki ya mandhari</p>
+                <p className="text-xs">Mtindo wa navy / dhahabu / nyeupe wa KMK(T) unaonekana hapa.</p>
               </div>
             </div>
           ) : null}
 
           {activeTab === "exports" ? (
             <div className="grid gap-3 md:grid-cols-2">
-              <Field label="PDF Header" value={form.theme.pdf_header_text} onChange={(v) => updateTheme("pdf_header_text", v)} disabled={!canEdit} />
-              <Field label="Excel Header" value={form.theme.excel_header_text} onChange={(v) => updateTheme("excel_header_text", v)} disabled={!canEdit} />
-              <Field label="Print Header" value={form.theme.print_header_text} onChange={(v) => updateTheme("print_header_text", v)} disabled={!canEdit} />
-              <Field label="System Footer" value={form.identity.system_footer} onChange={(v) => updateIdentity("system_footer", v)} disabled={!canEdit} />
+              <Field label="Kichwa cha PDF" value={form.theme.pdf_header_text} onChange={(v) => updateTheme("pdf_header_text", v)} disabled={!canEdit} />
+              <Field label="Kichwa cha Excel" value={form.theme.excel_header_text} onChange={(v) => updateTheme("excel_header_text", v)} disabled={!canEdit} />
+              <Field label="Kichwa cha chapisho" value={form.theme.print_header_text} onChange={(v) => updateTheme("print_header_text", v)} disabled={!canEdit} />
+              <Field label="Kijachini cha mfumo (footer)" value={form.identity.system_footer} onChange={(v) => updateIdentity("system_footer", v)} disabled={!canEdit} />
             </div>
           ) : null}
 
           {activeTab === "email_templates" ? (
             <div className="grid gap-3">
-              <TextAreaField label="Email Welcome Template" value={form.templates.email_welcome} onChange={(v) => updateTemplates("email_welcome", v)} disabled={!canEdit} />
-              <TextAreaField label="Password/Reset Instruction Template" value={form.templates.email_password_reset} onChange={(v) => updateTemplates("email_password_reset", v)} disabled={!canEdit} />
-              <TextAreaField label="Signup Approval Template" value={form.templates.email_signup_approval} onChange={(v) => updateTemplates("email_signup_approval", v)} disabled={!canEdit} />
-              <TextAreaField label="Finance Receipt Template" value={form.templates.email_finance_receipt} onChange={(v) => updateTemplates("email_finance_receipt", v)} disabled={!canEdit} />
-              <TextAreaField label="Document Approval Template" value={form.templates.email_document_approval} onChange={(v) => updateTemplates("email_document_approval", v)} disabled={!canEdit} />
+              <TextAreaField label="Barua ya karibu (welcome)" value={form.templates.email_welcome} onChange={(v) => updateTemplates("email_welcome", v)} disabled={!canEdit} />
+              <TextAreaField label="Barua ya kuweka upya nenosiri" value={form.templates.email_password_reset} onChange={(v) => updateTemplates("email_password_reset", v)} disabled={!canEdit} />
+              <TextAreaField label="Barua ya idhini ya usajili" value={form.templates.email_signup_approval} onChange={(v) => updateTemplates("email_signup_approval", v)} disabled={!canEdit} />
+              <TextAreaField label="Barua ya risiti ya fedha" value={form.templates.email_finance_receipt} onChange={(v) => updateTemplates("email_finance_receipt", v)} disabled={!canEdit} />
+              <TextAreaField label="Barua ya idhini ya nyaraka" value={form.templates.email_document_approval} onChange={(v) => updateTemplates("email_document_approval", v)} disabled={!canEdit} />
             </div>
           ) : null}
 
           {activeTab === "sms_templates" ? (
             <div className="grid gap-3">
-              <TextAreaField label="SMS Alert Template" value={form.templates.sms_alert} onChange={(v) => updateTemplates("sms_alert", v)} disabled={!canEdit} />
-              <TextAreaField label="Notification Message Template" value={form.templates.notification_message} onChange={(v) => updateTemplates("notification_message", v)} disabled={!canEdit} />
+              <TextAreaField label="Ujumbe wa tahadhari (SMS)" value={form.templates.sms_alert} onChange={(v) => updateTemplates("sms_alert", v)} disabled={!canEdit} />
+              <TextAreaField label="Ujumbe wa arifa za mfumo" value={form.templates.notification_message} onChange={(v) => updateTemplates("notification_message", v)} disabled={!canEdit} />
             </div>
           ) : null}
 
           {activeTab === "language" ? (
             <div className="grid gap-3 md:grid-cols-2">
-              <Field label="Language Primary" value={form.identity.language_primary} onChange={(v) => updateIdentity("language_primary", v)} disabled={!canEdit} />
-              <Field label="Language Secondary" value={form.identity.language_secondary} onChange={(v) => updateIdentity("language_secondary", v)} disabled={!canEdit} />
-              <NumberField label="Kiswahili Ratio (%)" value={form.identity.language_ratio_sw} onChange={(v) => updateIdentity("language_ratio_sw", v)} disabled={!canEdit} min={0} max={100} />
-              <NumberField label="English Ratio (%)" value={form.identity.language_ratio_en} onChange={(v) => updateIdentity("language_ratio_en", v)} disabled={!canEdit} min={0} max={100} />
+              <Field label="Lugha ya kwanza (msimbo)" value={form.identity.language_primary} onChange={(v) => updateIdentity("language_primary", v)} disabled={!canEdit} />
+              <Field label="Lugha ya pili (msimbo)" value={form.identity.language_secondary} onChange={(v) => updateIdentity("language_secondary", v)} disabled={!canEdit} />
+              <NumberField label="Uwiano wa Kiswahili (%)" value={form.identity.language_ratio_sw} onChange={(v) => updateIdentity("language_ratio_sw", v)} disabled={!canEdit} min={0} max={100} />
+              <NumberField label="Uwiano wa Kiingereza (%)" value={form.identity.language_ratio_en} onChange={(v) => updateIdentity("language_ratio_en", v)} disabled={!canEdit} min={0} max={100} />
             </div>
           ) : null}
 
@@ -381,10 +400,10 @@ export function MasterSettingsCenterPanel() {
                   onChange={(e) => updateIdentity("show_kpi_cards", e.target.checked)}
                   disabled={!canEdit}
                 />
-                Show KPI Cards
+                Onyesha kadi za KPI
               </label>
               <NumberField
-                label="Default Date Range (days)"
+                label="Masafa ya tarehe chaguo-msingi (siku)"
                 value={form.identity.default_date_range_days}
                 onChange={(v) => updateIdentity("default_date_range_days", v)}
                 disabled={!canEdit}
@@ -392,13 +411,13 @@ export function MasterSettingsCenterPanel() {
                 max={3650}
               />
               <Field
-                label="Default Hierarchy Filter"
+                label="Chujio chaguo-msingi cha muundo"
                 value={form.identity.default_hierarchy_filter}
                 onChange={(v) => updateIdentity("default_hierarchy_filter", v)}
                 disabled={!canEdit}
               />
               <NumberField
-                label="Dashboard Refresh Interval (sec)"
+                label="Muda wa kuonyesha upya (sekunde)"
                 value={form.identity.dashboard_refresh_interval_sec}
                 onChange={(v) => updateIdentity("dashboard_refresh_interval_sec", v)}
                 disabled={!canEdit}
@@ -410,8 +429,8 @@ export function MasterSettingsCenterPanel() {
 
           {activeTab === "footer" ? (
             <div className="grid gap-3 md:grid-cols-2">
-              <Field label="System Footer" value={form.identity.system_footer} onChange={(v) => updateIdentity("system_footer", v)} disabled={!canEdit} />
-              <Field label="Motto" value={form.identity.motto} onChange={(v) => updateIdentity("motto", v)} disabled={!canEdit} />
+              <Field label="Kijachini cha mfumo" value={form.identity.system_footer} onChange={(v) => updateIdentity("system_footer", v)} disabled={!canEdit} />
+              <Field label="Kauli mbiu" value={form.identity.motto} onChange={(v) => updateIdentity("motto", v)} disabled={!canEdit} />
             </div>
           ) : null}
 
@@ -420,7 +439,7 @@ export function MasterSettingsCenterPanel() {
               <LeadershipCvEnginePanel canEdit={canCvEdit} />
             ) : (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                Huna ruhusa ya kuona data ya viongozi (moduli ya Viongozi) ndani ya mipangilio hii.
+                Huna ruhusa ya kuona taarifa za viongozi (moduli ya Viongozi) katika mipangilio hii.
               </div>
             )
           ) : null}
@@ -428,7 +447,7 @@ export function MasterSettingsCenterPanel() {
           {activeTab !== "leadership_cv" ? (
             <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-[11px] leading-relaxed text-slate-500">
-                Badiliko linaloathiri PDF, nembo au lugha linapaswa kuhifadhiwa hapa ili liweze kutumika katika mfumo mzima.
+                Mabadiliko yanayoathiri PDF, nembo au lugha yanapaswa kuhifadhiwa hapa ili yatumike katika mfumo mzima.
               </p>
               <button
                 type="submit"
@@ -440,7 +459,7 @@ export function MasterSettingsCenterPanel() {
             </div>
           ) : (
             <p className="border-t border-slate-200 pt-3 text-xs leading-relaxed text-slate-500">
-              Wasifu wa CV huhifadhiwa kwa kitufe cha <strong className="font-semibold text-slate-700">Hifadhi wasifu</strong> ndani ya sehemu ya Viongozi — si kifungo cha hifadhi cha mipangilio mikuu.
+              Wasifu wa CV huhifadhiwa kwa kitufe <strong className="font-semibold text-slate-700">Hifadhi wasifu</strong> ndani ya sehemu ya Viongozi — si kitufe cha hifadhi cha mipangilio hii.
             </p>
           )}
         </form>
@@ -584,7 +603,7 @@ function UploadField({
       {label}
       <input type="file" accept={accept} onChange={(e) => onUpload(e.target.files?.[0] ?? null)} disabled={disabled || busy} />
       <input value={value} onChange={(e) => onChangeValue(e.target.value)} disabled={disabled} className="rounded-xl border border-slate-200 px-3 py-2" />
-      {busy ? <span className="text-xs text-slate-500">Inapakia...</span> : null}
+      {busy ? <span className="text-xs text-slate-500">Inapakia…</span> : null}
       {value ? (
         <div className="mt-1 overflow-hidden rounded border border-slate-200 bg-slate-50 p-1">
           <img src={value} alt={label} className="max-h-20 w-auto object-contain" loading="lazy" />

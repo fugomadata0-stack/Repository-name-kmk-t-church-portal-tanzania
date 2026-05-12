@@ -1,4 +1,6 @@
-﻿import { fetchMasterSettingsOptional, readMasterSettingsCache } from "../services/masterSettingsService";
+﻿import type { CellHookData } from "jspdf-autotable";
+import { drawKmktPdfWatermark, fitPdfLinesToWidth, normalizePdfReadableText } from "./pdfInstitutional";
+import { fetchMasterSettingsOptional, readMasterSettingsCache } from "../services/masterSettingsService";
 import { fetchChurchIdentityOptional } from "../services/settingsTablesService";
 import type { ChurchStructureEntity, ChurchStructureLeader } from "../types";
 import { fetchLeadersForEntity } from "../services/churchStructureLeadersService";
@@ -57,12 +59,17 @@ function hexToRgbTuple(value: string | undefined, fallback: [number, number, num
 }
 
 function officialReportTitle(title: string): string {
-  const t = title.trim().toUpperCase();
-  if (/(VIONGOZI|UONGOZI|LEADERSHIP)/i.test(t)) return t.includes("WASIFU") ? t : `TAARIFA YA VIONGOZI WA KMK(T) - ${t}`;
-  if (/(DAYOSISI|JIMBO|MAJIMBO|TAWI|MATAWI|MUUNDO)/i.test(t)) return t.includes("RIPOTI") ? t : `RIPOTI YA MUUNDO WA KANISA - ${t}`;
-  if (/(FEDHA|MAPATO|FINANCE|INCOME|MATUMIZI)/i.test(t)) return t.includes("RIPOTI") ? t : `RIPOTI YA FEDHA NA MAPATO - ${t}`;
-  if (/(WAUMINI|FAMILIA|MEMBERS)/i.test(t)) return t.includes("RIPOTI") ? t : `RIPOTI YA WAUMINI NA FAMILIA - ${t}`;
-  return t.startsWith("TAARIFA") || t.startsWith("RIPOTI") ? t : `TAARIFA RASMI YA ${t}`;
+  const t = normalizePdfReadableText(title).toUpperCase();
+  if (!t) return "TAARIFA RASMI YA MFUMO WA KMK(T) PORTAL — DATA HAI";
+  if (/(VIONGOZI|UONGOZI|LEADERSHIP)/i.test(t))
+    return t.includes("WASIFU") ? t : `TAARIFA KAMILI YA VIONGOZI NA UONGOZI WA KMK(T) — ${t}`;
+  if (/(DAYOSISI|JIMBO|MAJIMBO|TAWI|MATAWI|MUUNDO)/i.test(t))
+    return t.includes("RIPOTI") ? t : `RIPOTI KAMILI YA MUUNDO WA KANISA NA VIWANGO — ${t}`;
+  if (/(FEDHA|MAPATO|FINANCE|INCOME|MATUMIZI)/i.test(t))
+    return t.includes("RIPOTI") ? t : `RIPOTI KAMILI YA FEDHA, MAPATO NA MATUMIZI — ${t}`;
+  if (/(WAUMINI|FAMILIA|MEMBERS)/i.test(t))
+    return t.includes("RIPOTI") ? t : `RIPOTI KAMILI YA WAUMINI NA FAMILIA — ${t}`;
+  return t.startsWith("TAARIFA") || t.startsWith("RIPOTI") ? t : `TAARIFA RASMI KAMILI YA ${t} — KMK(T) PORTAL`;
 }
 
 function addWrappedText(
@@ -74,7 +81,17 @@ function addWrappedText(
   lineHeight: number,
   options?: { align?: "left" | "center" | "right" }
 ): number {
-  const lines = doc.splitTextToSize(text, maxWidth) as string[];
+  const cleaned = normalizePdfReadableText(text);
+  const lines = doc.splitTextToSize(cleaned, maxWidth) as string[];
+  const align = options?.align ?? "left";
+  if (align === "center") {
+    let yy = y;
+    for (const line of lines) {
+      doc.text(line, x, yy, { align: "center" });
+      yy += lineHeight;
+    }
+    return yy;
+  }
   doc.text(lines, x, y, options);
   return y + Math.max(1, lines.length) * lineHeight;
 }
@@ -168,11 +185,13 @@ export async function exportTableToPdf(
   const secondary = hexToRgbTuple(identity?.secondary_color || master.theme.secondary_color, [18, 60, 105]);
   const accent = hexToRgbTuple(identity?.accent_color || master.theme.accent_color, KMKT_GOLD);
   const official =
-    identity?.official_church_name?.trim() ||
-    master.theme.pdf_header_text ||
-    master.identity.official_name ||
-    "KANISA LA MENNONITE LA KIINJILI TANZANIA KMK(T)";
-  const motto = identity?.vision?.trim() || master.identity.motto?.trim();
+    normalizePdfReadableText(
+      identity?.official_church_name?.trim() ||
+        master.theme.pdf_header_text ||
+        master.identity.official_name ||
+        "KANISA LA MENNONITE LA KIINJILI TANZANIA KMK(T)"
+    );
+  const motto = normalizePdfReadableText(identity?.vision?.trim() || master.identity.motto?.trim() || "");
   const address = [
     identity?.postal_address,
     identity?.headquarters || master.identity.address,
@@ -220,12 +239,41 @@ export async function exportTableToPdf(
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
-  doc.text(official.toUpperCase(), pageWidth / 2, 12, { align: "center", maxWidth: pageWidth - 72 });
+  const headerBandW = pageWidth - 74;
+  let oy = 12;
+  const oLines = doc.splitTextToSize(official.toUpperCase(), headerBandW) as string[];
+  for (const ln of oLines) {
+    doc.text(ln, pageWidth / 2, oy, { align: "center" });
+    oy += 4.35;
+  }
+  oy += 1.2;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.2);
-  if (motto) doc.text(motto, pageWidth / 2, 17.5, { align: "center", maxWidth: pageWidth - 74 });
-  if (address) doc.text(address, pageWidth / 2, 22.5, { align: "center", maxWidth: pageWidth - 74 });
-  if (contact) doc.text(contact, pageWidth / 2, 27.5, { align: "center", maxWidth: pageWidth - 74 });
+  if (motto) {
+    const my = doc.splitTextToSize(motto, headerBandW) as string[];
+    for (const ln of my) {
+      doc.text(ln, pageWidth / 2, oy, { align: "center" });
+      oy += 3.85;
+    }
+    oy += 0.9;
+  }
+  const addressNorm = normalizePdfReadableText(address);
+  if (addressNorm) {
+    const ad = doc.splitTextToSize(addressNorm, headerBandW) as string[];
+    for (const ln of ad) {
+      doc.text(ln, pageWidth / 2, oy, { align: "center" });
+      oy += 3.85;
+    }
+    oy += 0.9;
+  }
+  const contactNorm = normalizePdfReadableText(contact);
+  if (contactNorm) {
+    const ct = doc.splitTextToSize(contactNorm, headerBandW) as string[];
+    for (const ln of ct) {
+      doc.text(ln, pageWidth / 2, oy, { align: "center" });
+      oy += 3.85;
+    }
+  }
 
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=128x128&data=${encodeURIComponent(
     identity?.website_url || master.identity.website || KMKT_PUBLIC_URL
@@ -242,33 +290,45 @@ export async function exportTableToPdf(
   }
 
   y = 43;
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...primary);
+  const titleMaxW = pageWidth - margin * 3;
+  const titleFit = fitPdfLinesToWidth(doc, reportTitle, titleMaxW, 14, 9.5, 6);
+  const titleBlockH = Math.max(
+    28,
+    titleFit.lines.length * titleFit.lineHeight + 14
+  );
   doc.setFillColor(...KMKT_LIGHT_GRAY);
-  doc.roundedRect(margin, y - 4, pageWidth - margin * 2, 25, 3, 3, "F");
+  doc.roundedRect(margin, y - 4, pageWidth - margin * 2, titleBlockH, 3, 3, "F");
   doc.setDrawColor(...accent);
   doc.setLineWidth(0.35);
-  doc.roundedRect(margin, y - 4, pageWidth - margin * 2, 25, 3, 3, "S");
+  doc.roundedRect(margin, y - 4, pageWidth - margin * 2, titleBlockH, 3, 3, "S");
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(...primary);
-  y = addWrappedText(doc, reportTitle, pageWidth / 2, y + 2, pageWidth - margin * 3, 5.2, { align: "center" });
+  doc.setFontSize(titleFit.fontSize);
+  let titleY = y + 2;
+  for (const line of titleFit.lines) {
+    doc.text(line, pageWidth / 2, titleY, { align: "center" });
+    titleY += titleFit.lineHeight;
+  }
+  y = titleY;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(...KMKT_SLATE);
   if (options?.subtitle?.trim()) {
-    y = addWrappedText(doc, options.subtitle.trim(), pageWidth / 2, y + 0.5, pageWidth - 2 * margin, 4, { align: "center" });
+    y = addWrappedText(doc, options.subtitle.trim(), pageWidth / 2, y + 0.5, pageWidth - 2 * margin, 4.35, { align: "center" });
   }
   if (options?.filterSummary?.trim()) {
-    y = addWrappedText(doc, options.filterSummary.trim(), pageWidth / 2, y + 0.5, pageWidth - 2 * margin, 4, { align: "center" });
+    y = addWrappedText(doc, options.filterSummary.trim(), pageWidth / 2, y + 0.5, pageWidth - 2 * margin, 4.35, { align: "center" });
   }
 
-  const description =
+  const description = normalizePdfReadableText(
     options?.description?.trim() ||
-    "Ripoti hii imetengenezwa na KMT Portal kwa matumizi rasmi ya uongozi, ufuatiliaji wa taarifa, uchambuzi na maamuzi ya taasisi.";
+      "Ripoti hii imetengenezwa na KMT Portal kwa matumizi rasmi ya uongozi, ufuatiliaji wa taarifa, uchambuzi na maamuzi ya taasisi."
+  );
   y += 4;
   const descTextWidth = pageWidth - margin * 2 - 38;
-  const descLineH = 4.05;
+  const descLineH = 4.25;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.2);
   const descLines = doc.splitTextToSize(description, Math.max(40, descTextWidth)) as string[];
@@ -329,11 +389,28 @@ export async function exportTableToPdf(
       valign: "middle",
       lineColor: accent,
       lineWidth: 0.22,
+      overflow: "linebreak",
     },
-    alternateRowStyles: { fillColor: [248, 250, 252] },
     tableLineColor: primary,
     tableLineWidth: 0.25,
     theme: "grid",
+    willDrawPage: (data: { doc: InstanceType<typeof import("jspdf").jsPDF> }) => {
+      drawKmktPdfWatermark(data.doc, {
+        line1: master.identity.short_name?.trim() || "KMK(T)",
+        line2: "RIPOTI RASMI · DATA LIVE KUTOKA SUPABASE",
+      });
+    },
+    didParseCell: (data: CellHookData) => {
+      if (data.section === "body") {
+        const fills: [number, number, number][] = [
+          [255, 255, 255],
+          [247, 249, 253],
+          [252, 253, 255],
+          [243, 246, 252],
+        ];
+        data.cell.styles.fillColor = fills[data.column.index % fills.length];
+      }
+    },
     didDrawPage: (data: { doc: InstanceType<typeof import("jspdf").jsPDF>; pageNumber: number }) => {
       const d = data.doc;
       const pc = d.getNumberOfPages();
@@ -381,13 +458,14 @@ export interface PrintableTableOptions {
   subtitle?: string;
 }
 
-export function openPrintableTable(
+export async function openPrintableTable(
   title: string,
   headers: string[],
   rows: (string | number)[][],
   options?: PrintableTableOptions
 ) {
-  const master = readMasterSettingsCache();
+  const masterRow = await fetchMasterSettingsOptional();
+  const master = masterRow ?? readMasterSettingsCache();
   const w = window.open("", "_blank", "width=1100,height=780");
   if (!w) return;
 
@@ -407,7 +485,8 @@ export function openPrintableTable(
     )
     .join("");
 
-  const docTitle = `${escapeHtml(title)} — ${escapeHtml(master.identity.short_name || "KMK(T)")}`;
+  const titleNorm = normalizePdfReadableText(title);
+  const docTitle = `${escapeHtml(titleNorm)} — ${escapeHtml(master.identity.short_name || "KMK(T)")}`;
   const filterBlock = options?.filterSummary?.trim()
     ? `<p class="filter-line">${escapeHtml(options.filterSummary.trim())}</p>`
     : "";
@@ -464,8 +543,9 @@ export function openPrintableTable(
         font-size: 1.1rem;
         font-weight: 700;
         color: #0B1F3A;
-        margin: 10px 0 6px;
-        line-height: 1.4;
+        margin: 12px 0 8px;
+        line-height: 1.55;
+        letter-spacing: 0.01em;
         word-wrap: break-word;
         overflow-wrap: anywhere;
       }
@@ -522,7 +602,7 @@ export function openPrintableTable(
           ${master.identity.motto?.trim() ? `<p class="motto">${escapeHtml(master.identity.motto.trim())}</p>` : ""}
           ${master.identity.address?.trim() ? `<p class="address">${escapeHtml(master.identity.address.trim())}</p>` : ""}
         </header>
-        <h1 class="report-title">${escapeHtml(title)}</h1>
+        <h1 class="report-title">${escapeHtml(titleNorm)}</h1>
         ${subBlock}
         ${filterBlock}
         <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>

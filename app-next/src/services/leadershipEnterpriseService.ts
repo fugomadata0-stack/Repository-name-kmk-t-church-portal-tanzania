@@ -153,6 +153,7 @@ export type LeadershipRealtimeHandlers = {
   onCategories?: () => void;
   onCommittees?: () => void;
   onLeaders?: () => void;
+  onLeadershipProfiles?: () => void;
   /** Hali ya usajili wa channel (SUBSCRIBED, CHANNEL_ERROR, TIMED_OUT, CLOSED, …). */
   onSubscribeStatus?: (status: string, err?: Error) => void;
 };
@@ -177,6 +178,11 @@ export function subscribeLeadershipEnterprise(h: LeadershipRealtimeHandlers): Re
       () => h.onCommittees?.()
     )
     .on("postgres_changes", { event: "*", schema: "public", table: "church_viongozi" }, () => h.onLeaders?.())
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "leadership_profiles" },
+      () => h.onLeadershipProfiles?.()
+    )
     .subscribe((status, err) => {
       h.onSubscribeStatus?.(status, err);
       if (status === "CHANNEL_ERROR") {
