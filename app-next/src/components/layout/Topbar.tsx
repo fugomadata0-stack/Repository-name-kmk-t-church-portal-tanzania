@@ -1,6 +1,7 @@
 import { usePortal } from "../../context/PortalContext";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { useEffect, useState } from "react";
+import { Menu } from "lucide-react";
 
 interface Props {
   title: string;
@@ -41,11 +42,11 @@ export function Topbar({ title, onOpenMobileSidebar, onNavigateToModule, canBack
         <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
-            className="shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm lg:hidden"
+            className="flex shrink-0 items-center justify-center rounded-lg border border-slate-200 p-2 text-slate-800 hover:bg-slate-50 lg:hidden"
             onClick={onOpenMobileSidebar}
             aria-label="Fungua menyu"
           >
-            ☰
+            <Menu className="h-5 w-5" strokeWidth={2} aria-hidden />
           </button>
           <h2 className="min-w-0 flex-1 hyphens-auto break-words text-base font-bold leading-snug text-[#0f1e46] sm:text-lg">
             {title}

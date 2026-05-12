@@ -6,6 +6,7 @@ import { usePortal } from "../../context/PortalContext";
 import { exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
 import { KMT_PORTAL_RELOAD_METRICS_EVENT } from "../../lib/portalEvents";
 import { resolveSystemAlert } from "../../services/alertsService";
+import { HAIJAPATIKANA_DATA_SW } from "../../lib/supabaseUiMessages";
 
 function badgeClass(status: HealthBadgeStatus): string {
   if (status === "healthy") return "bg-emerald-100 text-emerald-800 border-emerald-200";
@@ -69,7 +70,7 @@ function emptySnapshot(): SystemHealthSnapshot {
 }
 
 function fmtDate(v: string | null | undefined): string {
-  if (!v) return "Haijapatikana";
+  if (!v) return HAIJAPATIKANA_DATA_SW;
   const t = Date.parse(v);
   if (!Number.isFinite(t)) return String(v);
   return new Date(t).toLocaleString("sw-TZ");
@@ -125,13 +126,13 @@ export function SystemHealthCenterPanel() {
       },
       {
         title: "Upload Failures (24h)",
-        value: snapshot.indicators.upload_failures_24h ?? "Haijapatikana",
+        value: snapshot.indicators.upload_failures_24h ?? HAIJAPATIKANA_DATA_SW,
         badge: snapshot.badges.uploads,
         icon: AlertTriangle,
       },
       {
         title: "Failed Jobs (24h)",
-        value: snapshot.indicators.failed_jobs_24h ?? "Haijapatikana",
+        value: snapshot.indicators.failed_jobs_24h ?? HAIJAPATIKANA_DATA_SW,
         badge: snapshot.badges.jobs,
         icon: AlertTriangle,
       },
@@ -145,15 +146,15 @@ export function SystemHealthCenterPanel() {
       ["Database Connection", snapshot.indicators.database_connection, snapshot.badges.database],
       ["Supabase Health", snapshot.indicators.supabase_health, snapshot.badges.database],
       ["Realtime Sync", snapshot.indicators.realtime_sync, snapshot.badges.realtime],
-      ["Storage Usage (MB)", snapshot.indicators.storage_usage_mb ?? "Haijapatikana", snapshot.badges.storage],
-      ["Upload Failures (24h)", snapshot.indicators.upload_failures_24h ?? "Haijapatikana", snapshot.badges.uploads],
-      ["Failed Jobs (24h)", snapshot.indicators.failed_jobs_24h ?? "Haijapatikana", snapshot.badges.jobs],
+      ["Storage Usage (MB)", snapshot.indicators.storage_usage_mb ?? HAIJAPATIKANA_DATA_SW, snapshot.badges.storage],
+      ["Upload Failures (24h)", snapshot.indicators.upload_failures_24h ?? HAIJAPATIKANA_DATA_SW, snapshot.badges.uploads],
+      ["Failed Jobs (24h)", snapshot.indicators.failed_jobs_24h ?? HAIJAPATIKANA_DATA_SW, snapshot.badges.jobs],
       ["Open Warning Alerts", snapshot.indicators.open_warning_alerts, "warning"],
       ["Open Critical Alerts", snapshot.indicators.open_critical_alerts, "critical"],
       ["Failed Logins (24h)", snapshot.indicators.failed_logins_24h, "warning"],
       ["Audit Events (24h)", snapshot.logs_summary.audit_events_24h, "info"],
       ["Audit Failures (24h)", snapshot.logs_summary.audit_failures_24h, "warning"],
-      ["Backup Last Seen", snapshot.logs_summary.latest_backup_at ?? "Haijapatikana", snapshot.badges.backups],
+      ["Backup Last Seen", snapshot.logs_summary.latest_backup_at ?? HAIJAPATIKANA_DATA_SW, snapshot.badges.backups],
       ["Checked At", snapshot.checked_at, "info"],
     ],
     [snapshot]

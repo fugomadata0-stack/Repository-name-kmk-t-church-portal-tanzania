@@ -9,7 +9,7 @@ import { resolvePortalDisplayName, resolvePortalSubtitle } from "../lib/settings
 import { fetchChurchIdentityOptional, fetchSystemSettingsOptional } from "../services/settingsTablesService";
 import type { ChurchIdentityRow, SystemSettingsRow } from "../services/settingsTablesService";
 import { formatMoneyTz } from "../lib/money";
-import { HAKUNA_DATA_BADO_SW } from "../lib/supabaseUiMessages";
+import { HAKUNA_DATA_BADO_SW, HAIJAPATIKANA_DATA_SW } from "../lib/supabaseUiMessages";
 import type { DayosisiRecord, FedhaRecord, IncomeManagementRecord, JimboRecord, KiongoziRecord, TawiRecord } from "../types";
 import { safeArray } from "../lib/safe";
 import type { DashboardKpiSnapshot } from "../services/dashboardKpiAggregatesService";
@@ -225,7 +225,7 @@ export function Dashboard({
       : String(kpiLive.unpostedCollectionsCount);
   const kpiFailedKeys = Object.keys(kpiLive.failedKpis ?? {});
   const failedValue = (value: string | number, keys: string[]): string | number =>
-    keys.some((k) => kpiFailedKeys.includes(k)) ? "Haijapatikana" : value;
+    keys.some((k) => kpiFailedKeys.includes(k)) ? HAIJAPATIKANA_DATA_SW : value;
 
   const cards: readonly (readonly [string, string | number, string])[] = [
     ["Jumla ya Dayosisi", failedValue(kpiLive.dayosisiCount, ["kpi.dayosisi.count"]), "from-blue-600 to-blue-800"],

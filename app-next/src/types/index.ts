@@ -332,6 +332,107 @@ export interface LeadershipDocumentRecord {
   uploaded_at: string;
 }
 
+/** Wasifu rasmi — rekodi kuu (1:1 na church_viongozi) + viwango vya CV. */
+export interface LeadershipProfileCvRecord {
+  id: string;
+  leader_id: string;
+  nationality: string | null;
+  biography: string | null;
+  reporting_office: string | null;
+  profile_photo_storage_path: string | null;
+  signature_storage_path: string | null;
+  original_cv_storage_path: string | null;
+  original_cv_file_name: string | null;
+  original_cv_mime: string | null;
+  original_cv_bytes: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface LeadershipCvExperienceRow {
+  id: string;
+  leader_id: string;
+  start_year: number;
+  end_year: number | null;
+  institution: string;
+  position: string;
+  description: string | null;
+  sort_order: number;
+}
+
+export type LeadershipCvEducationKind =
+  | "certificate"
+  | "diploma"
+  | "degree"
+  | "masters"
+  | "theology"
+  | "seminar"
+  | "workshop"
+  | "other";
+
+export interface LeadershipCvEducationRow {
+  id: string;
+  leader_id: string;
+  education_kind: LeadershipCvEducationKind | string;
+  institution: string;
+  qualification: string;
+  year: number | null;
+  specialization: string | null;
+  sort_order: number;
+}
+
+export interface LeadershipCvCertificateRow {
+  id: string;
+  leader_id: string;
+  certificate_name: string;
+  issuer: string | null;
+  year: number | null;
+  notes: string | null;
+  document_storage_path: string | null;
+  sort_order: number;
+}
+
+export type LeadershipCvSkillCategory = "leadership" | "ministry" | "technical" | "language" | "spiritual_gift" | string;
+
+export interface LeadershipCvSkillRow {
+  id: string;
+  leader_id: string;
+  skill_category: LeadershipCvSkillCategory;
+  label: string;
+  sort_order: number;
+}
+
+export type LeadershipCvAttachmentKind =
+  | "cv_pdf"
+  | "certificate"
+  | "appointment"
+  | "ministry"
+  | "national_id"
+  | "passport"
+  | "other"
+  | string;
+
+export interface LeadershipCvAttachmentRow {
+  id: string;
+  leader_id: string;
+  attachment_kind: LeadershipCvAttachmentKind;
+  storage_path: string;
+  file_name: string;
+  mime_type: string | null;
+  file_size: number | null;
+  sort_order: number;
+  created_at?: string;
+}
+
+export interface LeadershipCvBundle {
+  profile: LeadershipProfileCvRecord | null;
+  experience: LeadershipCvExperienceRow[];
+  education: LeadershipCvEducationRow[];
+  certificates: LeadershipCvCertificateRow[];
+  skills: LeadershipCvSkillRow[];
+  attachments: LeadershipCvAttachmentRow[];
+}
+
 export interface AttendanceSessionRecord {
   id: string;
   attendance_date: string;

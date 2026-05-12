@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { usePortal } from "../context/PortalContext";
 import { getSupabase, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
+import { HAIJAPATIKANA_DATA_SW } from "../lib/supabaseUiMessages";
 import { fetchPortalPublicDashboardCounts } from "../services/portalPublicDashboardService";
 import { fetchMasterSettingsOptional, readMasterSettingsCache } from "../services/masterSettingsService";
 import { fetchChurchIdentityOptional } from "../services/settingsTablesService";
@@ -137,7 +138,7 @@ function formatDateSafe(v: string | null | undefined): string {
 function formatStatCount(value: number | null, loading: boolean, queryFailed: boolean): string {
   if (loading) return "…";
   if (typeof value === "number" && Number.isFinite(value)) return value.toLocaleString("sw-TZ");
-  if (queryFailed) return "Imeshindikana kupakua taarifa";
+  if (queryFailed) return HAIJAPATIKANA_DATA_SW;
   return "—";
 }
 
@@ -327,7 +328,7 @@ export function LoginPage() {
           } else if (listErrors.some((e) => hasMigrationNotReadyError(e))) {
             setPublicLoadError("Seva ya data haijakamilisha migrations zinazohitajika.");
           } else {
-            setPublicLoadError("Imeshindikana kupakua taarifa.");
+            setPublicLoadError(`${HAIJAPATIKANA_DATA_SW}: taarifa za umma hazijapakuliwa. Jaribu tena.`);
           }
         } else {
           setPublicLoadError("");
@@ -716,7 +717,7 @@ export function LoginPage() {
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300/95">{label}</p>
               <p
                 className={`mt-1 font-bold text-white ${statQueryFailed[key] ? "text-[10px] leading-snug md:text-xs" : "text-lg md:text-xl"}`}
-                title={statQueryFailed[key] ? "Imeshindikana kupakua taarifa" : undefined}
+                title={statQueryFailed[key] ? HAIJAPATIKANA_DATA_SW : undefined}
               >
                 {formatStatCount(stats[key], publicStatsLoading, statQueryFailed[key])}
               </p>

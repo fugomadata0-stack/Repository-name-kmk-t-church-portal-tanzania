@@ -18,7 +18,7 @@ import {
   fetchDashboardKpiAggregates,
   type DashboardKpiSnapshot,
 } from "../../services/dashboardKpiAggregatesService";
-import { DASHBOARD_KPI_LOAD_ERROR_SW } from "../../lib/supabaseUiMessages";
+import { DASHBOARD_KPI_LOAD_ERROR_SW, HAIJAPATIKANA_DATA_SW } from "../../lib/supabaseUiMessages";
 import { dispatchPortalReloadMetrics, KMT_PORTAL_RELOAD_METRICS_EVENT } from "../../lib/portalEvents";
 import { roleBypassesGeoScope } from "../../utils/scopeAccess";
 import { readPortalUiSnapshot, writePortalUiSnapshot } from "../../lib/portalUiPersistence";
@@ -35,6 +35,7 @@ import { PortalAutoDraftRecovery } from "../draft/PortalAutoDraftRecovery";
 import { SiteFooter } from "./SiteFooter";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { PortalProjectNotesRibbon } from "./PortalProjectNotesRibbon";
 const Dashboard = lazy(async () => {
   const m = await import("../../pages/Dashboard");
   return { default: m.Dashboard };
@@ -207,7 +208,7 @@ export function AppLayout() {
       const getErr = (idx: number): string | null => {
         const r = settled[idx];
         if (r.status === "fulfilled") return null;
-        return String((r.reason as { message?: unknown } | null)?.message ?? r.reason ?? "Haijapatikana");
+        return String((r.reason as { message?: unknown } | null)?.message ?? r.reason ?? HAIJAPATIKANA_DATA_SW);
       };
       const failedCritical = settled.filter((r) => r.status === "rejected").length;
       const auditErr = getErr(1);
@@ -659,6 +660,9 @@ export function AppLayout() {
             tabIndex={-1}
             className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-y-contain p-3 pb-[max(5rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch] focus:outline-none sm:p-4"
           >
+            {authInitialized && authUser && visibleModules.length > 0 ? (
+              <PortalProjectNotesRibbon show />
+            ) : null}
             {noModuleRbac ? (
               <div className="mb-4">
                 <NoModuleAccessNotice />

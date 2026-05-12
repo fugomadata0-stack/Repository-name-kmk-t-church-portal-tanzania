@@ -8,3 +8,9 @@ export const HAKUNA_DATA_BADO_SW = "Hakuna data bado.";
 /** Kosa la kupakia hesabu za KPI za dashibodi (AppLayout + fetchDashboardKpiAggregates). */
 export const DASHBOARD_KPI_LOAD_ERROR_SW =
   "Imeshindikana kupakua taarifa za dashibodi kutoka Supabase. Tafadhali jaribu tena.";
+
+/**
+ * Hesabu / KPI isiyopatikana (hitilafu ya swala, RLS, mtandao) — si 0 bandia.
+ * Tumia kwenye kadi za dashibodi na strip ya umma ili ujumbe uwe thabiti.
+ */
+export const HAIJAPATIKANA_DATA_SW = "Haijapatikana";

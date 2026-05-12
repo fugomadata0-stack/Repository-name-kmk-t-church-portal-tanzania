@@ -4,7 +4,15 @@
 
 :root {
   color-scheme: light;
-  --kmt-focus: #1d4ed8;
+  /* KMK(T) “portal DNA” — navy + dhahabu + uso laini */
+  --kmt-navy: #0b1f3a;
+  --kmt-navy-mid: #123c69;
+  --kmt-gold: #d4af37;
+  --kmt-gold-soft: rgba(212, 175, 55, 0.22);
+  --kmt-surface: #f3f6fa;
+  --kmt-ink: #0b1f3a;
+  --kmt-focus: #b45309;
+  --kmt-focus-ring: rgba(180, 83, 9, 0.35);
   --kmt-focus-offset: 2px;
 }
 
@@ -17,12 +25,12 @@ body {
   margin: 0;
   min-height: 100%;
   min-height: 100dvh;
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: Outfit, Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  background-color: #f3f6fa;
-  color: #0b1f3a;
+  background-color: var(--kmt-surface);
+  color: var(--kmt-ink);
   line-height: 1.6;
   overflow-wrap: break-word;
   word-break: break-word;
@@ -56,4 +64,10 @@ body {
 :focus-visible {
   outline: 2px solid var(--kmt-focus);
   outline-offset: var(--kmt-focus-offset);
+  box-shadow: 0 0 0 4px var(--kmt-focus-ring);
+}
+
+::selection {
+  background-color: var(--kmt-gold-soft);
+  color: var(--kmt-navy);
 }

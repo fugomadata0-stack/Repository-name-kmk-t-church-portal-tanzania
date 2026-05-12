@@ -1,5 +1,20 @@
 ﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Building2,
+  FileStack,
+  IdCard,
+  ImageIcon,
+  Languages,
+  LayoutDashboard,
+  Mail,
+  MessageSquareText,
+  Paintbrush,
+  PanelBottom,
+  Sparkles,
+} from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
+import { LeadershipCvEnginePanel } from "./LeadershipCvEnginePanel";
 import { SettingsSupabaseBanner } from "./SettingsSupabaseBanner";
 import { uploadSitePublicAsset } from "../../lib/siteAssetsUpload";
 import {
@@ -23,26 +38,30 @@ type TabKey =
   | "sms_templates"
   | "language"
   | "dashboard"
-  | "footer";
+  | "footer"
+  | "leadership_cv";
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "identity", label: "Utambulisho wa KMK(T)" },
-  { key: "branding", label: "Logo & Branding" },
-  { key: "theme", label: "Theme Colors" },
-  { key: "exports", label: "PDF / Excel / Print Headers" },
-  { key: "email_templates", label: "Email Templates" },
-  { key: "sms_templates", label: "SMS Templates" },
-  { key: "language", label: "Language Settings" },
-  { key: "dashboard", label: "Dashboard Defaults" },
-  { key: "footer", label: "System Footer" },
+const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
+  { key: "identity", label: "Utambulisho wa KMK(T)", icon: Building2 },
+  { key: "branding", label: "Logo & Branding", icon: ImageIcon },
+  { key: "theme", label: "Rangi & mandhari", icon: Paintbrush },
+  { key: "exports", label: "PDF / Excel / Print", icon: FileStack },
+  { key: "email_templates", label: "Mifano ya barua pepe", icon: Mail },
+  { key: "sms_templates", label: "Mifano ya SMS", icon: MessageSquareText },
+  { key: "language", label: "Mipangilio ya lugha", icon: Languages },
+  { key: "dashboard", label: "Chaguo-msingi dashibodi", icon: LayoutDashboard },
+  { key: "footer", label: "Kijachini cha mfumo", icon: PanelBottom },
+  { key: "leadership_cv", label: "Wasifu & CV — Viongozi", icon: IdCard },
 ];
 
 const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 
 export function MasterSettingsCenterPanel() {
-  const { pushToast, reportError, canPortalEditModule, canPortalManageSettingsModule, logAudit } = usePortal();
+  const { pushToast, reportError, canPortalEditModule, canPortalManageSettingsModule, canPortalViewModule, logAudit } = usePortal();
   const canEdit = canPortalManageSettingsModule("mipangilio") && canPortalEditModule("mipangilio");
+  const canCvTab = canPortalManageSettingsModule("mipangilio") && canPortalViewModule("viongozi");
+  const canCvEdit = canCvTab && canPortalEditModule("mipangilio") && canPortalEditModule("viongozi");
 
   const [activeTab, setActiveTab] = useState<TabKey>("identity");
   const [loading, setLoading] = useState(true);
@@ -167,10 +186,27 @@ export function MasterSettingsCenterPanel() {
   return (
     <section className="space-y-4">
       <SettingsSupabaseBanner />
-      <header className="rounded-2xl border border-[#D4AF37]/40 bg-gradient-to-r from-[#0B1F3A] to-[#123C69] p-6 text-white shadow-xl">
-        <p className="text-xs font-semibold uppercase tracking-widest text-amber-300">STEP 16</p>
-        <h2 className="mt-1 text-2xl font-bold">KMK(T) MASTER SETTINGS</h2>
-        <p className="mt-2 text-sm text-blue-100">Global identity, branding, theme, exports, templates, language na defaults za dashibodi.</p>
+      <header className="relative overflow-hidden rounded-2xl border border-[#D4AF37]/35 bg-gradient-to-br from-[#0B1F3A] via-[#0c2442] to-[#123C69] p-6 text-white shadow-xl ring-1 ring-white/10">
+        <div className="pointer-events-none absolute -right-10 -top-12 h-40 w-40 rounded-full bg-[#D4AF37]/12 blur-3xl" aria-hidden />
+        <div className="pointer-events-none absolute -bottom-16 left-1/4 h-36 w-36 rounded-full bg-sky-400/10 blur-3xl" aria-hidden />
+        <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 space-y-2">
+            <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-200/95">
+              <Sparkles className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-hidden />
+              KMK(T) · Mipangilio mikuu
+            </p>
+            <h2 className="font-kmkt-display text-2xl font-bold leading-tight tracking-tight sm:text-3xl">Kituo cha utambulisho na uendeshaji</h2>
+            <p className="max-w-2xl text-sm leading-relaxed text-blue-100/95">
+              Chanzo kimoja cha ukweli: utambulisho wa jumla, nembo, rangi, vichwa vya hati, mifano ya barua na SMS, lugha, na chaguo-msingi za dashibodi. Badiliko hapa linaonekana katika PDF, dashibodi na hati rasmi.
+            </p>
+          </div>
+          <aside className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-xs text-amber-50 backdrop-blur-sm">
+            <p className="font-semibold text-amber-200">Utaratibu wa kitaasisi</p>
+            <p className="mt-1.5 max-w-[16rem] leading-relaxed text-blue-100/85">
+              Tumia sehemu za kushoto kama ramani — anza kwa Utambulisho, kisha Branding na Rangi kabla ya mifano ya ujumbe.
+            </p>
+          </aside>
+        </div>
       </header>
 
       {!canEdit ? (
@@ -180,23 +216,46 @@ export function MasterSettingsCenterPanel() {
       ) : null}
 
       {loading ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-600">Inapakia master settings...</div>
-      ) : (
-        <form onSubmit={(e) => void onSave(e)} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow">
-          <div className="flex flex-wrap gap-2">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                onClick={() => setActiveTab(t.key)}
-                className={`rounded-xl px-3 py-2 text-sm font-semibold ${
-                  activeTab === t.key ? "bg-[#0B1F3A] text-white" : "border border-slate-300 bg-white text-slate-700"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+        <div
+          className="flex items-center gap-3 rounded-2xl border border-slate-200/90 bg-white p-6 text-slate-600 shadow-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <span className="inline-block h-9 w-9 shrink-0 animate-spin rounded-full border-2 border-[#0B1F3A] border-t-transparent" aria-hidden />
+          <div>
+            <p className="text-sm font-semibold text-[#0B1F3A]">Inapakia mipangilio mikuu…</p>
+            <p className="text-xs text-slate-500">Tunasoma rekodi kutoka Supabase (sekunde chache).</p>
           </div>
+        </div>
+      ) : (
+        <form
+          onSubmit={(e) => void onSave(e)}
+          className="space-y-4 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-md ring-1 ring-slate-100 sm:p-5"
+        >
+          <nav
+            className="-mx-1 flex gap-2 overflow-x-auto pb-1 pt-0.5 [scrollbar-width:thin] sm:flex-wrap sm:overflow-x-visible"
+            aria-label="Sehemu za mipangilio mikuu"
+          >
+            {TABS.map((t) => {
+              const Icon = t.icon;
+              const active = activeTab === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => setActiveTab(t.key)}
+                  className={`flex min-w-max shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
+                    active
+                      ? "bg-[#0B1F3A] text-white shadow-md ring-2 ring-amber-400/45 ring-offset-2 ring-offset-white"
+                      : "border border-slate-200/90 bg-slate-50/80 text-slate-800 hover:border-amber-200/80 hover:bg-white"
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 shrink-0 ${active ? "text-amber-200" : "text-slate-500"}`} aria-hidden />
+                  <span className="whitespace-nowrap">{t.label}</span>
+                </button>
+              );
+            })}
+          </nav>
 
           {activeTab === "identity" ? (
             <div className="grid gap-3 md:grid-cols-2">
@@ -356,15 +415,34 @@ export function MasterSettingsCenterPanel() {
             </div>
           ) : null}
 
-          <div className="flex justify-end border-t border-slate-200 pt-3">
-            <button
-              type="submit"
-              disabled={!canEdit || saving}
-              className="rounded-xl bg-[#0B1F3A] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              {saving ? "Inahifadhi..." : "Hifadhi Master Settings"}
-            </button>
-          </div>
+          {activeTab === "leadership_cv" ? (
+            canCvTab ? (
+              <LeadershipCvEnginePanel canEdit={canCvEdit} />
+            ) : (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                Huna ruhusa ya kuona data ya viongozi (moduli ya Viongozi) ndani ya mipangilio hii.
+              </div>
+            )
+          ) : null}
+
+          {activeTab !== "leadership_cv" ? (
+            <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-[11px] leading-relaxed text-slate-500">
+                Badiliko linaloathiri PDF, nembo au lugha linapaswa kuhifadhiwa hapa ili liweze kutumika katika mfumo mzima.
+              </p>
+              <button
+                type="submit"
+                disabled={!canEdit || saving}
+                className="shrink-0 rounded-xl bg-[#0B1F3A] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#123C69] disabled:opacity-50"
+              >
+                {saving ? "Inahifadhi…" : "Hifadhi mipangilio mikuu"}
+              </button>
+            </div>
+          ) : (
+            <p className="border-t border-slate-200 pt-3 text-xs leading-relaxed text-slate-500">
+              Wasifu wa CV huhifadhiwa kwa kitufe cha <strong className="font-semibold text-slate-700">Hifadhi wasifu</strong> ndani ya sehemu ya Viongozi — si kifungo cha hifadhi cha mipangilio mikuu.
+            </p>
+          )}
         </form>
       )}
     </section>

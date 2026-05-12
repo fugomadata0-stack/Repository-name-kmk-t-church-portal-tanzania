@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
-import type { KiongoziRecord } from "../types";
+import autoTable from "jspdf-autotable";
+import type { KiongoziRecord, LeadershipCvBundle } from "../types";
 
 const navyRgb = [11, 31, 58] as const;
 const goldRgb = [212, 175, 55] as const;
@@ -58,7 +59,16 @@ function applyLeadershipPdfFooters(doc: jsPDF, meta?: { rightTag?: string; gener
   }
 }
 
-export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: { portalBaseUrl?: string; churchName?: string }) {
+export type LeaderProfilePdfOpts = {
+  portalBaseUrl?: string;
+  churchName?: string;
+  bundle?: LeadershipCvBundle | null;
+  photoDataUrl?: string | null;
+  signatureDataUrl?: string | null;
+  logoDataUrl?: string | null;
+};
+
+export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: LeaderProfilePdfOpts) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 14;
@@ -66,21 +76,37 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: { 
 
   const churchName = (opts?.churchName || "KMK(T) — Kanisa la Mennonite la Kiinjili Tanzania").toUpperCase();
   const verifyUrl = `${(opts?.portalBaseUrl || window.location.origin).replace(/\/$/, "")}/portal`;
+  const bundle = opts?.bundle ?? null;
 
   doc.setFillColor(...navyRgb);
-  doc.rect(0, 0, pageWidth, 42, "F");
+  doc.rect(0, 0, pageWidth, 46, "F");
   doc.setFillColor(...goldRgb);
-  doc.rect(0, 40, pageWidth, 1.2, "F");
+  doc.rect(0, 44, pageWidth, 1.2, "F");
+
+  const logo = opts?.logoDataUrl?.trim() ? opts.logoDataUrl : null;
+  if (logo) {
+    try {
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(margin, 8, 22, 22, 2, 2, "F");
+      doc.addImage(logo, logo.includes("jpeg") ? "JPEG" : "PNG", margin + 1, 9, 20, 20);
+    } catch {
+      /* optional */
+    }
+  }
 
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  const title = "WASIFU RASMI WA KIONGOZI";
-  fitTitle(doc, title, pageWidth - margin * 2, 16, 10);
-  doc.text(title, pageWidth / 2, 14, { align: "center" });
+  const title1 = "WASIFU RASMI WA KIONGOZI";
+  fitTitle(doc, title1, pageWidth - margin * 2 - 30, 14, 10);
+  doc.text(title1, pageWidth / 2, 12, { align: "center" });
+  doc.setFontSize(9.5);
+  const title2 = "KANISA LA MENNONITE LA KIINJILI TANZANIA KMK(T)";
+  fitTitle(doc, title2, pageWidth - margin * 2 - 30, 9.5, 7.5);
+  doc.text(title2, pageWidth / 2, 20, { align: "center" });
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.text(churchName, pageWidth / 2, 22, { align: "center", maxWidth: pageWidth - margin * 2 });
-  doc.text(`Imetolewa: ${new Date().toLocaleString("sw-TZ")}`, pageWidth / 2, 30, { align: "center" });
+  doc.setFontSize(8.2);
+  doc.text(churchName, pageWidth / 2, 28, { align: "center", maxWidth: pageWidth - margin * 2 - 28 });
+  doc.text(`Imetolewa: ${new Date().toLocaleString("sw-TZ")}`, pageWidth / 2, 35, { align: "center" });
 
   const qr = await imageDataUrl(
     `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(`${verifyUrl} · ${leader.id}`)}`
@@ -95,7 +121,7 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: { 
     }
   }
 
-  y = 48;
+  y = 52;
   doc.setTextColor(...navyRgb);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
@@ -110,7 +136,7 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: { 
   y += 18;
 
   const mediaTop = y;
-  const photo = leader.photo_url ? await imageDataUrl(leader.photo_url) : null;
+  const photo = (opts?.photoDataUrl?.trim() ? opts.photoDataUrl : null) || (leader.photo_url ? await imageDataUrl(leader.photo_url) : null);
   if (photo) {
     try {
       doc.setDrawColor(...goldRgb);
@@ -121,16 +147,18 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: { 
     }
   }
 
-  const sig = leader.signature_url ? await imageDataUrl(leader.signature_url) : null;
+  const sig =
+    (opts?.signatureDataUrl?.trim() ? opts.signatureDataUrl : null) ||
+    (leader.signature_url ? await imageDataUrl(leader.signature_url) : null);
   const sigX = margin + (photo ? 44 : 0);
   if (sig) {
     try {
       doc.setFont("helvetica", "bold");
       doc.setFontSize(8);
       doc.setTextColor(...navyRgb);
-      doc.text("Saini", sigX, mediaTop);
+      doc.text("Saini rasmi", sigX, mediaTop);
       doc.roundedRect(sigX, mediaTop + 3, 52, 22, 2, 2, "S");
-      doc.addImage(sig, "PNG", sigX + 2, mediaTop + 5, 48, 16);
+      doc.addImage(sig, sig.includes("jpeg") ? "JPEG" : "PNG", sigX + 2, mediaTop + 5, 48, 16);
     } catch {
       /* optional */
     }
@@ -170,14 +198,19 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: { 
     doc.setTextColor(30, 41, 59);
     const lines = doc.splitTextToSize(v || "—", pageWidth - margin * 2 - 50) as string[];
     doc.text(lines, margin + 46, y);
-    const lh = 4.2;
+    const lh = 4.8;
     y += Math.max(keyLines.length * lh, lines.length * lh, lh + 1);
   };
 
-  section("Taarifa za msingi");
+  const tableFinalY = () => (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY;
+
+  const prof = bundle?.profile;
+
+  section("Taarifa binafsi");
   row("Jina kamili", leader.full_name || leader.jina);
   row("Jinsia", leader.gender || "—");
   row("Tarehe ya kuzaliwa", leader.date_of_birth || "—");
+  row("Uraia", prof?.nationality?.trim() || "—");
   row("NIDA / Pasipoti", [leader.national_id, leader.passport_number].filter(Boolean).join(" / ") || "—");
   row("Kitambulisho cha mwanachama", leader.church_member_id || "—");
   row("Simu / WhatsApp", [leader.simu, leader.whatsapp].filter(Boolean).join(" / ") || "—");
@@ -185,10 +218,11 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: { 
   row("Mkoa / Wilaya / Kata", [leader.mkoa, leader.wilaya, leader.kata].filter(Boolean).join(" / ") || "—");
   row("Anwani", leader.address || "—");
 
-  section("Uongozi");
+  section("Taarifa za uongozi");
   row("Cheo", leader.cheo);
   row("Ngazi", leader.leadership_level || leader.ngazi || "—");
   row("Entity", leader.assigned_entity || "—");
+  row("Ofisi inayo ripoti", prof?.reporting_office?.trim() || "—");
   row("Dayosisi / Jimbo / Tawi", [leader.dayosisi, leader.jimbo, leader.tawi].filter(Boolean).join(" → ") || "—");
   row("Idara / Huduma / Taasisi / Jumuiya", [leader.idara_name, leader.huduma_name, leader.taasisi_name, leader.jumuiya_name].filter(Boolean).join(" · ") || "—");
   row("Tarehe ya uteuzi", leader.appointment_date || leader.start_date || "—");
@@ -197,13 +231,133 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: { 
   row("Aliyewahi kuwa kiongozi", leader.former_leader ? "Ndiyo" : "Hapana");
   if (leader.reason_for_leaving) row("Sababu ya kuondoka", leader.reason_for_leaving);
 
-  section("Elimu & huduma");
-  row("Elimu", leader.education_summary || "—");
-  row("Mafunzo ya theology", leader.theology_training || "—");
-  row("Ujuzi wa kitaalamu", leader.professional_skills || "—");
-  row("Vyeti", leader.certificates_summary || "—");
-  row("Karama / huduma", leader.ministry_gifts || "—");
-  row("Uzoefu", leader.ministry_experience || "—");
+  const bioText = prof?.biography?.trim();
+  if (bioText) {
+    section("Wasifu / Hadithi fupi");
+    ensureSpace(24);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(30, 41, 59);
+    const paras = doc.splitTextToSize(bioText, pageWidth - margin * 2) as string[];
+    const lh = 5.2;
+    for (const line of paras) {
+      ensureSpace(lh + 1);
+      doc.text(line, margin, y);
+      y += lh;
+    }
+    y += 2;
+  }
+
+  if (bundle?.experience?.length) {
+    section("Uzoefu wa huduma");
+    ensureSpace(28);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [["Mwaka", "Nafasi", "Taasisi / Jimbo", "Maelezo"]],
+      body: bundle.experience.map((ex) => [
+        `${ex.start_year} – ${ex.end_year == null ? "Sasa" : String(ex.end_year)}`,
+        ex.position || "—",
+        ex.institution || "—",
+        (ex.description || "—").slice(0, 500),
+      ]),
+      styles: { fontSize: 8, cellPadding: 1.4, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.1 },
+      headStyles: { fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [252, 252, 253] },
+    });
+    const fy = tableFinalY();
+    y = (typeof fy === "number" ? fy : y) + 8;
+  } else if (leader.ministry_experience?.trim()) {
+    section("Uzoefu wa huduma");
+    row("Muhtasari", leader.ministry_experience);
+  }
+
+  if (bundle?.education?.length) {
+    section("Elimu na mafunzo");
+    ensureSpace(28);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [["Aina", "Stashahada / Kozi", "Taasisi", "Mwaka", "Utaalamu"]],
+      body: bundle.education.map((ed) => [
+        ed.education_kind || "—",
+        ed.qualification || "—",
+        ed.institution || "—",
+        ed.year != null ? String(ed.year) : "—",
+        ed.specialization || "—",
+      ]),
+      styles: { fontSize: 8, cellPadding: 1.4, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.1 },
+      headStyles: { fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [252, 252, 253] },
+    });
+    const fy = tableFinalY();
+    y = (typeof fy === "number" ? fy : y) + 8;
+  } else {
+    section("Elimu & mafunzo (muhtasari)");
+    row("Elimu", leader.education_summary || "—");
+    row("Mafunzo ya theology", leader.theology_training || "—");
+  }
+
+  if (bundle?.skills?.length) {
+    section("Ujuzi, lugha na karama");
+    const byCat = new Map<string, string[]>();
+    for (const s of bundle.skills) {
+      const k = s.skill_category || "other";
+      if (!byCat.has(k)) byCat.set(k, []);
+      byCat.get(k)!.push(s.label);
+    }
+    for (const [cat, labels] of byCat) {
+      row(cat.replace(/_/g, " "), labels.filter(Boolean).join(" · ") || "—");
+    }
+  } else {
+    section("Ujuzi & huduma (muhtasari)");
+    row("Ujuzi wa kitaalamu", leader.professional_skills || "—");
+    row("Karama / huduma", leader.ministry_gifts || "—");
+  }
+
+  if (bundle?.certificates?.length) {
+    section("Vyeti & stakabadhi");
+    ensureSpace(24);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [["Jina la cheti", "Mtoleaji", "Mwaka", "Maelezo"]],
+      body: bundle.certificates.map((c) => [
+        c.certificate_name || "—",
+        c.issuer || "—",
+        c.year != null ? String(c.year) : "—",
+        (c.notes || "—").slice(0, 280),
+      ]),
+      styles: { fontSize: 8, cellPadding: 1.3, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.1 },
+      headStyles: { fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]], textColor: 255, fontStyle: "bold" },
+    });
+    const fy = tableFinalY();
+    y = (typeof fy === "number" ? fy : y) + 8;
+  } else if (leader.certificates_summary?.trim()) {
+    section("Vyeti (muhtasari)");
+    row("Muhtasari", leader.certificates_summary);
+  }
+
+  if (bundle?.attachments?.length) {
+    section("Viambatanisho vilivyopakiwa");
+    ensureSpace(22);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: margin, right: margin },
+      head: [["Aina", "Jina la faili", "Ukubwa (baiti)"]],
+      body: bundle.attachments.map((a) => [a.attachment_kind, a.file_name || "—", a.file_size != null ? String(a.file_size) : "—"]),
+      styles: { fontSize: 8, cellPadding: 1.2, textColor: [30, 41, 59], lineColor: [226, 232, 240], lineWidth: 0.1 },
+      headStyles: { fillColor: [navyRgb[0], navyRgb[1], navyRgb[2]], textColor: 255, fontStyle: "bold" },
+    });
+    const fy = tableFinalY();
+    y = (typeof fy === "number" ? fy : y) + 8;
+  }
+
+  if (prof?.original_cv_file_name?.trim()) {
+    section("Faili ya CV asili (iliyopakiwa)");
+    row("Jina la faili", prof.original_cv_file_name);
+    row("Aina", prof.original_cv_mime || "—");
+  }
 
   y += 4;
   doc.setDrawColor(...goldRgb);
