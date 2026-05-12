@@ -1023,7 +1023,14 @@ export function ModulePage(props: Props) {
     }
     if (props.moduleKey === "analytics") {
       const ripoti = (props.submodule ?? "").trim().toLowerCase().includes("ripoti");
-      return <AnalyticsDashboardPanel variant={ripoti ? "ripoti" : "dashibodi"} />;
+      return (
+        <AnalyticsDashboardPanel
+          variant={ripoti ? "ripoti" : "dashibodi"}
+          dayosisi={props.dayosisi}
+          majimbo={props.majimbo}
+          matawi={props.matawi}
+        />
+      );
     }
     if (props.moduleKey === "ai_assistant") {
       return <AIAssistantPanel submodule={props.submodule} />;

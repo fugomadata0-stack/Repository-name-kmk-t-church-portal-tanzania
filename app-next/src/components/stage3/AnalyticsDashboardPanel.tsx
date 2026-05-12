@@ -14,7 +14,7 @@ import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
 import { stage2GradHeader } from "../../lib/stage2Theme";
 import { fetchPortalAnalyticsDashboard } from "../../services/stage3/analyticsService";
-import type { AnalyticsDashboardPayload } from "../../types";
+import type { AnalyticsDashboardPayload, DayosisiRecord, JimboRecord, TawiRecord } from "../../types";
 import { GlassPanel, MotionCard } from "../stage2/Stage2Motion";
 import { exportTableToPdf } from "../../lib/exportHelpers";
 import { KMT_PORTAL_RELOAD_METRICS_EVENT } from "../../lib/portalEvents";
@@ -61,11 +61,26 @@ function daysAgo(n: number): Date {
   return x;
 }
 
-export function AnalyticsDashboardPanel(props: { variant?: "dashibodi" | "ripoti" }) {
+const EMPTY_DAYOSISI: DayosisiRecord[] = [];
+const EMPTY_JIMBO: JimboRecord[] = [];
+const EMPTY_TAWI: TawiRecord[] = [];
+
+export type AnalyticsDashboardHierarchyProps = {
+  dayosisi?: DayosisiRecord[];
+  majimbo?: JimboRecord[];
+  matawi?: TawiRecord[];
+};
+
+export function AnalyticsDashboardPanel(props: { variant?: "dashibodi" | "ripoti" } & AnalyticsDashboardHierarchyProps) {
   const variant = props.variant ?? "dashibodi";
   const isRipoti = variant === "ripoti";
   const { reportError, pushToast, canPortalExportModule } = usePortal();
   const canExport = canPortalExportModule("analytics");
+
+  const dayosisiRows = props.dayosisi ?? EMPTY_DAYOSISI;
+  const majimboRows = props.majimbo ?? EMPTY_JIMBO;
+  const matawiRows = props.matawi ?? EMPTY_TAWI;
+  const showHierarchyPickers = dayosisiRows.length > 0 || majimboRows.length > 0 || matawiRows.length > 0;
 
   const [data, setData] = useState<AnalyticsDashboardPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,6 +96,15 @@ export function AnalyticsDashboardPanel(props: { variant?: "dashibodi" | "ripoti
   const [leadershipLevel, setLeadershipLevel] = useState("");
   const [department, setDepartment] = useState("");
   const reloadDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const majimboFiltered = useMemo(
+    () => majimboRows.filter((j) => !dayosisiId || String(j.dayosisi_id ?? "").trim() === dayosisiId.trim()),
+    [majimboRows, dayosisiId]
+  );
+  const tawiFiltered = useMemo(
+    () => matawiRows.filter((t) => !jimboId || String(t.jimbo_id ?? "").trim() === jimboId.trim()),
+    [matawiRows, jimboId]
+  );
 
   const load = useCallback(async () => {
     if (!getSupabase()) {
@@ -321,35 +345,102 @@ export function AnalyticsDashboardPanel(props: { variant?: "dashibodi" | "ripoti
             />
           </label>
           <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">
-            Year
+            Mwaka
             <input value={year} onChange={(e) => setYear(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="2026" />
           </label>
           <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">
-            Month (YYYY-MM)
+            Mwezi (YYYY-MM)
             <input value={month} onChange={(e) => setMonth(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="2026-05" />
           </label>
-          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">
-            Dayosisi ID
-            <input value={dayosisiId} onChange={(e) => setDayosisiId(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-3">
+            Dayosisi
+            {showHierarchyPickers ? (
+              <select
+                value={dayosisiId}
+                onChange={(e) => {
+                  setDayosisiId(e.target.value);
+                  setJimboId("");
+                  setTawiId("");
+                }}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              >
+                <option value="">— Zote / chagua —</option>
+                {dayosisiRows.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.jina?.trim() || d.code?.trim() || d.id.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={dayosisiId}
+                onChange={(e) => setDayosisiId(e.target.value)}
+                className="rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
+                placeholder="UUID dayosisi (hamna orodha)"
+              />
+            )}
+          </label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-3">
+            Jimbo
+            {showHierarchyPickers ? (
+              <select
+                value={jimboId}
+                onChange={(e) => {
+                  setJimboId(e.target.value);
+                  setTawiId("");
+                }}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              >
+                <option value="">— Zote / chagua —</option>
+                {majimboFiltered.map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.jina?.trim() || j.id.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={jimboId}
+                onChange={(e) => setJimboId(e.target.value)}
+                className="rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
+                placeholder="UUID jimbo"
+              />
+            )}
+          </label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-3">
+            Tawi / kituo
+            {showHierarchyPickers ? (
+              <select
+                value={tawiId}
+                onChange={(e) => setTawiId(e.target.value)}
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+              >
+                <option value="">— Zote / chagua —</option>
+                {tawiFiltered.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.jina?.trim() || t.id.slice(0, 8)}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={tawiId}
+                onChange={(e) => setTawiId(e.target.value)}
+                className="rounded-xl border border-slate-200 px-3 py-2 font-mono text-xs"
+                placeholder="UUID tawi"
+              />
+            )}
           </label>
           <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">
-            Jimbo ID
-            <input value={jimboId} onChange={(e) => setJimboId(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-          </label>
-          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">
-            Tawi ID
-            <input value={tawiId} onChange={(e) => setTawiId(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-          </label>
-          <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">
-            Source
+            Chanzo
             <input value={source} onChange={(e) => setSource(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
           </label>
           <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">
-            Leadership level
+            Ngazi ya uongozi
             <input value={leadershipLevel} onChange={(e) => setLeadershipLevel(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
           </label>
           <label className="grid gap-1 text-xs font-medium text-slate-700 md:col-span-2">
-            Department
+            Idara
             <input value={department} onChange={(e) => setDepartment(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
           </label>
           <div className="md:col-span-2">
