@@ -1,3 +1,7 @@
+/**
+ * Institutional PDF helpers used by `exportHelpers.ts` and `leadershipPdf.ts`.
+ * Resolved as `./pdfInstitutional` — must remain in repo for CI / Linux builds.
+ */
 import type { jsPDF } from "jspdf";
 
 /** Safisha kujitosha na kuunganisha nafasi ili maneno yasisiane kwenye PDF. */
