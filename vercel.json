@@ -1,6 +1,13 @@
 {
-  "installCommand": "npm ci",
-  "buildCommand": "npm run build",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "npm ci --prefix app-next",
+  "buildCommand": "npm run build --prefix app-next",
   "outputDirectory": "app-next/dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
