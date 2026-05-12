@@ -4,6 +4,11 @@
   "installCommand": "npm ci --prefix app-next",
   "buildCommand": "npm run build --prefix app-next",
   "outputDirectory": "app-next/dist",
+  "build": {
+    "env": {
+      "VITE_PUBLIC_SITE_ORIGIN": "https://v0-church-portal-tanzania.vercel.app"
+    }
+  },
   "headers": [
     {
       "source": "/assets/(.*)",

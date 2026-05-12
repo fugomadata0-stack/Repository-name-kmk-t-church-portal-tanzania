@@ -40,11 +40,19 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       {
-        name: "html-preconnect-supabase",
+        name: "html-preconnect-supabase-and-seo",
         transformIndexHtml(html) {
-          if (!supabaseOrigin) return html;
-          const inject = `    <link rel="preconnect" href="${supabaseOrigin}" crossorigin />\n    <link rel="dns-prefetch" href="${supabaseOrigin}" />\n`;
-          return html.replace(/<head>/i, `<head>\n${inject}`);
+          let out = html;
+          if (supabaseOrigin) {
+            const inject = `    <link rel="preconnect" href="${supabaseOrigin}" crossorigin />\n    <link rel="dns-prefetch" href="${supabaseOrigin}" />\n`;
+            out = out.replace(/<head>/i, `<head>\n${inject}`);
+          }
+          const siteOrigin = String(env.VITE_PUBLIC_SITE_ORIGIN ?? "").trim().replace(/\/+$/, "");
+          if (siteOrigin) {
+            const seo = `    <meta property="og:url" content="${siteOrigin}/" />\n    <link rel="canonical" href="${siteOrigin}/" />\n`;
+            out = out.replace(/<title>/i, `${seo}<title>`);
+          }
+          return out;
         },
       },
     ],

@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { AuthError, Session, User } from "@supabase/supabase-js";
-import { captureClientException } from "../lib/sentryInit";
+import { captureClientException } from "../lib/clientExceptionReporting";
 import { formatCaughtError, formatPostgrestError } from "../lib/supabaseErrors";
 import { getSupabase, isSupabaseConfigured, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
 import { redactSensitiveText, safeStorage } from "../lib/security";

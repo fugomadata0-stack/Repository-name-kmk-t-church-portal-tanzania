@@ -174,7 +174,6 @@ export function MasterSettingsCenterPanel() {
         tab: activeTab,
       });
 
-      window.dispatchEvent(new CustomEvent("kmt-portal-settings-updated"));
       dispatchPortalReloadMetrics();
 
       pushToast("Mipangilio mikuu yamehifadhiwa.", "success");
@@ -243,6 +242,7 @@ export function MasterSettingsCenterPanel() {
         <form
           onSubmit={(e) => void onSave(e)}
           className="space-y-4 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-md ring-1 ring-slate-100 sm:p-5"
+          aria-busy={saving}
         >
           <nav
             className="-mx-1 flex gap-2 overflow-x-auto pb-1 pt-0.5 [scrollbar-width:thin] sm:flex-wrap sm:overflow-x-visible"
@@ -255,6 +255,7 @@ export function MasterSettingsCenterPanel() {
                 <button
                   key={t.key}
                   type="button"
+                  aria-pressed={active}
                   onClick={() => setActiveTab(t.key)}
                   className={`flex min-w-max shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-semibold transition ${
                     active
@@ -452,6 +453,7 @@ export function MasterSettingsCenterPanel() {
               <button
                 type="submit"
                 disabled={!canEdit || saving}
+                aria-busy={saving}
                 className="shrink-0 rounded-xl bg-[#0B1F3A] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#123C69] disabled:opacity-50"
               >
                 {saving ? "Inahifadhi…" : "Hifadhi mipangilio mikuu"}

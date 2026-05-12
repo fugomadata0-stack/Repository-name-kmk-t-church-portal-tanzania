@@ -3,6 +3,11 @@
   "framework": "vite",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "build": {
+    "env": {
+      "VITE_PUBLIC_SITE_ORIGIN": "https://v0-church-portal-tanzania.vercel.app"
+    }
+  },
   "headers": [
     {
       "source": "/assets/(.*)",

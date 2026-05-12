@@ -1,5 +1,5 @@
 /* global self, caches, fetch, Response */
-const CACHE_NAME = "kmkt-portal-static-v6";
+const CACHE_NAME = "kmkt-portal-static-v7";
 const APP_SHELL = [
   "/",
   "/index.html",

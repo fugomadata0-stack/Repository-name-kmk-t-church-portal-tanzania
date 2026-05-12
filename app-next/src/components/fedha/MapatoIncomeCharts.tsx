@@ -14,6 +14,8 @@ import {
   YAxis,
 } from "recharts";
 
+const MAPATO_CHART_PX = 224;
+
 export interface MapatoIncomeChartsProps {
   monthlyTrendData: { month: string; amount: number }[];
   paymentMethodData: { name: string; value: number }[];
@@ -36,8 +38,8 @@ export function MapatoIncomeCharts({
           {monthlyTrendData.length === 0 ? (
             <p className="mt-2 text-xs text-slate-600">Hakuna data bado</p>
           ) : (
-            <div className="mt-2 h-56">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="mt-2 min-h-[224px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height={MAPATO_CHART_PX} debounce={40}>
                 <LineChart data={monthlyTrendData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
@@ -54,8 +56,8 @@ export function MapatoIncomeCharts({
           {paymentMethodData.every((x) => x.value === 0) ? (
             <p className="mt-2 text-xs text-slate-600">Hakuna data bado</p>
           ) : (
-            <div className="mt-2 h-56">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="mt-2 min-h-[224px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height={MAPATO_CHART_PX} debounce={40}>
                 <PieChart>
                   <Pie data={paymentMethodData} dataKey="value" nameKey="name" outerRadius={72} label>
                     {paymentMethodData.map((_, i) => (
@@ -77,8 +79,8 @@ export function MapatoIncomeCharts({
           {incomeByCategoryData.length === 0 ? (
             <p className="mt-2 text-xs text-slate-600">Hakuna data bado</p>
           ) : (
-            <div className="mt-2 h-56">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="mt-2 min-h-[224px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height={MAPATO_CHART_PX} debounce={40}>
                 <BarChart data={incomeByCategoryData.slice(0, 10)}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" hide />
@@ -95,8 +97,8 @@ export function MapatoIncomeCharts({
           {incomeBySourceData.length === 0 ? (
             <p className="mt-2 text-xs text-slate-600">Hakuna data bado</p>
           ) : (
-            <div className="mt-2 h-56">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="mt-2 min-h-[224px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height={MAPATO_CHART_PX} debounce={40}>
                 <BarChart data={incomeBySourceData.slice(0, 10)}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" hide />

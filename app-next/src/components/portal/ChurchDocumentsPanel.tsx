@@ -25,6 +25,8 @@ import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveCo
 const ACCEPT =
   ".pdf,.doc,.docx,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const DOC_MAX_BYTES = mbToBytes(UPLOAD_LIMITS_MB.documents);
+/** Urefu wa px kwa Recharts — epuka width/height(-1) wakati parent haina ukanda halisi. */
+const DOC_CHART_PX = 224;
 
 function extOk(name: string) {
   const low = safeLower(name);
@@ -602,8 +604,8 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
         <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow">
           <h4 className="text-sm font-bold text-[#0B1F3A]">Documents by Category</h4>
           {docAnalytics.byCategory.length === 0 ? <p className="mt-2 text-xs text-slate-600">Hakuna data bado</p> : (
-            <div className="mt-2 h-56">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="mt-2 min-h-[224px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height={DOC_CHART_PX} debounce={40}>
                 <BarChart data={docAnalytics.byCategory}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" hide />
@@ -618,8 +620,8 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
         <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow">
           <h4 className="text-sm font-bold text-[#0B1F3A]">Documents by Type</h4>
           {docAnalytics.byType.length === 0 ? <p className="mt-2 text-xs text-slate-600">Hakuna data bado</p> : (
-            <div className="mt-2 h-56">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="mt-2 min-h-[224px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height={DOC_CHART_PX} debounce={40}>
                 <PieChart>
                   <Pie data={docAnalytics.byType} dataKey="value" nameKey="name" outerRadius={72} label>
                     {docAnalytics.byType.map((_, i) => (
@@ -636,8 +638,8 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
         <article className="rounded-2xl border border-slate-200 bg-white p-3 shadow">
           <h4 className="text-sm font-bold text-[#0B1F3A]">Upload Trend by Month</h4>
           {docAnalytics.monthlyTrend.length === 0 ? <p className="mt-2 text-xs text-slate-600">Hakuna data bado</p> : (
-            <div className="mt-2 h-56">
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="mt-2 min-h-[224px] w-full min-w-0">
+              <ResponsiveContainer width="100%" height={DOC_CHART_PX} debounce={40}>
                 <LineChart data={docAnalytics.monthlyTrend}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />

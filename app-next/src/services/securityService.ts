@@ -35,6 +35,14 @@ export type RateLimitCheckResult = {
   attempts: number;
 };
 
+/** Idadi nzuri kwa vigezo vya RPC (PostgREST 400 ikiwa JSON inatuma float badala ya integer). */
+function toPositiveRpcInt(value: number, fallback: number): number {
+  const x = Math.trunc(Number(value));
+  const fb = Math.max(1, Math.trunc(Number(fallback)) || 1);
+  if (!Number.isFinite(x) || x < 1) return fb;
+  return x;
+}
+
 function normalizeSecurityPolicy(input: unknown): Record<string, unknown> {
   const raw = input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
   return {
@@ -347,25 +355,26 @@ export async function checkAndIncrementRateLimit(
   const { data, error } = await c.rpc("portal_rate_limit_check_and_increment", {
     p_scope: scope,
     p_identifier: identifier,
-    p_max_attempts: maxAttempts,
-    p_window_seconds: windowSeconds,
-    p_block_seconds: blockSeconds,
+    p_max_attempts: toPositiveRpcInt(maxAttempts, 5),
+    p_window_seconds: toPositiveRpcInt(windowSeconds, 300),
+    p_block_seconds: toPositiveRpcInt(blockSeconds, 300),
   });
   if (error) {
     const code = String((error as { code?: unknown } | null)?.code ?? "").toUpperCase();
-    const status = Number((error as { status?: unknown } | null)?.status ?? 0);
     const msg = formatPostgrestError(error, "portal_rate_limit_check_and_increment");
     const low = msg.toLowerCase();
-    if (
+    const missingFn =
       low.includes("404") ||
       low.includes("not find") ||
+      low.includes("could not find") ||
       low.includes("does not exist") ||
       low.includes("undefined function") ||
       code === "PGRST202" ||
-      code === "42883" ||
-      status === 400
-    ) {
+      code === "42883";
+    if (missingFn) {
       rateLimitRpcMissing = true;
+    } else if (import.meta.env.DEV) {
+      console.warn("[DEV portal_rate_limit_check_and_increment]", msg);
     }
     return null;
   }
@@ -386,19 +395,20 @@ export async function resetRateLimit(scope: string, identifier: string): Promise
   const { error } = await c.rpc("portal_rate_limit_reset", { p_scope: scope, p_identifier: identifier });
   if (error) {
     const code = String((error as { code?: unknown } | null)?.code ?? "").toUpperCase();
-    const status = Number((error as { status?: unknown } | null)?.status ?? 0);
     const msg = formatPostgrestError(error, "portal_rate_limit_reset");
     const low = msg.toLowerCase();
     if (
       low.includes("404") ||
       low.includes("not find") ||
+      low.includes("could not find") ||
       low.includes("does not exist") ||
       low.includes("undefined function") ||
       code === "PGRST202" ||
-      code === "42883" ||
-      status === 400
+      code === "42883"
     ) {
       rateLimitRpcMissing = true;
+    } else if (import.meta.env.DEV) {
+      console.warn("[DEV portal_rate_limit_reset]", msg);
     }
   }
 }

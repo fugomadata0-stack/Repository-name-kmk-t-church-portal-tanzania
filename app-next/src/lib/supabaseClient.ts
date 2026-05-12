@@ -3,7 +3,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 let _client: SupabaseClient | null = null;
 const SUPABASE_FETCH_TIMEOUT_MS = 15000;
 const SUPABASE_FETCH_RETRIES = 2;
-const REALTIME_ENABLED_RAW = String(import.meta.env.VITE_SUPABASE_REALTIME_ENABLED ?? "false").trim().toLowerCase();
+const REALTIME_ENABLED_RAW = String(import.meta.env.VITE_SUPABASE_REALTIME_ENABLED ?? "true").trim().toLowerCase();
 
 function normalizeEnvUrl(raw: string): string {
   return raw.trim().replace(/\/+$/, "");
@@ -144,11 +144,16 @@ export function isSupabaseConfigured(): boolean {
 }
 
 /**
- * Ruhusu kuzima Realtime kwa mazingira yenye websocket restrictions.
- * Tumia VITE_SUPABASE_REALTIME_ENABLED=false kwenye env.
+ * Realtime (websocket) kwa postgres_changes — chaguomsingi imewashwa.
+ * Zima kwa mazingira yenye vizuizi vya websocket: VITE_SUPABASE_REALTIME_ENABLED=false
  */
 export function isSupabaseRealtimeEnabled(): boolean {
-  return REALTIME_ENABLED_RAW !== "false" && REALTIME_ENABLED_RAW !== "0" && REALTIME_ENABLED_RAW !== "off";
+  return (
+    REALTIME_ENABLED_RAW !== "false" &&
+    REALTIME_ENABLED_RAW !== "0" &&
+    REALTIME_ENABLED_RAW !== "off" &&
+    REALTIME_ENABLED_RAW !== "no"
+  );
 }
 
 /** Safisha singleton (hasa kwa majaribio / hot reload) */

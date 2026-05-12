@@ -3,10 +3,14 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { PortalProvider } from "./context/PortalContext";
-import { initSentry } from "./lib/sentryInit";
 import "./styles/global.scss";
 
-initSentry();
+function scheduleSentryInit(): void {
+  const run = () => void import("./lib/sentryInit").then((m) => m.initSentry());
+  if (typeof requestIdleCallback !== "undefined") requestIdleCallback(run, { timeout: 4000 });
+  else setTimeout(run, 0);
+}
+scheduleSentryInit();
 
 window.addEventListener("unhandledrejection", (ev) => {
   const r = ev.reason;

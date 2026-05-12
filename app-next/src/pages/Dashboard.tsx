@@ -934,11 +934,11 @@ export function Dashboard({
               {role === "super_admin" || role === "chief_admin" ? (
                 <>
                   {" "}
-                  Weka{" "}
+                  Chaguomsingi ya mradi ni Realtime imewashwa; ikiwa bado imezimwa, hakikisha env si{" "}
                   <code className="rounded bg-slate-100 px-1 py-0.5 text-[10px] text-slate-800">
-                    VITE_SUPABASE_REALTIME_ENABLED=true
+                    VITE_SUPABASE_REALTIME_ENABLED=false
                   </code>{" "}
-                  kwenye seva ikiwa unataka kiotomatiki kamili.
+                  kwenye build ya seva.
                 </>
               ) : null}
             </>

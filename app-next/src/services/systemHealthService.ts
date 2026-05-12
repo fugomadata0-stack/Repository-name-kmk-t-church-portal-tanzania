@@ -15,6 +15,15 @@ function safeNum(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Majibu ya RPC portal_storage_buckets_usage_summary (jsonb). */
+type StorageUsageRpcPayload = {
+  ok?: boolean;
+  error?: string;
+  buckets?: Record<string, { file_count?: number; bytes?: number }>;
+  total_files?: number;
+  total_bytes?: number;
+};
+
 function countStatusLabel(value: number, warnAt: number, critAt: number): "healthy" | "warning" | "critical" {
   if (value >= critAt) return "critical";
   if (value >= warnAt) return "warning";
@@ -138,12 +147,7 @@ export async function fetchSystemHealthSnapshot(): Promise<SystemHealthSnapshot>
       .in("priority", ["warning", "critical"])
       .order("created_at", { ascending: false })
       .limit(30),
-    c
-      .schema("storage")
-      .from("objects")
-      .select("bucket_id,metadata")
-      .in("bucket_id", ["church-files", "church-images", "church-media", "site-assets"])
-      .limit(5000),
+    c.rpc("portal_storage_buckets_usage_summary"),
   ]);
 
   if (pingRes.status === "fulfilled" && !pingRes.value.error) {
@@ -208,24 +212,43 @@ export async function fetchSystemHealthSnapshot(): Promise<SystemHealthSnapshot>
     base.logs_summary.audit_failures_24h = auditFailRes.value.count ?? 0;
   }
 
-  if (storageSumRes.status === "fulfilled" && !storageSumRes.value.error) {
-    const rows = storageSumRes.value.data ?? [];
-    const byBucket: Record<string, number> = {};
-    const bytes = rows.reduce((sum, row) => {
-      const bucket = String((row as { bucket_id?: unknown }).bucket_id ?? "unknown");
-      byBucket[bucket] = (byBucket[bucket] || 0) + 1;
-      const meta = (row as { metadata?: Record<string, unknown> }).metadata ?? {};
-      return sum + safeNum(meta.size);
-    }, 0);
-    base.storage.bucket_file_counts = byBucket;
-    base.storage.total_files = rows.length;
-    base.storage.read_allowed = true;
-    base.indicators.storage_usage_mb = Math.round((bytes / (1024 * 1024)) * 100) / 100;
-    base.badges.storage = base.indicators.storage_usage_mb >= 2048 ? "critical" : base.indicators.storage_usage_mb >= 1024 ? "warning" : "healthy";
+  if (storageSumRes.status === "fulfilled") {
+    const rpc = storageSumRes.value;
+    const payload = (rpc.data ?? null) as StorageUsageRpcPayload | null;
+    if (!rpc.error && payload?.ok === true && typeof payload.total_bytes === "number") {
+      const byBucket: Record<string, number> = {};
+      const buckets = payload.buckets ?? {};
+      for (const [bid, info] of Object.entries(buckets)) {
+        byBucket[bid] = safeNum(info?.file_count);
+      }
+      base.storage.bucket_file_counts = byBucket;
+      base.storage.total_files = safeNum(payload.total_files);
+      base.storage.read_allowed = true;
+      base.storage.read_note = null;
+      const bytes = safeNum(payload.total_bytes);
+      base.indicators.storage_usage_mb = Math.round((bytes / (1024 * 1024)) * 100) / 100;
+      base.badges.storage =
+        base.indicators.storage_usage_mb >= 2048 ? "critical" : base.indicators.storage_usage_mb >= 1024 ? "warning" : "healthy";
+    } else if (!rpc.error && payload?.error === "forbidden") {
+      base.storage.read_allowed = false;
+      base.storage.read_note = "Huna ruhusa ya kuona takwimu za matumizi ya storage.";
+    } else {
+      base.storage.read_allowed = false;
+      base.storage.read_note = "Storage usage haijaruhusiwa kusomwa kutoka frontend.";
+      if (import.meta.env.DEV && rpc.error) {
+        console.warn("[DEV portal_storage_buckets_usage_summary]", rpc.error.message ?? rpc.error);
+      }
+      if (rpc.error || (payload && payload.ok === false)) {
+        base.warnings.push("Storage usage haijaruhusiwa kusomwa kutoka frontend.");
+      }
+    }
   } else {
     base.storage.read_allowed = false;
     base.storage.read_note = "Storage usage haijaruhusiwa kusomwa kutoka frontend.";
     base.warnings.push("Storage usage haijaruhusiwa kusomwa kutoka frontend.");
+    if (import.meta.env.DEV && storageSumRes.status === "rejected") {
+      console.warn("[DEV portal_storage_buckets_usage_summary]", storageSumRes.reason);
+    }
   }
 
   try {

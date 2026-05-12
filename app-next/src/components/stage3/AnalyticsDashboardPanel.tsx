@@ -33,6 +33,8 @@ import {
   Cell,
 } from "recharts";
 
+const ANALYTICS_CHART_PX = 256;
+
 function tzs(n: number) {
   return new Intl.NumberFormat("sw-TZ", { maximumFractionDigits: 0 }).format(n) + " TZS";
 }
@@ -541,8 +543,8 @@ export function AnalyticsDashboardPanel(props: { variant?: "dashibodi" | "ripoti
               {(data.finance_by_month ?? []).length === 0 ? (
                 <p className="text-sm text-slate-500">Hakuna data bado</p>
               ) : (
-                <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="min-h-[256px] w-full min-w-0">
+                  <ResponsiveContainer width="100%" height={ANALYTICS_CHART_PX} debounce={40}>
                     <LineChart data={data.finance_by_month}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="month" />
@@ -559,8 +561,8 @@ export function AnalyticsDashboardPanel(props: { variant?: "dashibodi" | "ripoti
           <div className="grid gap-4 lg:grid-cols-2">
             <GlassPanel className="p-4">
               <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#0B3C5D]">Income by category</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="min-h-[256px] w-full min-w-0">
+                <ResponsiveContainer width="100%" height={ANALYTICS_CHART_PX} debounce={40}>
                   <BarChart data={data.income_by_category.slice(0, 10)}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="label" hide />
@@ -573,8 +575,8 @@ export function AnalyticsDashboardPanel(props: { variant?: "dashibodi" | "ripoti
             </GlassPanel>
             <GlassPanel className="p-4">
               <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-[#0B3C5D]">Members by gender</h3>
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="min-h-[256px] w-full min-w-0">
+                <ResponsiveContainer width="100%" height={ANALYTICS_CHART_PX} debounce={40}>
                   <PieChart>
                     <Pie data={data.members_by_gender} dataKey="total" nameKey="label" outerRadius={90}>
                       {data.members_by_gender.map((_, i) => (
