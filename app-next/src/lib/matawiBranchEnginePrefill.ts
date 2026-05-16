@@ -1,5 +1,7 @@
 import type { MasterBranchScope } from "../services/masterBranchEngineService";
 import {
+  fetchLatestAttendanceFieldsForTawi,
+  fetchLatestFinanceFieldsForTawi,
   fetchTawiLeaderSlots,
   mergeLeaderSlotsIntoPayload,
 } from "../services/matawiBranchEngineSyncService";
@@ -86,13 +88,32 @@ export async function enrichWorkspaceFromSupabase(
     const prefill = buildBranchEnginePrefillFields(scope, entityId, dayosisi, majimbo, matawi);
     next = mergePrefillIntoPayload(next, prefill);
   }
-  if (scope === "tawi" && entityId && !next.leaderSlots) {
-    try {
-      const leaderSlots = await fetchTawiLeaderSlots(entityId);
-      next = mergeLeaderSlotsIntoPayload(next, leaderSlots);
-    } catch {
-      /* viongozi optional */
+  if (scope === "tawi" && entityId) {
+    if (!next.leaderSlots) {
+      try {
+        const leaderSlots = await fetchTawiLeaderSlots(entityId);
+        next = mergeLeaderSlotsIntoPayload(next, leaderSlots);
+      } catch {
+        /* viongozi optional */
+      }
+    }
+    const attEmpty = !f(next.fields, "attendance_attendance_date");
+    const finEmpty = !f(next.fields, "finance_kiasi");
+    if (attEmpty || finEmpty) {
+      try {
+        const [att, fin] = await Promise.all([
+          attEmpty ? fetchLatestAttendanceFieldsForTawi(entityId) : Promise.resolve({}),
+          finEmpty ? fetchLatestFinanceFieldsForTawi(entityId) : Promise.resolve({}),
+        ]);
+        next = mergePrefillIntoPayload(next, { ...att, ...fin });
+      } catch {
+        /* optional */
+      }
     }
   }
   return next;
+}
+
+function f(fields: Record<string, string>, key: string): string {
+  return String(fields[key] ?? "").trim();
 }

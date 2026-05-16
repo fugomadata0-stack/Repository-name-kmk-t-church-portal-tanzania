@@ -255,8 +255,15 @@ export function MatawiModuleDdFrame({
       const resolvedScope: MasterBranchScope =
         resolvedTawiId && (job.scope !== "tawi" || !job.entityId) ? "tawi" : job.scope;
 
-      if (syncResult.leaderSlots && Object.keys(syncResult.leaderSlots).length > 0) {
-        payload = { ...payload, leaderSlots: syncResult.leaderSlots };
+      const needsPayloadResave =
+        (syncResult.leaderSlots && Object.keys(syncResult.leaderSlots).length > 0) ||
+        (syncResult.syncRefs && Object.keys(syncResult.syncRefs).length > 0);
+      if (needsPayloadResave) {
+        payload = {
+          ...payload,
+          ...(syncResult.leaderSlots ? { leaderSlots: syncResult.leaderSlots } : {}),
+          ...(syncResult.syncRefs ? { syncRefs: { ...payload.syncRefs, ...syncResult.syncRefs } } : {}),
+        };
         await saveBranchEngineWorkspace({
           scope: resolvedScope,
           entityId: resolvedTawiId || job.entityId,

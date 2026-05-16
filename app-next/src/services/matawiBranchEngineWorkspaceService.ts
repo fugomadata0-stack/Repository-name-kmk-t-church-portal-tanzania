@@ -13,6 +13,11 @@ export type BranchEngineWorkspacePayload = {
   formHistory?: string[];
   /** Viongozi wa tawi (nafasi 4) — viunganisho na church_viongozi. */
   leaderSlots?: Record<string, BranchEngineLeaderSlot>;
+  /** Viungo vya jedwali rasmi baada ya usawazishaji (mahudhurio, fedha, n.k.). */
+  syncRefs?: {
+    attendanceSessionId?: string;
+    financeEntryId?: string;
+  };
 };
 
 export type BranchEngineWorkspaceRecord = {
@@ -64,7 +69,15 @@ function normalizePayload(raw: unknown): BranchEngineWorkspacePayload {
         };
       }
     }
-    return { fields, contributionSources, uploads, formHistory, leaderSlots };
+    let syncRefs: BranchEngineWorkspacePayload["syncRefs"];
+    if (o.syncRefs && typeof o.syncRefs === "object" && !Array.isArray(o.syncRefs)) {
+      const sr = o.syncRefs as Record<string, unknown>;
+      syncRefs = {
+        attendanceSessionId: sr.attendanceSessionId == null ? undefined : String(sr.attendanceSessionId),
+        financeEntryId: sr.financeEntryId == null ? undefined : String(sr.financeEntryId),
+      };
+    }
+    return { fields, contributionSources, uploads, formHistory, leaderSlots, syncRefs };
   }
   const fields: Record<string, string> = {};
   for (const [k, v] of Object.entries(o)) {

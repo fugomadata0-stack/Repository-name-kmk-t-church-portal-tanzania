@@ -4,9 +4,12 @@ import { unwrapList } from "../lib/supabaseResult";
 import type { BranchEngineLeaderSlot } from "../lib/matawiBranchEngineTypes";
 import type { BranchEngineWorkspacePayload } from "./matawiBranchEngineWorkspaceService";
 import type { MasterBranchScope } from "./masterBranchEngineService";
+import { parseMoneyTz } from "../lib/money";
+import { upsertAttendanceSession } from "./attendanceService";
+import { upsertFinanceEntry } from "./financeEntriesService";
 import { upsertChurchTawi } from "./muundoHierarchyService";
 import { upsertKiongozi } from "./viongoziService";
-import type { DayosisiRecord, JimboRecord, KiongoziRecord, TawiRecord } from "../types";
+import type { DayosisiRecord, JimboRecord, KiongoziRecord, Status, TawiRecord } from "../types";
 
 export const BRANCH_ENGINE_TAWI_ROLES = [
   "Mwongozi wa Tawi",
@@ -20,10 +23,53 @@ export type BranchEngineSyncResult = {
   messages: string[];
   tawiId?: string;
   leaderSlots?: Record<string, BranchEngineLeaderSlot>;
+  syncRefs?: BranchEngineWorkspacePayload["syncRefs"];
 };
 
 function f(fields: Record<string, string>, key: string): string {
   return String(fields[key] ?? "").trim();
+}
+
+function n(fields: Record<string, string>, key: string): number {
+  const v = Number(String(fields[key] ?? "").replace(/[^\d.-]/g, ""));
+  return Number.isFinite(v) ? v : 0;
+}
+
+function resolveTawiContext(
+  tawiId: string,
+  matawi: TawiRecord[],
+  majimbo: JimboRecord[],
+): { tawi: TawiRecord; jimboId: string | null; dayosisiId: string | null } | null {
+  const tawi = matawi.find((t) => t.id === tawiId);
+  if (!tawi) return null;
+  const jb = majimbo.find((j) => j.id === tawi.jimbo_id);
+  return { tawi, jimboId: tawi.jimbo_id ?? jb?.id ?? null, dayosisiId: jb?.dayosisi_id ?? null };
+}
+
+function attendanceTotalFromFields(fields: Record<string, string>): number {
+  const ids = [
+    "attendance_sunday_service",
+    "attendance_prayer_meeting",
+    "attendance_youth_meeting",
+    "attendance_women_meeting",
+    "attendance_choir_practice",
+    "attendance_bible_study",
+    "attendance_children_sunday_school",
+    "attendance_visitors_attendance",
+    "attendance_online_livestream",
+  ];
+  const sum = ids.reduce((s, id) => s + n(fields, id), 0);
+  const explicit = n(fields, "attendance_total_attendance");
+  return explicit > 0 ? explicit : sum;
+}
+
+function mapFinanceStatus(raw: string): Status {
+  const s = raw.toLowerCase();
+  if (s.includes("approved") || s.includes("verified")) return "Approved";
+  if (s.includes("pending")) return "Pending";
+  if (s.includes("draft")) return "Draft";
+  if (s.includes("reject")) return "Needs Review";
+  return "Active";
 }
 
 function parseGps(raw: string): { lat: number | null; lng: number | null } {
@@ -153,6 +199,148 @@ async function syncRegistration(
   };
 }
 
+async function syncAttendance(
+  fields: Record<string, string>,
+  tawiId: string,
+  matawi: TawiRecord[],
+  majimbo: JimboRecord[],
+  priorSessionId?: string,
+): Promise<{ sessionId: string; message: string }> {
+  const ctx = resolveTawiContext(tawiId, matawi, majimbo);
+  if (!ctx) throw new Error("Tawi halijapatikana kwa mahudhurio.");
+
+  const attendanceDate =
+    f(fields, "attendance_attendance_date") || new Date().toISOString().slice(0, 10);
+  const serviceName = f(fields, "attendance_service_type") || "Ibada ya Jumapili";
+  const visitors = n(fields, "attendance_visitors_attendance");
+  const youth = n(fields, "attendance_youth_meeting");
+  const women = n(fields, "attendance_women_meeting");
+  const children = n(fields, "attendance_children_sunday_school");
+  const total = attendanceTotalFromFields(fields);
+  const men = Math.max(0, total - women - youth - children - visitors);
+
+  const saved = await upsertAttendanceSession({
+    id: priorSessionId,
+    attendance_date: attendanceDate,
+    service_name: serviceName,
+    attendance_type: f(fields, "attendance_attendance_period") || "Weekly",
+    dayosisi_id: ctx.dayosisiId,
+    jimbo_id: ctx.jimboId,
+    tawi_id: tawiId,
+    total_men: men,
+    total_women: women,
+    total_youth: youth,
+    total_children: children,
+    visitors,
+    total_attendance: total,
+    notes: f(fields, "attendance_notes") || null,
+    status: f(fields, "attendance_report_status")?.toLowerCase().includes("approved")
+      ? "Active"
+      : "Pending",
+  });
+
+  return {
+    sessionId: saved.id,
+    message: priorSessionId
+      ? "Mahudhurio yamesasishwa kwenye attendance_sessions."
+      : "Mahudhurio yamehifadhiwa kwenye attendance_sessions.",
+  };
+}
+
+async function syncFinance(
+  fields: Record<string, string>,
+  tawiId: string,
+  matawi: TawiRecord[],
+  majimbo: JimboRecord[],
+  priorEntryId?: string,
+): Promise<{ entryId: string; message: string }> {
+  const ctx = resolveTawiContext(tawiId, matawi, majimbo);
+  if (!ctx) throw new Error("Tawi halijapatikana kwa fedha.");
+
+  const kiasiRaw = f(fields, "finance_kiasi");
+  const kiasi = kiasiRaw ? parseMoneyTz(kiasiRaw) : 0;
+  if (!Number.isFinite(kiasi) || kiasi <= 0) {
+    throw new Error("Weka kiasi halali kwenye Fedha & Michango ili kusawazisha.");
+  }
+
+  const chanzo = f(fields, "finance_finance_source") || "Sadaka";
+  const saved = await upsertFinanceEntry({
+    id: priorEntryId,
+    tarehe: f(fields, "finance_transaction_date") || new Date().toISOString().slice(0, 10),
+    aina: "Mapato",
+    kategoria: chanzo,
+    kiasi,
+    ngazi: "Tawi",
+    dayosisi: ctx.tawi.dayosisi,
+    jimbo: ctx.tawi.jimbo,
+    tawi: ctx.tawi.jina,
+    dayosisi_id: ctx.dayosisiId ?? undefined,
+    jimbo_id: ctx.jimboId ?? undefined,
+    tawi_id: tawiId,
+    status: mapFinanceStatus(f(fields, "finance_finance_status")),
+  });
+
+  return {
+    entryId: saved.id,
+    message: priorEntryId
+      ? "Mchango/mapato yamesasishwa kwenye church_finance_entries."
+      : "Mchango/mapato yamehifadhiwa kwenye church_finance_entries.",
+  };
+}
+
+/** Pakia mahudhurio ya hivi karibuni kutoka jedwali rasmi. */
+export async function fetchLatestAttendanceFieldsForTawi(
+  tawiId: string,
+): Promise<Record<string, string>> {
+  const c = getSupabase();
+  if (!c || !tawiId) return {};
+  const res = await c
+    .from("attendance_sessions")
+    .select("*")
+    .eq("tawi_id", tawiId)
+    .order("attendance_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (res.error || !res.data) return {};
+  const r = res.data as Record<string, unknown>;
+  const out: Record<string, string> = {
+    attendance_attendance_date: String(r.attendance_date ?? "").slice(0, 10),
+    attendance_service_type: String(r.service_name ?? ""),
+    attendance_attendance_period: String(r.attendance_type ?? ""),
+    attendance_sunday_service: String(r.total_men ?? ""),
+    attendance_women_meeting: String(r.total_women ?? ""),
+    attendance_youth_meeting: String(r.total_youth ?? ""),
+    attendance_children_sunday_school: String(r.total_children ?? ""),
+    attendance_visitors_attendance: String(r.visitors ?? ""),
+    attendance_total_attendance: String(r.total_attendance ?? ""),
+    attendance_notes: String(r.notes ?? ""),
+    attendance_report_status: String(r.status ?? ""),
+  };
+  return out;
+}
+
+/** Pakia mchango/mapato wa hivi karibuni kutoka jedwali rasmi. */
+export async function fetchLatestFinanceFieldsForTawi(tawiId: string): Promise<Record<string, string>> {
+  const c = getSupabase();
+  if (!c || !tawiId) return {};
+  const res = await c
+    .from("church_finance_entries")
+    .select("*")
+    .eq("tawi_id", tawiId)
+    .order("entry_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (res.error || !res.data) return {};
+  const r = res.data as Record<string, unknown>;
+  const amt = r.amount_tz;
+  return {
+    finance_transaction_date: String(r.entry_date ?? "").slice(0, 10),
+    finance_finance_source: String(r.kategoria ?? ""),
+    finance_kiasi: String(amt ?? ""),
+    finance_finance_status: String(r.status ?? ""),
+  };
+}
+
 async function syncLeaderRow(
   slot: BranchEngineLeaderSlot,
   tawi: TawiRecord,
@@ -204,6 +392,7 @@ export async function syncBranchEngineModuleToSupabase(input: {
   const messages: string[] = [];
   let tawiId = input.scope === "tawi" ? input.entityId : "";
   let leaderSlots = { ...(input.payload.leaderSlots ?? {}) };
+  let syncRefs = { ...(input.payload.syncRefs ?? {}) };
 
   try {
     if (input.moduleId === "registration" && f(input.payload.fields, "registration_jina_la_tawi")) {
@@ -240,9 +429,59 @@ export async function syncBranchEngineModuleToSupabase(input: {
       }
     }
 
-    return { ok: true, messages, tawiId: tawiId || undefined, leaderSlots };
+    if (input.moduleId === "attendance" && tawiId) {
+      const att = await syncAttendance(
+        input.payload.fields,
+        tawiId,
+        input.matawi,
+        input.majimbo,
+        syncRefs.attendanceSessionId,
+      );
+      syncRefs = { ...syncRefs, attendanceSessionId: att.sessionId };
+      messages.push(att.message);
+    }
+
+    if (input.moduleId === "finance" && tawiId) {
+      const fin = await syncFinance(
+        input.payload.fields,
+        tawiId,
+        input.matawi,
+        input.majimbo,
+        syncRefs.financeEntryId,
+      );
+      syncRefs = { ...syncRefs, financeEntryId: fin.entryId };
+      messages.push(fin.message);
+    }
+
+    if (input.moduleId === "contributionForms" && tawiId) {
+      let formTotal = 0;
+      for (const [key, val] of Object.entries(input.payload.fields)) {
+        if (key.startsWith("form_contribution_")) formTotal += parseMoneyTz(String(val));
+      }
+      if (formTotal > 0) {
+        const fin = await syncFinance(
+          {
+            ...input.payload.fields,
+            finance_kiasi: String(formTotal),
+            finance_finance_source: "Fomu ya Michango — Jumla",
+            finance_transaction_date:
+              f(input.payload.fields, "contributionforms_tarehe") || new Date().toISOString().slice(0, 10),
+          },
+          tawiId,
+          input.matawi,
+          input.majimbo,
+          syncRefs.financeEntryId,
+        );
+        syncRefs = { ...syncRefs, financeEntryId: fin.entryId };
+        messages.push("Fomu ya michango imesawazishwa na church_finance_entries.");
+      } else {
+        messages.push("Jumla ya michango kwenye fomu ni 0 — haijasawazishwa kwenye fedha.");
+      }
+    }
+
+    return { ok: true, messages, tawiId: tawiId || undefined, leaderSlots, syncRefs };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Usawazishaji umeshindwa.";
-    return { ok: false, messages: [msg, ...messages], tawiId: tawiId || undefined, leaderSlots };
+    return { ok: false, messages: [msg, ...messages], tawiId: tawiId || undefined, leaderSlots, syncRefs };
   }
 }
