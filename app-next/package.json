@@ -19,6 +19,7 @@
     "lint": "eslint . --max-warnings 200",
     "lint:fix": "eslint . --fix --max-warnings 200",
     "validate": "run-s build:tsc lint",
+    "ci:env-check": "node scripts/ci-env-check.mjs",
     "deploy:vercel:prod": "node scripts/vercel-prod.cjs",
     "icons:pwa": "node scripts/generate-pwa-pngs.mjs",
     "db:push:safe": "npx supabase db push --include-all --yes --workdir ..",

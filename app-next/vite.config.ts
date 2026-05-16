@@ -3,6 +3,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
+import {
+  evaluateSupabaseEnvForProductionBuild,
+  normalizeSupabaseEnvUrl,
+} from "./src/lib/supabaseEnvPolicy";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sentryPkg = path.join(__dirname, "node_modules", "@sentry", "react", "package.json");
@@ -18,60 +22,30 @@ function supabaseOriginFromEnv(env: Record<string, string>): string {
   }
 }
 
-function looksLikePlaceholderSupabaseUrl(u: string): boolean {
-  const low = u.trim().toLowerCase();
-  if (!low) return false;
-  return (
-    low.includes("your_project_ref") ||
-    low.includes("placeholder") ||
-    /\/your[-_]/.test(low) ||
-    low.includes("example.supabase.co")
-  );
-}
-
-function looksLikePlaceholderSupabaseKey(k: string): boolean {
-  const low = k.trim().toLowerCase();
-  if (!low) return false;
-  return (
-    low.includes("your_publishable") ||
-    low.includes("your_anon") ||
-    low.includes("your_") ||
-    low.includes("changeme") ||
-    low.includes("placeholder") ||
-    low.includes("dummy") ||
-    low === "your_publishable_or_anon_key"
-  );
-}
-
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const supabaseOrigin = supabaseOriginFromEnv(env);
+
   if (mode === "production") {
-    const required = ["VITE_SUPABASE_URL", "VITE_SUPABASE_ANON_KEY"] as const;
-    const missing = required.filter((k) => !String(env[k] ?? "").trim());
-    if (missing.length) {
-      throw new Error(`Missing production env variables: ${missing.join(", ")}`);
+    const check = evaluateSupabaseEnvForProductionBuild(env);
+    if (!check.ok) {
+      const parts = [
+        ...check.missing.map((k) => `Missing: ${k}`),
+        ...check.errors,
+        "",
+        "GitHub Actions: weka Secrets VITE_SUPABASE_URL na VITE_SUPABASE_ANON_KEY,",
+        "au tumia fallback salama (tazama .github/workflows/frontend-ci.yml).",
+        "Vercel: Project Settings → Environment Variables (Production + Preview).",
+      ];
+      throw new Error(parts.join("\n"));
     }
-    const supabaseUrl = String(env.VITE_SUPABASE_URL ?? "").trim();
-    if (/localhost|127\.0\.0\.1/i.test(supabaseUrl)) {
-      throw new Error("VITE_SUPABASE_URL haiwezi kuwa localhost kwenye production.");
-    }
-    const anon = String(env.VITE_SUPABASE_ANON_KEY ?? "").trim().toLowerCase();
-    if (anon.includes("service_role")) {
-      throw new Error("Service role key hairuhusiwi kwenye frontend production build.");
-    }
-    if (looksLikePlaceholderSupabaseUrl(supabaseUrl)) {
-      throw new Error(
-        "VITE_SUPABASE_URL inaonekana ni mfano (mfano YOUR_PROJECT_REF) — weka URL halisi ya Supabase kwenye Vercel / .env."
-      );
-    }
-    const anonRaw = String(env.VITE_SUPABASE_ANON_KEY ?? "").trim();
-    if (looksLikePlaceholderSupabaseKey(anonRaw)) {
-      throw new Error(
-        "VITE_SUPABASE_ANON_KEY inaonekana ni mfano — weka funguo halisi ya anon/publishable kutoka Supabase Dashboard."
+    if (process.env.CI === "true") {
+      console.info(
+        `[vite] Supabase env OK (${check.source}) → ${normalizeSupabaseEnvUrl(env.VITE_SUPABASE_URL ?? "")}`,
       );
     }
   }
+
   return {
     plugins: [
       react(),

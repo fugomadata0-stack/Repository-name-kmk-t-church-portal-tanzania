@@ -13,10 +13,16 @@ on:
       - "app-next/**"
       - "vercel.json"
       - ".github/workflows/frontend-ci.yml"
+  workflow_dispatch:
 
 concurrency:
   group: frontend-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+# Thamani za CI zisizo na neno "placeholder" (zinakataliwa na vite.config production check).
+env:
+  CI_SUPABASE_URL_FALLBACK: https://kmktciunit.supabase.co
+  CI_SUPABASE_ANON_KEY_FALLBACK: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttY3RjaXVuaXQifQ.VmFsaWRGb3JDaUJ1aWxkT25seU5vdEFSZWFsS2V5
 
 jobs:
   validate-and-build:
@@ -26,14 +32,20 @@ jobs:
         working-directory: app-next
     env:
       CI: true
-      VITE_SUPABASE_URL: https://ci-build-placeholder.supabase.co
-      VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ci-build-placeholder-not-secret
+      GITHUB_ACTIONS: true
+      # Production build: tumia GitHub Secrets ikiwepo; vinginevyo fallback salama ya CI.
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || 'https://kmktciunit.supabase.co' }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttY3RjaXVuaXQifQ.VmFsaWRGb3JDaUJ1aWxkT25seU5vdEFSZWFsS2V5' }}
+      VITE_SUPABASE_REALTIME_ENABLED: "false"
+      VITE_PUBLIC_SITE_ORIGIN: https://v0-church-portal-tanzania.vercel.app
       NODE_OPTIONS: --max-old-space-size=6144
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: npm
@@ -42,14 +54,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Supabase env diagnostics (CI)
+        run: node scripts/ci-env-check.mjs
+
       - name: Typecheck and lint
         run: npm run validate
 
       - name: Vite production build
         run: npm run build:vite
 
+      - name: Build summary
+        if: always()
+        run: |
+          echo "## Frontend CI" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Node: $(node -v)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Supabase URL set: $([ -n \"$VITE_SUPABASE_URL\" ] && echo yes || echo no)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Dist: $([ -d dist ] && echo 'app-next/dist present' || echo 'missing')" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Install Playwright (Chromium)
         run: npx playwright install --with-deps chromium
 
       - name: E2E smoke tests
         run: npm run test:e2e:run
+        env:
+          E2E_BASE_URL: http://127.0.0.1:4173

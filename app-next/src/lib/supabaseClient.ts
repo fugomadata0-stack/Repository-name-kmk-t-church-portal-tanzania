@@ -1,5 +1,10 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { runSupabaseFetchQueued } from "./supabaseFetchQueue";
+import {
+  normalizeSupabaseEnvUrl,
+  validateSupabaseAnonKeyForBuild,
+  validateSupabaseUrlForBuild,
+} from "./supabaseEnvPolicy";
 
 let _client: SupabaseClient | null = null;
 /** Funguo na asili zilizofungwa wakati mteja unapotengenezwa — hutumika na fetch guard (hakuna ombi bila apikey). */
@@ -8,66 +13,12 @@ let _boundSupabaseAnonKey = "";
 const SUPABASE_FETCH_RETRIES = 2;
 const REALTIME_ENABLED_RAW = String(import.meta.env.VITE_SUPABASE_REALTIME_ENABLED ?? "true").trim().toLowerCase();
 
-function normalizeEnvUrl(raw: string): string {
-  return raw.trim().replace(/\/+$/, "");
-}
-
-/** Vitu vilivyowekwa kwa mfano (.env.example / Vercel) — visiruhusu build/runtime ya uwongo */
-function looksLikePlaceholderSupabaseUrl(raw: string): boolean {
-  const u = normalizeEnvUrl(raw).toLowerCase();
-  if (!u) return false;
-  return (
-    u.includes("your_project_ref") ||
-    u.includes("placeholder") ||
-    /\/your[-_]/.test(u) ||
-    u.includes("example.supabase.co")
-  );
-}
-
-function looksLikePlaceholderSupabaseKey(raw: string): boolean {
-  const k = raw.trim().toLowerCase();
-  if (!k) return false;
-  return (
-    k.includes("your_publishable") ||
-    k.includes("your_anon") ||
-    k.includes("your_") ||
-    k.includes("changeme") ||
-    k.includes("placeholder") ||
-    k.includes("dummy") ||
-    k === "your_publishable_or_anon_key"
-  );
-}
-
 function validateSupabaseUrl(url: string): string | null {
-  const u = normalizeEnvUrl(url);
-  if (!u) return "VITE_SUPABASE_URL ni tupu.";
-  if (looksLikePlaceholderSupabaseUrl(u)) {
-    return "VITE_SUPABASE_URL bado ni mfano — weka URL halisi ya mradi wako wa Supabase.";
-  }
-  try {
-    const parsed = new URL(u);
-    if (parsed.protocol !== "https:") return "VITE_SUPABASE_URL lazima ianze na https://";
-    return null;
-  } catch {
-    return "VITE_SUPABASE_URL si URL sahihi.";
-  }
+  return validateSupabaseUrlForBuild(url);
 }
 
 function validateAnonKey(key: string): string | null {
-  const k = key.trim();
-  if (!k) return "VITE_SUPABASE_ANON_KEY ni tupu.";
-  if (looksLikePlaceholderSupabaseKey(k)) {
-    return "VITE_SUPABASE_ANON_KEY bado ni mfano — weka funguo halisi (anon / publishable) kutoka Supabase.";
-  }
-  if (k.length < 20) return "VITE_SUPABASE_ANON_KEY inaonekana fupi sana.";
-  if (k.toLowerCase().includes("service_role")) {
-    return "Usitumie service role key kwenye frontend.";
-  }
-  if (k.startsWith("eyJ")) {
-    const parts = k.split(".");
-    if (parts.length !== 3) return "VITE_SUPABASE_ANON_KEY si JWT sahihi (angalia mkato wa funguo).";
-  }
-  return null;
+  return validateSupabaseAnonKeyForBuild(key);
 }
 
 function resolveRequestUrl(input: RequestInfo | URL): string {
@@ -77,7 +28,7 @@ function resolveRequestUrl(input: RequestInfo | URL): string {
 }
 
 function resolvedSupabaseCredentials(): { origin: string; key: string } | null {
-  const origin = _boundSupabaseOrigin || normalizeEnvUrl(String(import.meta.env.VITE_SUPABASE_URL ?? ""));
+  const origin = _boundSupabaseOrigin || normalizeSupabaseEnvUrl(String(import.meta.env.VITE_SUPABASE_URL ?? ""));
   const key = (_boundSupabaseAnonKey || String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "")).trim();
   if (!origin || !key || validateSupabaseUrl(origin) || validateAnonKey(key)) return null;
   return { origin, key };
@@ -213,7 +164,7 @@ export function validateSupabaseEnv(): { ok: true } | { ok: false; message: stri
  */
 export function getSupabase(): SupabaseClient | null {
   if (_client) return _client;
-  const url = normalizeEnvUrl(String(import.meta.env.VITE_SUPABASE_URL ?? ""));
+  const url = normalizeSupabaseEnvUrl(String(import.meta.env.VITE_SUPABASE_URL ?? ""));
   const key = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
   if (!url || !key) return null;
   if (validateSupabaseUrl(url) || validateAnonKey(key)) return null;
@@ -272,7 +223,7 @@ export function isSupabaseRealtimeEnabled(): boolean {
 
 /** Asili ya mradi (kwa diagnostics / upload guards). */
 export function getSupabaseProjectOrigin(): string {
-  return _boundSupabaseOrigin || normalizeEnvUrl(String(import.meta.env.VITE_SUPABASE_URL ?? ""));
+  return _boundSupabaseOrigin || normalizeSupabaseEnvUrl(String(import.meta.env.VITE_SUPABASE_URL ?? ""));
 }
 
 /** Safisha singleton (hasa kwa majaribio / hot reload) */
