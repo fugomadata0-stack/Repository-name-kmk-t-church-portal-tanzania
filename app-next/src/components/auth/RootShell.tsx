@@ -1,8 +1,10 @@
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "../common/ErrorBoundary";
+import { buildBranchEnginePortalUrl } from "../../lib/branchEnginePortalUrl";
 import {
   isAcceptInvitePath,
   isSignupRequestPath,
+  isStandaloneMatawiHtmlPath,
   isVerifyLeadershipPath,
   isVerifyMemberPath,
   usePublicPath,
@@ -41,6 +43,17 @@ export function RootShell() {
   const { pathname } = usePublicPath();
   const { supabaseReady, authInitialized, session, rbacLoading, profileGateBlocked, portalDirectoryLoadError } =
     usePortal();
+
+  if (typeof window !== "undefined" && isStandaloneMatawiHtmlPath(pathname)) {
+    const params = new URLSearchParams(window.location.search);
+    window.location.replace(
+      buildBranchEnginePortalUrl({
+        recordId: params.get("entityId") || params.get("recordId") || undefined,
+        engineModuleId: params.get("module") || params.get("engineModuleId") || undefined,
+      }),
+    );
+    return <AuthSpinner />;
+  }
 
   if (!authInitialized) {
     return <AuthSpinner />;

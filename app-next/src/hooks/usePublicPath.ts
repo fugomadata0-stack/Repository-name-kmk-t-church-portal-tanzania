@@ -33,6 +33,12 @@ export function isPublicAuthPath(path: string): boolean {
   return isSignupRequestPath(path) || isAcceptInvitePath(path);
 }
 
+/** HTML ya injini — lazima ipitie portal (login moja). */
+export function isStandaloneMatawiHtmlPath(path: string): boolean {
+  const p = path.replace(/\/+$/, "") || "/";
+  return p === "/matawi-module-dd.html";
+}
+
 export function isVerifyMemberPath(path: string): boolean {
   const p = path.replace(/\/+$/, "") || "/";
   return /^\/verify\/member\/[0-9a-f-]{36}$/i.test(p);

@@ -4,6 +4,23 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>KMK(T) Professional Branch / Matawi Module</title>
+  <script>
+    /** Injini ni sehemu ya portal moja — usifungue HTML peke yake; elekeza login + iframe. */
+    (function () {
+      try {
+        var p = new URLSearchParams(location.search);
+        if (p.get("embedded") === "1" && window.parent !== window) return;
+        var u = new URL("/", location.origin);
+        u.searchParams.set("module", "muundo");
+        u.searchParams.set("submodule", "Injini ya Ngazi — Executive");
+        var eid = p.get("entityId") || p.get("recordId");
+        var mid = p.get("module") || p.get("engineModuleId");
+        if (eid) u.searchParams.set("recordId", eid);
+        if (mid) u.searchParams.set("engineModuleId", mid);
+        location.replace(u.toString());
+      } catch (e) { /* ignore */ }
+    })();
+  </script>
   <style>
     :root{
       --navy:#0B1F3A;

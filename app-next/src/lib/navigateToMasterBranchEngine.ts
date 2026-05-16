@@ -1,3 +1,4 @@
+import { buildBranchEnginePortalUrl } from "./branchEnginePortalUrl";
 import {
   MASTER_BRANCH_ENGINE_SUBMODULE,
   MATAWI_ENGINE_SUBMODULE,
@@ -35,14 +36,23 @@ export function navigateToMasterBranchEngine(
 ): void {
   const recordId = options?.recordId?.trim();
   const engineModuleId = options?.engineModuleId?.trim() || TARGET_ENGINE_MODULE[target];
+  const submodule = TARGET_SUBMODULE[target];
   window.dispatchEvent(
     new CustomEvent("kmt-portal-navigate", {
       detail: {
         moduleKey: "muundo",
-        submodule: TARGET_SUBMODULE[target],
+        submodule,
         ...(recordId ? { recordId } : {}),
         ...(engineModuleId ? { engineModuleId } : {}),
       },
     }),
   );
+  if (typeof window !== "undefined") {
+    try {
+      const href = buildBranchEnginePortalUrl({ submodule, recordId, engineModuleId });
+      window.history.pushState(null, "", href);
+    } catch {
+      /* ignore */
+    }
+  }
 }

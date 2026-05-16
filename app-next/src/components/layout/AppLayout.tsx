@@ -26,6 +26,8 @@ import { dispatchPortalReloadMetrics, KMT_PORTAL_RELOAD_METRICS_EVENT } from "..
 import { PORTAL_GLOBAL_REALTIME_TABLES } from "../../lib/portalRealtimeSyncTables";
 import { roleBypassesGeoScope } from "../../utils/scopeAccess";
 import { readPortalUiSnapshot, writePortalUiSnapshot } from "../../lib/portalUiPersistence";
+import { buildBranchEnginePortalUrl } from "../../lib/branchEnginePortalUrl";
+import { isMuundoBranchEngineSubmodule } from "../../lib/branchEngineRoute";
 import {
   coerceSubmoduleForModule,
   getDashboardDefaultSubmodule,
@@ -97,8 +99,14 @@ export function AppLayout() {
     const mod = urlMk ?? "dashboard";
     return coerceSubmoduleForModule(mod, urlSub);
   });
-  const [highlightRecordId, setHighlightRecordId] = useState<string | null>(null);
-  const [branchEngineModuleId, setBranchEngineModuleId] = useState<string | null>(null);
+  const [highlightRecordId, setHighlightRecordId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("recordId")?.trim() || null;
+  });
+  const [branchEngineModuleId, setBranchEngineModuleId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("engineModuleId")?.trim() || null;
+  });
 
   const [dayosisi, setDayosisi] = useState<DayosisiRecord[]>([]);
   const [majimbo, setMajimbo] = useState<JimboRecord[]>([]);
@@ -642,18 +650,32 @@ export function AppLayout() {
     [activeModule, activeSubmodule, draftScope]
   );
 
-  const syncPortalUrl = useCallback((moduleKey: string, submodule: string) => {
-    if (typeof window === "undefined") return;
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set("module", moduleKey);
-      url.searchParams.set("submodule", submodule);
-      const qs = url.searchParams.toString();
-      window.history.replaceState(null, "", `${url.pathname}${qs ? `?${qs}` : ""}`);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const syncPortalUrl = useCallback(
+    (moduleKey: string, submodule: string, extras?: { recordId?: string | null; engineModuleId?: string | null }) => {
+      if (typeof window === "undefined") return;
+      try {
+        if (moduleKey === "muundo" && isMuundoBranchEngineSubmodule(submodule)) {
+          const href = buildBranchEnginePortalUrl({
+            submodule,
+            recordId: extras?.recordId ?? highlightRecordId ?? undefined,
+            engineModuleId: extras?.engineModuleId ?? branchEngineModuleId ?? undefined,
+          });
+          window.history.replaceState(null, "", href);
+          return;
+        }
+        const url = new URL(window.location.href);
+        url.searchParams.set("module", moduleKey);
+        url.searchParams.set("submodule", submodule);
+        url.searchParams.delete("recordId");
+        url.searchParams.delete("engineModuleId");
+        const qs = url.searchParams.toString();
+        window.history.replaceState(null, "", `${url.pathname}${qs ? `?${qs}` : ""}`);
+      } catch {
+        /* ignore */
+      }
+    },
+    [branchEngineModuleId, highlightRecordId],
+  );
 
   const selectModule = useCallback(
     (moduleKey: string, submodule: string) => {
@@ -678,8 +700,15 @@ export function AppLayout() {
     const mod = modules.find((m) => m.key === mk);
     const rawSm = params.get("submodule")?.trim() || mod?.submodules[0] || "";
     const sm = coerceSubmoduleForModule(mk, rawSm || undefined);
+    const rid = params.get("recordId")?.trim();
+    const mid = params.get("engineModuleId")?.trim();
+    if (mid) setBranchEngineModuleId(mid);
+    if (rid) setHighlightRecordId(rid);
     selectModule(mk, sm);
-  }, [authInitialized, authUser, rbacLoading, canPortalViewModule, selectModule]);
+    if (rid || mid) {
+      syncPortalUrl(mk, sm, { recordId: rid || null, engineModuleId: mid || null });
+    }
+  }, [authInitialized, authUser, rbacLoading, canPortalViewModule, selectModule, syncPortalUrl]);
 
   const reloadMetricsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
