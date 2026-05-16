@@ -1,10 +1,15 @@
+import {
+  enterpriseStorageUpload,
+  PORTAL_IMAGE_FILE_GUARD,
+  type StorageUploadProgress,
+} from "../lib/enterpriseStorageUpload";
 import { formatPostgrestError, formatStorageError } from "../lib/supabaseErrors";
-import { publicObjectUploadOptions } from "../lib/storageUpload";
 import { publicStorageObjectPath } from "../lib/storagePaths";
-import { getSupabase } from "../lib/supabaseClient";
+import { STORAGE_BUCKETS } from "../lib/storageBuckets";
+import { getSupabase } from "../lib/supabase";
 import type { DeveloperProfileRecord } from "../types";
 
-const PHOTO_BUCKET = "developer-photos";
+const PHOTO_BUCKET = STORAGE_BUCKETS.developerPhotos;
 
 function clientOrThrow() {
   const c = getSupabase();
@@ -81,23 +86,32 @@ export async function updateDeveloperProfile(
   return rowToRecord(data as Record<string, unknown>);
 }
 
-export async function uploadDeveloperPhoto(file: File, profileId: string): Promise<string> {
-  const c = clientOrThrow();
+export async function uploadDeveloperPhoto(
+  file: File,
+  profileId: string,
+  opts?: { onProgress?: (p: StorageUploadProgress) => void; signal?: AbortSignal }
+): Promise<string> {
   const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
   const path = `profile/${profileId}-${Date.now()}.${ext}`;
-  const { error } = await c.storage.from(PHOTO_BUCKET).upload(path, file, publicObjectUploadOptions(file));
-  if (error) throw new Error(formatStorageError(error, PHOTO_BUCKET));
-  const { data } = c.storage.from(PHOTO_BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  const { publicUrl } = await enterpriseStorageUpload({
+    bucket: PHOTO_BUCKET,
+    file,
+    path,
+    guard: { ...PORTAL_IMAGE_FILE_GUARD, labelSw: "Picha ya developer" },
+    onProgress: opts?.onProgress,
+    signal: opts?.signal,
+  });
+  return publicUrl;
 }
 
 /** Pakia mpya, sasisha DB, kisha futa ya zamani — epuka kuondoa faili kabla ya mafanikio. */
 export async function replaceDeveloperPhoto(
   file: File,
   profileId: string,
-  previousPublicUrl: string | null | undefined
+  previousPublicUrl: string | null | undefined,
+  opts?: { onProgress?: (p: StorageUploadProgress) => void; signal?: AbortSignal }
 ): Promise<DeveloperProfileRecord> {
-  const newUrl = await uploadDeveloperPhoto(file, profileId);
+  const newUrl = await uploadDeveloperPhoto(file, profileId, opts);
   try {
     const row = await updateDeveloperProfile(profileId, { photo_url: newUrl });
     if (previousPublicUrl?.trim()) await removeDeveloperPhotoIfStored(previousPublicUrl).catch(() => {});

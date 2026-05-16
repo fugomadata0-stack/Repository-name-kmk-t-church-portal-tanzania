@@ -19,6 +19,7 @@ import { SupabaseListFeedback } from "../common/SupabaseListFeedback";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { ConfirmModal } from "../common/ConfirmModal";
 import { GlassPanel, MotionCard } from "./Stage2Motion";
+import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { exportRowsToExcel, exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
 import { checkSupabaseMediaLink } from "../../services/mediaHealthService";
 const IMAGE_MAX_BYTES = 6 * 1024 * 1024;
@@ -244,8 +245,16 @@ export function HabariPanel(props: { highlightRecordId?: string | null }) {
               <GlassPanel className="overflow-hidden">
                 <button type="button" className="block w-full text-left" onClick={() => setDetail(r)}>
                   {r.image_url ? (
-                    <div className="aspect-[21/9] max-h-48 w-full overflow-hidden bg-slate-100">
-                      <img src={r.image_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    <div className="relative aspect-[21/9] max-h-48 w-full overflow-hidden bg-slate-100">
+                      <ResponsiveLazyImage
+                        src={r.image_url}
+                        alt={r.title ? `Picha: ${r.title}` : "Picha ya habari"}
+
+                        className="absolute inset-0 h-full w-full object-cover"
+                        width={1200}
+                        height={514}
+                        loading="lazy"
+                      />
                     </div>
                   ) : (
                     <div className="flex aspect-[21/9] max-h-48 items-center justify-center bg-gradient-to-br from-[#0B3C5D] to-[#134b72] text-white/90">
@@ -342,7 +351,18 @@ export function HabariPanel(props: { highlightRecordId?: string | null }) {
             className="w-full rounded-2xl border border-amber-200 bg-[#FDFBF7] p-6 shadow-2xl"
           >
             {detail.image_url ? (
-              <img src={detail.image_url} alt="" className="mb-4 max-h-64 w-full rounded-xl object-cover" />
+              <div className="relative mb-4 aspect-video w-full overflow-hidden rounded-xl bg-slate-100">
+                <ResponsiveLazyImage
+                  src={detail.image_url}
+                  alt={detail.title ? `Picha: ${detail.title}` : "Picha"}
+
+                  className="absolute inset-0 h-full w-full object-cover"
+
+                  width={1200}
+                  height={675}
+                  loading="lazy"
+                />
+              </div>
             ) : null}
             <p className="text-xs font-semibold text-[#D4AF37]">{detail.category || "Habari"}</p>
             <h3 className="mt-2 text-2xl font-bold text-[#0B3C5D]">{detail.title}</h3>

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SupabaseEnvMissing } from "../../components/auth/SupabaseEnvMissing";
 import { usePublicPath } from "../../hooks/usePublicPath";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import { safeJsonParseObject } from "../../lib/security";
@@ -29,7 +28,7 @@ function messageForCode(code: string | undefined): { sw: string; en: string } {
 }
 
 export function AcceptInvitePage() {
-  const { pushToast, reportError, supabaseReady, session } = usePortal();
+  const { pushToast, reportError, session } = usePortal();
   const { navigate } = usePublicPath();
   const [token, setToken] = useState<string | null>(null);
   const [validating, setValidating] = useState(true);
@@ -138,10 +137,6 @@ export function AcceptInvitePage() {
     } finally {
       setBusy(false);
     }
-  }
-
-  if (!supabaseReady) {
-    return <SupabaseEnvMissing />;
   }
 
   if (session) {

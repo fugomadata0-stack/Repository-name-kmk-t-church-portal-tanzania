@@ -1,4 +1,5 @@
 import { safeLower } from "./safe";
+import { inferContentType } from "./storageUpload";
 
 export type FileGuardOptions = {
   allowedExtensions: string[];
@@ -10,11 +11,11 @@ export type FileGuardOptions = {
 export type UploadModuleKey = "documents" | "images" | "audio" | "video" | "archives";
 
 export const UPLOAD_LIMITS_MB: Record<UploadModuleKey, number> = {
-  documents: 50,
-  images: 15,
-  audio: 80,
-  video: 300,
-  archives: 100,
+  documents: 200,
+  images: 50,
+  audio: 200,
+  video: 800,
+  archives: 350,
 };
 
 const DANGEROUS_EXTENSIONS = [".exe", ".bat", ".cmd", ".js", ".php", ".sh", ".html"] as const;
@@ -59,13 +60,18 @@ export function validateSelectedFile(file: File, opts: FileGuardOptions): string
   const normalizedAllowed = allowed.map((x) => (x.startsWith(".") ? x : `.${x}`));
   const okExt = normalizedAllowed.some((allowedExt) => ext === allowedExt);
   if (!okExt) {
-    return "Faili hii hairuhusiwi.";
+    return `Kiendelezi si sahihi. Tumia moja ya: ${normalizedAllowed.join(", ")}.`;
   }
   if (opts.allowedMimePrefixes?.length) {
-    const mime = safeLower(file.type || "");
+    const direct = safeLower(file.type || "");
+    const inferred = safeLower(inferContentType(file) || "");
+    const mime = direct || inferred;
+    if (!mime) {
+      return "Aina ya faili haijulikani — tumia faili yenye kiendelezi kinachokubalika.";
+    }
     const okMime = opts.allowedMimePrefixes.some((p) => mime.startsWith(safeLower(p)));
     if (!okMime) {
-      return "Faili hii hairuhusiwi.";
+      return "Aina ya faili (MIME) hairuhusiwi kwa faili hii.";
     }
   }
   if (file.size <= 0) {

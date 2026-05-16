@@ -2,6 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@/*": ["./src/*"],
       "@sentry/react": ["./src/lib/sentryPackageShim.ts"]
     },
     "target": "ES2020",

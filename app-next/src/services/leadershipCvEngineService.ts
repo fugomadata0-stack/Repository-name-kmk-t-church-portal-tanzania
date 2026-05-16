@@ -1,6 +1,8 @@
-import { formatPostgrestError, formatStorageError } from "../lib/supabaseErrors";
-import { getSupabase } from "../lib/supabaseClient";
+import { formatPostgrestError } from "../lib/supabaseErrors";
+import { STORAGE_BUCKETS } from "../lib/storageBuckets";
+import { getSupabase, isSupabaseRealtimeEnabled } from "../lib/supabase";
 import { unwrapList, unwrapMaybe, unwrapOrThrow } from "../lib/supabaseResult";
+import { enterpriseStorageUpload, PORTAL_DOCUMENT_FILE_GUARD } from "../lib/enterpriseStorageUpload";
 import { buildSafeStoragePath } from "../lib/storageUpload";
 import { mbToBytes, validateSelectedFile } from "../lib/fileUploadGuard";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -14,7 +16,7 @@ import type {
   LeadershipProfileCvRecord,
 } from "../types";
 
-export const LEADERSHIP_CV_STORAGE_BUCKET = "leadership-cv-attachments" as const;
+export const LEADERSHIP_CV_STORAGE_BUCKET = STORAGE_BUCKETS.leadershipCvAttachments;
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -198,18 +200,20 @@ export async function uploadLeadershipCvObject(
   const c = getSupabase();
   if (!c) throw new Error("Supabase haijasanidiwa.");
   const guard = validateSelectedFile(file, {
-    allowedExtensions: [".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".doc", ".docx"],
-    maxBytes: mbToBytes(20),
+    allowedExtensions: [".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".heic", ".heif", ".doc", ".docx", ".xlsx", ".pptx", ".zip", ".txt"],
+    maxBytes: mbToBytes(150),
     labelSw: "Faili ya CV / hati",
   });
   if (guard) throw new Error(guard);
   const path = buildSafeStoragePath(`${leaderId}/${folder}`, file.name);
-  const { error } = await c.storage.from(LEADERSHIP_CV_STORAGE_BUCKET).upload(path, file, {
+  await enterpriseStorageUpload({
+    bucket: LEADERSHIP_CV_STORAGE_BUCKET,
+    file,
+    path,
+    guard: PORTAL_DOCUMENT_FILE_GUARD,
     upsert: true,
-    contentType: file.type || undefined,
-    cacheControl: "3600",
+    optimizeImage: true,
   });
-  if (error) throw new Error(formatStorageError(error, LEADERSHIP_CV_STORAGE_BUCKET));
   return { path };
 }
 
@@ -325,7 +329,7 @@ export type LeadershipCvRealtimeHandlers = {
 /** Realtime kwa jedwali za CV (channel tofauti na enterprise hub). */
 export function subscribeLeadershipCvEngine(h: LeadershipCvRealtimeHandlers): RealtimeChannel | null {
   const c = getSupabase();
-  if (!c) return null;
+  if (!c || !isSupabaseRealtimeEnabled()) return null;
   const bump = () => h.onChange?.();
   return c
     .channel("leadership-cv-engine-live")

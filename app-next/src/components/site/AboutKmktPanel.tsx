@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePortal } from "../../context/PortalContext";
 import { uploadSitePublicAsset } from "../../lib/siteAssetsUpload";
 import { getSupabase } from "../../lib/supabaseClient";
+import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { SettingsSupabaseBanner } from "../settings/SettingsSupabaseBanner";
 import { matrixCanPublishAbout } from "../../utils/matrixPermissions";
 import type { AboutKmktState } from "../../types";
@@ -82,7 +83,18 @@ export function AboutKmktPanel() {
                 <p className="text-sm font-semibold text-amber-700">{form.abbreviation}</p>
               </div>
               {form.logo_url ? (
-                <img src={form.logo_url} alt="Logo" className="h-16 w-auto object-contain" />
+                <div className="relative h-16 w-[min(100%,180px)] max-w-[180px] shrink-0">
+                  <ResponsiveLazyImage
+                    src={form.logo_url}
+                    alt="Logo"
+
+                    className="absolute inset-0 h-full w-full object-cover"
+                    width={180}
+                    height={64}
+
+                    loading="lazy"
+                  />
+                </div>
               ) : null}
             </div>
             {form.motto ? <p className="text-lg italic text-slate-700">&ldquo;{form.motto}&rdquo;</p> : null}

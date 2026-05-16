@@ -14,6 +14,7 @@ function uiStatus(raw: string | null | undefined): Status {
   const s = String(raw ?? "active").toLowerCase().replace(/\s+/g, "_");
   if (s === "pending") return "Pending";
   if (s === "inactive") return "Inactive";
+  if (s === "suspended") return "Suspended";
   if (s === "archived") return "Archived";
   if (s === "needs_review") return "Needs Review";
   return "Active";
@@ -25,6 +26,7 @@ function dbStatus(ui: Status): string {
     Active: "active",
     Pending: "pending",
     Inactive: "inactive",
+    Suspended: "suspended",
     Archived: "archived",
     "Needs Review": "needs_review",
   };
@@ -55,6 +57,7 @@ const CHURCH_VIONGOZI_APPOINTMENT_DOC_COLUMNS = [
   "appointment_document_size",
   "appointment_document_type",
   "appointment_uploaded_at",
+  "biography",
   "date_of_birth",
   "national_id",
   "passport_number",
@@ -141,6 +144,7 @@ export function mapViongoziRow(row: Record<string, unknown>): KiongoziRecord {
     appointment_document_type: row.appointment_document_type ? String(row.appointment_document_type) : null,
     appointment_uploaded_at: row.appointment_uploaded_at ? String(row.appointment_uploaded_at) : null,
     notes: row.notes ? String(row.notes) : null,
+    biography: row.biography ? String(row.biography) : null,
     date_of_birth: row.date_of_birth ? String(row.date_of_birth).slice(0, 10) : null,
     national_id: row.national_id ? String(row.national_id) : null,
     passport_number: row.passport_number ? String(row.passport_number) : null,
@@ -247,6 +251,7 @@ export async function upsertKiongozi(row: Partial<KiongoziRecord> & { jina: stri
     appointment_document_type: row.appointment_document_type?.trim() || null,
     appointment_uploaded_at: row.appointment_uploaded_at?.trim() || null,
     notes: row.notes?.trim() || null,
+    biography: row.biography?.trim() || null,
     date_of_birth: row.date_of_birth?.trim() ? row.date_of_birth.trim().slice(0, 10) : null,
     national_id: row.national_id?.trim() || null,
     passport_number: row.passport_number?.trim() || null,

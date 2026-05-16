@@ -37,3 +37,9 @@ export function isVerifyMemberPath(path: string): boolean {
   const p = path.replace(/\/+$/, "") || "/";
   return /^\/verify\/member\/[0-9a-f-]{36}$/i.test(p);
 }
+
+/** Uhakiki wa umma wa wasifu wa uongozi (QR kutoka PDF). */
+export function isVerifyLeadershipPath(path: string): boolean {
+  const p = path.replace(/\/+$/, "") || "/";
+  return p === "/verify/leadership";
+}

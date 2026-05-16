@@ -18,6 +18,31 @@ function supabaseOriginFromEnv(env: Record<string, string>): string {
   }
 }
 
+function looksLikePlaceholderSupabaseUrl(u: string): boolean {
+  const low = u.trim().toLowerCase();
+  if (!low) return false;
+  return (
+    low.includes("your_project_ref") ||
+    low.includes("placeholder") ||
+    /\/your[-_]/.test(low) ||
+    low.includes("example.supabase.co")
+  );
+}
+
+function looksLikePlaceholderSupabaseKey(k: string): boolean {
+  const low = k.trim().toLowerCase();
+  if (!low) return false;
+  return (
+    low.includes("your_publishable") ||
+    low.includes("your_anon") ||
+    low.includes("your_") ||
+    low.includes("changeme") ||
+    low.includes("placeholder") ||
+    low.includes("dummy") ||
+    low === "your_publishable_or_anon_key"
+  );
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const supabaseOrigin = supabaseOriginFromEnv(env);
@@ -34,6 +59,17 @@ export default defineConfig(({ mode }) => {
     const anon = String(env.VITE_SUPABASE_ANON_KEY ?? "").trim().toLowerCase();
     if (anon.includes("service_role")) {
       throw new Error("Service role key hairuhusiwi kwenye frontend production build.");
+    }
+    if (looksLikePlaceholderSupabaseUrl(supabaseUrl)) {
+      throw new Error(
+        "VITE_SUPABASE_URL inaonekana ni mfano (mfano YOUR_PROJECT_REF) — weka URL halisi ya Supabase kwenye Vercel / .env."
+      );
+    }
+    const anonRaw = String(env.VITE_SUPABASE_ANON_KEY ?? "").trim();
+    if (looksLikePlaceholderSupabaseKey(anonRaw)) {
+      throw new Error(
+        "VITE_SUPABASE_ANON_KEY inaonekana ni mfano — weka funguo halisi ya anon/publishable kutoka Supabase Dashboard."
+      );
     }
   }
   return {
@@ -59,6 +95,7 @@ export default defineConfig(({ mode }) => {
     resolve: {
       dedupe: ["react", "react-dom"],
       alias: {
+        "@": path.resolve(__dirname, "src"),
         ...(sentryInstalled
           ? {}
           : { "@sentry/react": path.resolve(__dirname, "src/lib/sentryPackageShim.ts") }),
@@ -79,9 +116,11 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      target: "es2022",
+      target: "es2020",
+      minify: "esbuild",
       sourcemap: false,
-      chunkSizeWarningLimit: 900,
+      cssCodeSplit: true,
+      chunkSizeWarningLimit: 1200,
       rollupOptions: {
         output: {
           manualChunks(id) {
@@ -95,7 +134,7 @@ export default defineConfig(({ mode }) => {
             }
             if (id.includes("xlsx")) return "export-excel";
             if (id.includes("@sentry")) return "sentry";
-            if (id.includes("react") || id.includes("react-dom") || id.includes("scheduler")) return "react-vendor";
+            if (id.includes("react") || id.includes("react-dom") || id.includes("scheduler")) return "react";
             return "vendor";
           },
         },

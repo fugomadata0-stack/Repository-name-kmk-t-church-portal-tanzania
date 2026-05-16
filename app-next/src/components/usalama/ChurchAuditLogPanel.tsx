@@ -13,6 +13,10 @@ import { matrixCanSubmitManualAuditLog, matrixCanViewAuditLogs } from "../../uti
 import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 import { exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
 
+const AUDIT_MODULE_PRESETS = ["muundo"] as const;
+const AUDIT_ACTION_PRESETS = ["tawi_registry_verification"] as const;
+const AUDIT_ENTITY_TYPE_PRESETS = ["church_tawi"] as const;
+
 export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string }) {
   const { pushToast, reportError, matrixByModule } = usePortal();
   const [rows, setRows] = useState<AuditLogTableRow[]>([]);
@@ -80,11 +84,23 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
     });
   }, [rows, search, moduleFilter, actionFilter, userFilter, roleFilter, statusFilter, entityTypeFilter, dateFrom, dateTo]);
 
-  const moduleOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.module))).sort(), [rows]);
-  const actionOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.action))).sort(), [rows]);
+  const moduleOptions = useMemo(() => {
+    const s = new Set(rows.map((r) => r.module));
+    for (const x of AUDIT_MODULE_PRESETS) s.add(x);
+    return Array.from(s).sort();
+  }, [rows]);
+  const actionOptions = useMemo(() => {
+    const s = new Set(rows.map((r) => r.action));
+    for (const x of AUDIT_ACTION_PRESETS) s.add(x);
+    return Array.from(s).sort();
+  }, [rows]);
   const userOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.performed_by_name))).sort(), [rows]);
   const roleOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.role_key))).sort(), [rows]);
-  const entityTypeOptions = useMemo(() => Array.from(new Set(rows.map((r) => r.entity_type))).sort(), [rows]);
+  const entityTypeOptions = useMemo(() => {
+    const s = new Set(rows.map((r) => r.entity_type));
+    for (const x of AUDIT_ENTITY_TYPE_PRESETS) s.add(x);
+    return Array.from(s).sort();
+  }, [rows]);
 
   const clearFilters = useCallback(() => {
     setSearch("");
@@ -214,6 +230,34 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
 
       <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Chujio haraka</p>
+        <div className="mb-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-900 shadow-sm hover:bg-emerald-100"
+            onClick={() => {
+              setModuleFilter("muundo");
+              setActionFilter("tawi_registry_verification");
+              setEntityTypeFilter("church_tawi");
+              setUserFilter("all");
+              setRoleFilter("all");
+              setStatusFilter("all");
+              setSearch("");
+              setDateFrom("");
+              setDateTo("");
+              pushToast("Vimechujwa: uhakiki wa sajili za tawi.", "success");
+            }}
+          >
+            Uhakiki wa sajili (tawi)
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+            onClick={clearFilters}
+          >
+            Rudisha vichujio vyote
+          </button>
+        </div>
         <div className="grid gap-3 md:grid-cols-4">
           <label className="grid gap-1 text-sm font-medium text-slate-700 md:col-span-2">Search<input value={search} onChange={(e) => setSearch(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2" /></label>
           <label className="grid gap-1 text-sm font-medium text-slate-700">Module<select value={moduleFilter} onChange={(e) => setModuleFilter(e.target.value)} className="rounded-xl border border-slate-200 px-3 py-2"><option value="all">Zote</option>{moduleOptions.map((x) => <option key={x}>{x}</option>)}</select></label>

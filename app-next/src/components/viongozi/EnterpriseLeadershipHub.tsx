@@ -3,6 +3,9 @@ import type { Dispatch, SetStateAction } from "react";
 import { usePortal } from "../../context/PortalContext";
 import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { downloadLeaderProfilePdf, downloadLeadershipDirectoryPdf } from "../../lib/leadershipPdf";
+import { fetchUrlAsPdfImageDataUrl } from "../../lib/pdfInstitutional";
+import { fetchMasterSettingsOptional, readMasterSettingsCache } from "../../services/masterSettingsService";
+import { fetchLeadershipCvBundle, signLeadershipCvPath } from "../../services/leadershipCvEngineService";
 import { fetchChurchViongozi } from "../../services/viongoziService";
 import {
   fetchCommitteeGroups,
@@ -14,6 +17,7 @@ import {
   subscribeLeadershipEnterprise,
 } from "../../services/leadershipEnterpriseService";
 import type { DayosisiRecord, JimboRecord, KiongoziRecord, LeadershipCategoryRecord, LeadershipCommitteeRecord, LeadershipPositionRecord, TawiRecord } from "../../types";
+import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 
 const LEVEL_PRESETS = [
   "KMK(T) National Level",
@@ -520,7 +524,15 @@ export function EnterpriseLeadershipHub(props: {
               >
                 <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-full border-4 border-white shadow ring-2 ring-violet-300">
                   {L.photo_url ? (
-                    <img src={L.photo_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    <ResponsiveLazyImage
+                      src={L.photo_url}
+                      alt={L.jina ? `Picha: ${L.jina}` : "Picha ya kiongozi"}
+
+                      className="absolute inset-0 h-full w-full object-cover"
+                      width={192}
+                      height={192}
+                      loading="lazy"
+                    />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-slate-200 text-2xl font-bold text-slate-500">
                       {(L.jina || "?").slice(0, 1).toUpperCase()}
@@ -552,7 +564,18 @@ export function EnterpriseLeadershipHub(props: {
                 {L.signature_url ? (
                   <div className="mt-3 w-full rounded-lg border border-dashed border-slate-300 bg-white/80 p-2">
                     <p className="text-[10px] font-semibold text-slate-500">Saini</p>
-                    <img src={L.signature_url} alt="" className="mx-auto mt-1 h-10 max-w-full object-contain" loading="lazy" />
+                    <ResponsiveLazyImage
+                      src={L.signature_url}
+                      alt="Saini"
+
+                      className="relative mx-auto mt-1 min-h-10 w-full max-w-xs"
+
+                      width={400}
+                      height={120}
+
+                      loading="lazy"
+
+                    />
                   </div>
                 ) : null}
               </article>
@@ -613,7 +636,50 @@ export function EnterpriseLeadershipHub(props: {
                 if (pdfBusy) return;
                 setPdfBusy(true);
                 try {
-                  await downloadLeaderProfilePdf(L, { churchName: churchName || undefined });
+                  const [msOpt, bundle] = await Promise.all([
+                    fetchMasterSettingsOptional(),
+                    fetchLeadershipCvBundle(L.id),
+                  ]);
+                  const ms = msOpt ?? readMasterSettingsCache();
+                  const logoUrl = ms.theme.logo_url?.trim();
+                  const logoDataUrl = logoUrl ? await fetchUrlAsPdfImageDataUrl(logoUrl) : null;
+                  const p = bundle.profile;
+                  const photoUrl =
+                    (p?.profile_photo_storage_path ? await signLeadershipCvPath(p.profile_photo_storage_path) : null) ||
+                    L.photo_url ||
+                    "";
+                  const sigUrl =
+                    (p?.signature_storage_path ? await signLeadershipCvPath(p.signature_storage_path) : null) ||
+                    L.signature_url ||
+                    "";
+                  const photoDataUrl = photoUrl ? await fetchUrlAsPdfImageDataUrl(photoUrl) : null;
+                  const signatureDataUrl = sigUrl ? await fetchUrlAsPdfImageDataUrl(sigUrl) : null;
+                  const rawAddr = ms.identity.address?.trim();
+                  let supplementLines: string[] | undefined;
+                  if (rawAddr) {
+                    const parts = rawAddr
+                      .split(/\r?\n/)
+                      .map((l) => l.trim())
+                      .filter(Boolean)
+                      .slice(0, 8);
+                    if (parts.length) {
+                      supplementLines = [
+                        (ms.identity.official_name || "KANISA LA MENNONITE LA KIINJILI TANZANIA KMK(T)").toUpperCase(),
+                        ...parts.map((p) => p.toUpperCase()),
+                      ];
+                      const c = ms.identity.country?.trim();
+                      if (c) supplementLines.push(c.toUpperCase());
+                    }
+                  }
+                  await downloadLeaderProfilePdf(L, {
+                    churchName: churchName || undefined,
+                    portalBaseUrl: typeof window !== "undefined" ? window.location.origin : undefined,
+                    bundle,
+                    logoDataUrl,
+                    photoDataUrl,
+                    signatureDataUrl,
+                    institutionalLines: supplementLines,
+                  });
                   pushToast("PDF ya wasifu imepakuliwa.", "success");
                 } catch (e) {
                   reportError(e, "PDF wasifu");

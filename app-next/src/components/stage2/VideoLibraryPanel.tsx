@@ -20,6 +20,7 @@ import { SupabaseListFeedback } from "../common/SupabaseListFeedback";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { ConfirmModal } from "../common/ConfirmModal";
 import { GlassPanel, MotionCard } from "./Stage2Motion";
+import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { exportRowsToExcel, exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
 import { checkRequiredMediaBuckets } from "../../services/mediaHealthService";
 const IMAGE_MAX_BYTES = mbToBytes(UPLOAD_LIMITS_MB.images);
@@ -207,9 +208,18 @@ export function VideoLibraryPanel(props: { highlightRecordId?: string | null }) 
             <MotionCard key={v.id} className={props.highlightRecordId === v.id ? "ring-2 ring-[#D4AF37]" : ""}>
               <GlassPanel className="overflow-hidden p-0">
                 <button type="button" className="relative block w-full" onClick={() => setPlayer(v)}>
-                  <div className="aspect-video bg-slate-900">
+                  <div className="relative aspect-video bg-slate-900">
                     {v.thumbnail_url ? (
-                      <img src={v.thumbnail_url} alt="" className="h-full w-full object-cover opacity-95" loading="lazy" />
+                      <ResponsiveLazyImage
+                        src={v.thumbnail_url}
+                        alt={v.title ? `Thumbanuli: ${v.title}` : "Thumbanuli ya video"}
+
+                        className="absolute inset-0 h-full w-full object-cover"
+
+                        width={1280}
+                        height={720}
+                        loading="lazy"
+                      />
                     ) : (
                       <div className="flex h-full items-center justify-center bg-gradient-to-br from-[#0B3C5D] to-black text-white/80">
                         <Play className="h-16 w-16" />

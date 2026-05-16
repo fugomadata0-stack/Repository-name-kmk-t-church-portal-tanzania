@@ -1,5 +1,5 @@
 import type { PostgrestError } from "@supabase/supabase-js";
-import { formatPostgrestError, isMissingTableError } from "./supabaseErrors";
+import { formatPostgrestError, isAbortLikeError, isMissingTableError } from "./supabaseErrors";
 
 /** Ondoa undefined ili PostgREST usitume safu zisizo kamili kwa makosa */
 export function stripUndefined<T extends Record<string, unknown>>(row: T): Partial<T> {
@@ -19,11 +19,19 @@ export function asDbId(id: unknown): string | number {
   return String(id ?? "");
 }
 
+function throwIfAbortResultError(error: PostgrestError | null): void {
+  if (!error) return;
+  if (isAbortLikeError(error) || isAbortLikeError(error.message)) {
+    throw new DOMException(error.message || "Ombi limesitishwa.", "AbortError");
+  }
+}
+
 export function unwrapOrThrow<T>(
   result: { data: T | null; error: PostgrestError | null },
   context: string
 ): T {
   if (result.error) {
+    throwIfAbortResultError(result.error);
     throw new Error(formatPostgrestError(result.error, context));
   }
   if (result.data === null || result.data === undefined) {
@@ -43,6 +51,7 @@ export function unwrapMaybe<T>(
       }
       return null;
     }
+    throwIfAbortResultError(result.error);
     throw new Error(formatPostgrestError(result.error, context));
   }
   return result.data ?? null;
@@ -59,6 +68,7 @@ export function unwrapList<T>(
       }
       return [];
     }
+    throwIfAbortResultError(result.error);
     throw new Error(formatPostgrestError(result.error, context));
   }
   return result.data ?? [];

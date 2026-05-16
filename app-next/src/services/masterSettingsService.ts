@@ -1,10 +1,11 @@
-﻿import { formatCaughtError, formatPostgrestError, isMissingTableError } from "../lib/supabaseErrors";
+﻿import { canonicalMasterSettings, DEFAULT_MASTER_WEBSITE_URL } from "../data/kmktCanonicalContent";
+import { formatCaughtError, formatPostgrestError, isMissingTableError } from "../lib/supabaseErrors";
 import { dispatchMasterSettingsUpdated } from "../lib/portalEvents";
 import { getSupabase, getSupabaseOrThrow } from "../lib/supabaseClient";
 import { safeStorage } from "../lib/security";
 
+export { DEFAULT_MASTER_WEBSITE_URL };
 export const MASTER_SETTINGS_CACHE_KEY = "kmkt_master_settings_cache_v2";
-export const DEFAULT_MASTER_WEBSITE_URL = "https://v0-church-portal-tanzania.vercel.app";
 let masterSettingsTablesMissing = false;
 
 export interface MasterIdentitySettings {
@@ -64,54 +65,7 @@ export interface MasterSettingsRow {
 }
 
 export function emptyMasterSettings(): MasterSettingsRow {
-  return {
-    identity: {
-      official_name: "KANISA LA MENNONITE LA KIINJILI TANZANIA",
-      short_name: "KMK(T)",
-      motto: "",
-      address: "",
-      phone: "",
-      email: "",
-      website: DEFAULT_MASTER_WEBSITE_URL,
-      country: "Tanzania",
-      timezone: "Africa/Dar_es_Salaam",
-      registration_info: "",
-      official_seal_text: "",
-      language_primary: "sw",
-      language_secondary: "en",
-      language_ratio_sw: 70,
-      language_ratio_en: 30,
-      show_kpi_cards: true,
-      default_date_range_days: 30,
-      default_hierarchy_filter: "ALL",
-      dashboard_refresh_interval_sec: 60,
-      system_footer: "KMK(T) Tanzania",
-    },
-    theme: {
-      logo_url: "",
-      favicon_url: "",
-      letterhead_url: "",
-      signature_image_url: "",
-      seal_image_url: "",
-      primary_color: "#0B1F3A",
-      secondary_color: "#123C69",
-      accent_color: "#D4AF37",
-      background_color: "#FFFFFF",
-      text_color: "#0F172A",
-      pdf_header_text: "",
-      excel_header_text: "",
-      print_header_text: "",
-    },
-    templates: {
-      email_welcome: "Karibu {name}, akaunti yako ya KMK(T) iko tayari.",
-      email_password_reset: "Bonyeza kiungo hiki kubadili nenosiri lako: {reset_link}",
-      email_signup_approval: "Ombi lako la usajili limekubaliwa. Karibu KMK(T).",
-      email_finance_receipt: "Tumepokea malipo yako. Kumbukumbu: {receipt_no}",
-      email_document_approval: "Nyaraka yako imekaguliwa na kukubaliwa.",
-      sms_alert: "Tahadhari: {message}",
-      notification_message: "Una taarifa mpya kwenye portal ya KMK(T).",
-    },
-  };
+  return canonicalMasterSettings();
 }
 
 function mergeSettings(raw: Partial<MasterSettingsRow> | null): MasterSettingsRow {

@@ -1,5 +1,5 @@
 import { formatPostgrestError } from "../lib/supabaseErrors";
-import { getSupabase } from "../lib/supabaseClient";
+import { getSupabase } from "../lib/supabase";
 import { unwrapList } from "../lib/supabaseResult";
 import { PORTAL_MODULE_KEYS } from "../data/portalModuleKeys";
 import type {
@@ -11,7 +11,53 @@ import type {
   PortalVisibilityRule,
 } from "../types";
 
+const RATE_LIMIT_RPC_SESSION_KEY = "kmkt_rate_limit_rpc_unavailable_v2";
+
 let rateLimitRpcMissing = false;
+
+function readRateLimitRpcUnavailableFromSession(): boolean {
+  if (typeof sessionStorage === "undefined") return false;
+  return sessionStorage.getItem(RATE_LIMIT_RPC_SESSION_KEY) === "1";
+}
+
+function markRateLimitRpcUnavailable(): void {
+  rateLimitRpcMissing = true;
+  if (typeof sessionStorage !== "undefined") {
+    sessionStorage.setItem(RATE_LIMIT_RPC_SESSION_KEY, "1");
+  }
+}
+
+function parseRateLimitRpcPayload(data: unknown): RateLimitCheckResult | null {
+  if (!data || typeof data !== "object") return null;
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== "object") return null;
+  const r = row as Record<string, unknown>;
+  return {
+    allowed: Boolean(r.allowed),
+    retry_after_seconds: Number(r.retry_after_seconds ?? 0),
+    attempts: Number(r.attempts ?? 0),
+  };
+}
+
+function isRateLimitRpcUnavailable(error: { code?: string; message?: string; status?: number } | null): boolean {
+  if (!error) return false;
+  const code = String(error.code ?? "").toUpperCase();
+  const msg = String(error.message ?? "").toLowerCase();
+  const status = Number(error.status ?? 0);
+  return (
+    status === 400 ||
+    status === 404 ||
+    code === "PGRST202" ||
+    code === "42883" ||
+    code === "42P01" ||
+    msg.includes("404") ||
+    msg.includes("not find") ||
+    msg.includes("could not find") ||
+    msg.includes("does not exist") ||
+    msg.includes("undefined function") ||
+    msg.includes("schema cache")
+  );
+}
 
 export const DEFAULT_SECURITY_POLICY: Record<string, unknown> = {
   password_min_length: 10,
@@ -351,7 +397,7 @@ export async function checkAndIncrementRateLimit(
 ): Promise<RateLimitCheckResult | null> {
   const c = getSupabase();
   if (!c) return null;
-  if (rateLimitRpcMissing) return null;
+  if (rateLimitRpcMissing || readRateLimitRpcUnavailableFromSession()) return null;
   const { data, error } = await c.rpc("portal_rate_limit_check_and_increment", {
     p_scope: scope,
     p_identifier: identifier,
@@ -360,55 +406,28 @@ export async function checkAndIncrementRateLimit(
     p_block_seconds: toPositiveRpcInt(blockSeconds, 300),
   });
   if (error) {
-    const code = String((error as { code?: unknown } | null)?.code ?? "").toUpperCase();
-    const msg = formatPostgrestError(error, "portal_rate_limit_check_and_increment");
-    const low = msg.toLowerCase();
-    const missingFn =
-      low.includes("404") ||
-      low.includes("not find") ||
-      low.includes("could not find") ||
-      low.includes("does not exist") ||
-      low.includes("undefined function") ||
-      code === "PGRST202" ||
-      code === "42883";
-    if (missingFn) {
-      rateLimitRpcMissing = true;
+    const err = error as { code?: string; message?: string; status?: number };
+    if (isRateLimitRpcUnavailable(err)) {
+      markRateLimitRpcUnavailable();
     } else if (import.meta.env.DEV) {
-      console.warn("[DEV portal_rate_limit_check_and_increment]", msg);
+      console.warn("[DEV portal_rate_limit_check_and_increment]", formatPostgrestError(error, "portal_rate_limit_check_and_increment"));
     }
     return null;
   }
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row || typeof row !== "object") return null;
-  const r = row as Record<string, unknown>;
-  return {
-    allowed: Boolean(r.allowed),
-    retry_after_seconds: Number(r.retry_after_seconds ?? 0),
-    attempts: Number(r.attempts ?? 0),
-  };
+  return parseRateLimitRpcPayload(data);
 }
 
 export async function resetRateLimit(scope: string, identifier: string): Promise<void> {
   const c = getSupabase();
   if (!c) return;
-  if (rateLimitRpcMissing) return;
+  if (rateLimitRpcMissing || readRateLimitRpcUnavailableFromSession()) return;
   const { error } = await c.rpc("portal_rate_limit_reset", { p_scope: scope, p_identifier: identifier });
   if (error) {
-    const code = String((error as { code?: unknown } | null)?.code ?? "").toUpperCase();
-    const msg = formatPostgrestError(error, "portal_rate_limit_reset");
-    const low = msg.toLowerCase();
-    if (
-      low.includes("404") ||
-      low.includes("not find") ||
-      low.includes("could not find") ||
-      low.includes("does not exist") ||
-      low.includes("undefined function") ||
-      code === "PGRST202" ||
-      code === "42883"
-    ) {
-      rateLimitRpcMissing = true;
+    const err = error as { code?: string; message?: string; status?: number };
+    if (isRateLimitRpcUnavailable(err)) {
+      markRateLimitRpcUnavailable();
     } else if (import.meta.env.DEV) {
-      console.warn("[DEV portal_rate_limit_reset]", msg);
+      console.warn("[DEV portal_rate_limit_reset]", formatPostgrestError(error, "portal_rate_limit_reset"));
     }
   }
 }

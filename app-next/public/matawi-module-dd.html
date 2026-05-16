@@ -1,0 +1,2355 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KMK(T) Professional Branch / Matawi Module</title>
+  <style>
+    :root{
+      --navy:#0B1F3A;
+      --blue:#123C69;
+      --gold:#D4AF37;
+      --emerald:#16a34a;
+      --cyan:#06b6d4;
+      --red:#dc2626;
+      --purple:#7c3aed;
+      --orange:#f97316;
+      --slate:#64748b;
+      --bg:#f5f7fb;
+      --card:#ffffff;
+      --border:#dbe7f5;
+      --shadow:0 18px 45px rgba(15,23,42,.10);
+      --shadow2:0 26px 75px rgba(15,23,42,.22);
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+      background:var(--bg);
+      color:#0f172a;
+    }
+
+    header{
+      position:sticky;
+      top:0;
+      z-index:50;
+      color:white;
+      background:linear-gradient(135deg,var(--navy),var(--blue));
+      box-shadow:0 12px 30px rgba(15,23,42,.25);
+    }
+
+    .topbar{
+      max-width:1500px;
+      margin:auto;
+      padding:14px 18px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:14px;
+      flex-wrap:wrap;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+
+    .logo{
+      width:52px;
+      height:52px;
+      border-radius:18px;
+      display:grid;
+      place-items:center;
+      background:linear-gradient(135deg,var(--gold),#fde68a);
+      color:#0f172a;
+      font-weight:1000;
+      box-shadow:0 12px 26px rgba(212,175,55,.25);
+    }
+
+    .brand h1{margin:0;font-size:19px;font-weight:1000}
+    .brand p{margin:4px 0 0;color:#dbeafe;font-size:12px;line-height:1.5}
+
+    .top-actions{display:flex;gap:8px;flex-wrap:wrap}
+
+    button{
+      border:0;
+      cursor:pointer;
+      border-radius:999px;
+      padding:10px 14px;
+      font-weight:1000;
+      font-size:12px;
+      box-shadow:0 8px 18px rgba(15,23,42,.12);
+      transition:.16s ease;
+    }
+
+    button:hover{filter:brightness(1.04)}
+    button:active{transform:scale(.98)}
+
+    .btn-gold{background:linear-gradient(135deg,var(--gold),#facc15);color:#111827}
+    .btn-green{background:linear-gradient(135deg,#16a34a,#22c55e);color:white}
+    .btn-blue{background:linear-gradient(135deg,#0ea5e9,#2563eb);color:white}
+    .btn-red{background:linear-gradient(135deg,#b91c1c,#ef4444);color:white}
+    .btn-muted{background:#fff;color:var(--navy)}
+    .btn-dark{background:linear-gradient(135deg,#0f172a,#334155);color:white}
+
+    main{
+      max-width:1500px;
+      margin:auto;
+      padding:18px;
+    }
+
+    .hero{
+      color:white;
+      border-radius:34px;
+      padding:28px;
+      background:
+        radial-gradient(circle at top right,rgba(212,175,55,.26),transparent 34%),
+        linear-gradient(135deg,#061633,#0B1F3A 58%,#123C69);
+      box-shadow:var(--shadow2);
+      overflow:hidden;
+      position:relative;
+      margin-bottom:18px;
+    }
+
+    .hero::after{
+      content:"TAWI";
+      position:absolute;
+      right:-10px;
+      bottom:-30px;
+      color:rgba(255,255,255,.06);
+      font-weight:1000;
+      font-size:110px;
+      letter-spacing:.08em;
+    }
+
+    .hero h2{
+      position:relative;
+      z-index:1;
+      margin:0 0 10px;
+      font-size:32px;
+      line-height:1.15;
+    }
+
+    .hero p{
+      position:relative;
+      z-index:1;
+      max-width:980px;
+      margin:0;
+      color:#dbeafe;
+      line-height:1.8;
+    }
+
+    .hero-pills{
+      position:relative;
+      z-index:1;
+      margin-top:16px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+    }
+
+    .pill{
+      display:inline-flex;
+      padding:8px 12px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:900;
+      background:rgba(255,255,255,.13);
+      border:1px solid rgba(255,255,255,.22);
+    }
+
+    .command-section{
+      background:white;
+      border:1px solid var(--border);
+      border-radius:30px;
+      padding:18px;
+      box-shadow:var(--shadow);
+      margin-bottom:18px;
+    }
+
+    .section-title{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-bottom:16px;
+    }
+
+    .section-title h3{
+      margin:0 0 6px;
+      color:var(--navy);
+      font-size:24px;
+      font-weight:1000;
+    }
+
+    .section-title p{
+      margin:0;
+      max-width:930px;
+      color:#475569;
+      line-height:1.75;
+      font-size:13px;
+    }
+
+    .module-grid{
+      display:grid;
+      grid-template-columns:repeat(6,minmax(0,1fr));
+      gap:12px;
+    }
+
+    @media(min-width:768px){
+      .module-grid{grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}
+    }
+
+    .module-card{
+      grid-column:span 2/span 2;
+      min-height:122px;
+      color:white;
+      border-radius:26px;
+      border:1px solid rgba(255,255,255,.22);
+      padding:14px 10px;
+      position:relative;
+      overflow:hidden;
+      box-shadow:0 16px 34px rgba(15,23,42,.16);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      gap:7px;
+      cursor:pointer;
+    }
+
+    .module-card.long{grid-column:span 3/span 3}
+
+    @media(min-width:768px){
+      .module-card{grid-column:span 3/span 3;min-height:132px}
+      .module-card.long{grid-column:span 4/span 4}
+    }
+
+    @media(min-width:1280px){
+      .module-card{grid-column:span 2/span 2}
+      .module-card.long{grid-column:span 3/span 3}
+    }
+
+    .module-card:hover{filter:brightness(1.04)}
+    .module-card.active{outline:3px solid rgba(212,175,55,.9);outline-offset:3px}
+
+    .module-card::after{
+      content:"";
+      position:absolute;
+      width:110px;
+      height:110px;
+      right:-38px;
+      top:-38px;
+      border-radius:999px;
+      background:rgba(255,255,255,.14);
+    }
+
+    .module-icon{
+      width:46px;
+      height:46px;
+      border-radius:18px;
+      display:grid;
+      place-items:center;
+      background:rgba(255,255,255,.16);
+      border:1px solid rgba(255,255,255,.24);
+      font-size:25px;
+      position:relative;
+      z-index:1;
+    }
+
+    .module-label{
+      position:relative;
+      z-index:1;
+      font-size:clamp(.72rem,2.8vw,.9rem);
+      font-weight:1000;
+      line-height:1.12;
+      text-wrap:balance;
+      overflow-wrap:anywhere;
+    }
+
+    .module-tags{
+      position:relative;
+      z-index:1;
+      display:flex;
+      gap:4px;
+      flex-wrap:wrap;
+      justify-content:center;
+      max-height:34px;
+      overflow:hidden;
+    }
+
+    .module-tags span{
+      font-size:9px;
+      padding:3px 6px;
+      border-radius:999px;
+      background:rgba(255,255,255,.16);
+      border:1px solid rgba(255,255,255,.20);
+      font-weight:900;
+    }
+
+    .dynamic-panel{
+      background:linear-gradient(135deg,#fff,#f8fbff);
+      border:1px solid var(--border);
+      border-radius:30px;
+      padding:20px;
+      box-shadow:var(--shadow);
+      margin-bottom:18px;
+    }
+
+    .notice{
+      border-radius:18px;
+      padding:12px 14px;
+      background:#eff6ff;
+      color:#1e3a8a;
+      border:1px solid #bfdbfe;
+      font-weight:900;
+      margin-bottom:14px;
+      line-height:1.6;
+      font-size:13px;
+    }
+
+    .form-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+      gap:14px;
+    }
+
+    .field{
+      background:white;
+      border:1px solid var(--border);
+      border-radius:20px;
+      padding:14px;
+      box-shadow:0 10px 24px rgba(15,23,42,.06);
+    }
+
+    label{
+      display:block;
+      color:var(--navy);
+      font-size:12px;
+      font-weight:1000;
+      margin-bottom:7px;
+    }
+
+    input,select,textarea{
+      width:100%;
+      border:1px solid #cbd5e1;
+      border-radius:14px;
+      background:#f8fafc;
+      padding:10px 12px;
+      font-weight:800;
+      color:#0f172a;
+      outline:none;
+    }
+
+    textarea{min-height:92px;resize:vertical}
+
+    input[type=file]{
+      padding:9px;
+      background:#fff;
+      cursor:pointer;
+    }
+
+    .upload-field{
+      border:1px dashed #93c5fd;
+      background:#f8fbff;
+    }
+
+    .auto-badge{
+      display:inline-flex;
+      padding:6px 9px;
+      border-radius:999px;
+      background:#ecfdf5;
+      color:#065f46;
+      border:1px solid #a7f3d0;
+      font-size:11px;
+      font-weight:1000;
+      margin-left:6px;
+    }
+
+    .inline-actions{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-top:14px;
+    }
+
+    .kpi-tabs{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin-bottom:14px;
+    }
+
+    .kpi-tab{
+      background:#eff6ff;
+      color:#1e3a8a;
+      border:1px solid #bfdbfe;
+    }
+
+    .kpi-tab.active{
+      background:linear-gradient(135deg,var(--navy),var(--blue));
+      color:#fff;
+      border-color:var(--gold);
+    }
+
+    .kpi-panel{display:none}
+    .kpi-panel.active{display:block}
+
+    .kpi-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+      gap:14px;
+    }
+
+    .kpi-card{
+      min-height:140px;
+      background:white;
+      border:1px solid var(--border);
+      border-radius:24px;
+      padding:18px;
+      position:relative;
+      overflow:hidden;
+      box-shadow:0 14px 32px rgba(15,23,42,.08);
+    }
+
+    .kpi-card::before{
+      content:"";
+      position:absolute;
+      top:0;
+      left:0;
+      right:0;
+      height:7px;
+      background:var(--stripe,linear-gradient(90deg,var(--blue),var(--gold)));
+    }
+
+    .kpi-card::after{
+      content:"";
+      position:absolute;
+      width:110px;
+      height:110px;
+      right:-38px;
+      bottom:-38px;
+      border-radius:999px;
+      background:rgba(212,175,55,.13);
+    }
+
+    .kpi-card span{
+      position:relative;
+      z-index:1;
+      display:block;
+      color:#64748b;
+      font-size:11px;
+      font-weight:1000;
+      text-transform:uppercase;
+      letter-spacing:.05em;
+    }
+
+    .kpi-card strong{
+      position:relative;
+      z-index:1;
+      display:block;
+      color:#061020;
+      font-size:29px;
+      margin-top:12px;
+      font-weight:1000;
+      word-break:break-word;
+    }
+
+    .kpi-card small{
+      position:relative;
+      z-index:1;
+      display:block;
+      color:#64748b;
+      margin-top:8px;
+      font-weight:800;
+    }
+
+    .finance-source-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(205px,1fr));
+      gap:12px;
+    }
+
+    .finance-source{
+      border-radius:20px;
+      background:linear-gradient(135deg,#fff,#f8fbff);
+      border:1px solid var(--border);
+      padding:14px;
+      box-shadow:0 10px 24px rgba(15,23,42,.06);
+    }
+
+    .finance-source h4{
+      margin:0 0 10px;
+      color:var(--navy);
+      font-size:14px;
+      line-height:1.35;
+    }
+
+    .flow-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:14px;
+    }
+
+    .flow-card{
+      color:white;
+      border-radius:24px;
+      padding:18px;
+      background:linear-gradient(135deg,#061633,#123C69);
+      box-shadow:0 18px 40px rgba(15,23,42,.18);
+      min-height:158px;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .flow-card::after{
+      content:attr(data-flow);
+      position:absolute;
+      right:-4px;
+      bottom:-10px;
+      color:rgba(255,255,255,.08);
+      font-size:46px;
+      font-weight:1000;
+    }
+
+    .flow-card h4{
+      position:relative;
+      z-index:1;
+      margin:0 0 8px;
+      font-size:20px;
+    }
+
+    .flow-card p{
+      position:relative;
+      z-index:1;
+      color:#dbeafe;
+      margin:0;
+      line-height:1.7;
+      font-size:13px;
+    }
+
+    .pdf-preview{
+      background:white;
+      color:#111827;
+      border:1px solid #cbd5e1;
+      border-radius:18px;
+      padding:22px;
+      margin-top:16px;
+      box-shadow:0 16px 38px rgba(15,23,42,.12);
+    }
+
+    .pdf-preview h2{
+      text-align:center;
+      color:var(--navy);
+      margin:0 0 8px;
+      text-transform:uppercase;
+    }
+
+    .pdf-preview table{
+      width:100%;
+      border-collapse:collapse;
+      font-size:12px;
+      margin-top:12px;
+    }
+
+    .pdf-preview th{
+      background:var(--navy);
+      color:white;
+      padding:8px;
+      border:1px solid #0f172a;
+      text-align:left;
+    }
+
+    .pdf-preview td{
+      padding:8px;
+      border:1px solid #cbd5e1;
+    }
+
+    .hidden{display:none!important}
+
+
+    .field select[id*="attendance_period"],
+    .field select[id*="date_status"],
+    .field select[id*="week"],
+    .field select[id*="month"],
+    .field select[id*="year"]{
+      border-color:#38bdf8;
+      background:#f0f9ff;
+    }
+
+
+    /* ADVANCED ADD-ONS: Notifications, SMS, ID Cards, Smart Detect, Executive Dashboard, Approval Workflow, Public Mode, Certificates */
+    .advanced-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+      gap:14px;
+    }
+    .advanced-card{
+      border-radius:24px;
+      background:linear-gradient(135deg,#fff,#f8fbff);
+      border:1px solid var(--border);
+      padding:16px;
+      box-shadow:0 14px 32px rgba(15,23,42,.08);
+      position:relative;
+      overflow:hidden;
+    }
+    .advanced-card::before{
+      content:"";
+      position:absolute;
+      top:0;left:0;right:0;height:7px;
+      background:var(--stripe,linear-gradient(90deg,var(--blue),var(--gold)));
+    }
+    .advanced-card h4{margin:8px 0 8px;color:var(--navy);font-size:16px}
+    .advanced-card p{margin:0;color:#64748b;line-height:1.6;font-size:12px}
+    .certificate-preview{
+      background:#fff;
+      border:10px double #0B1F3A;
+      border-radius:18px;
+      padding:28px;
+      min-height:520px;
+      box-shadow:0 20px 60px rgba(15,23,42,.15);
+      position:relative;
+      overflow:hidden;
+      margin-top:16px;
+    }
+    .certificate-preview::before{
+      content:"KMK(T)";
+      position:absolute;
+      inset:auto -20px 20px auto;
+      color:rgba(11,31,58,.045);
+      font-size:90px;
+      font-weight:1000;
+      transform:rotate(-8deg);
+    }
+    .certificate-preview h2{
+      text-align:center;
+      color:#0B1F3A;
+      font-size:26px;
+      margin:0 0 6px;
+      text-transform:uppercase;
+      letter-spacing:.03em;
+    }
+    .certificate-preview h3{
+      text-align:center;
+      color:#92400e;
+      font-size:20px;
+      margin:8px 0 22px;
+      text-transform:uppercase;
+    }
+    .cert-line{
+      border-bottom:1px solid #334155;
+      min-height:34px;
+      padding:8px;
+      margin:10px 0;
+      font-weight:900;
+      color:#0f172a;
+    }
+    .signature-row{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+      gap:18px;
+      margin-top:35px;
+    }
+    .signature-box{
+      text-align:center;
+      border-top:2px solid #0B1F3A;
+      padding-top:8px;
+      font-size:12px;
+      color:#334155;
+      font-weight:900;
+    }
+    .mode-switch{
+      display:inline-flex;
+      padding:7px 10px;
+      border-radius:999px;
+      background:#ecfdf5;
+      color:#065f46;
+      border:1px solid #a7f3d0;
+      font-size:11px;
+      font-weight:1000;
+      margin-left:6px;
+    }
+
+
+    /* FINAL POLISH + STRONG STABILITY + INKED DOUBLE-LINE TABLES */
+    html{scroll-behavior:smooth}
+    body *{box-sizing:border-box}
+    .stable-lock,.module-card,.kpi-card,.finance-source,.field,.advanced-card{
+      opacity:1!important;
+      visibility:visible!important;
+      backface-visibility:hidden;
+      will-change:auto!important;
+    }
+    .module-card{
+      transition:filter .12s ease, box-shadow .12s ease!important;
+      transform:none!important;
+      animation:none!important;
+    }
+    .module-card:hover{
+      transform:none!important;
+      box-shadow:0 16px 34px rgba(15,23,42,.16)!important;
+    }
+    .final-toolbar{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin:14px 0;
+      padding:12px;
+      border-radius:20px;
+      background:linear-gradient(135deg,#fff,#f8fbff);
+      border:3px double #0B1F3A;
+      box-shadow:0 12px 28px rgba(15,23,42,.10);
+    }
+    .btn-small{
+      padding:8px 11px;
+      font-size:11px;
+    }
+    .distribution-panel{
+      border-radius:30px;
+      border:3px double #0B1F3A;
+      background:linear-gradient(135deg,#ffffff,#f8fbff);
+      padding:20px;
+      box-shadow:0 20px 55px rgba(15,23,42,.13);
+      margin:18px 0;
+    }
+    .level-finance-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(245px,1fr));
+      gap:14px;
+    }
+    .level-finance-card{
+      border-radius:24px;
+      padding:16px;
+      color:#fff;
+      box-shadow:0 16px 40px rgba(15,23,42,.18);
+      position:relative;
+      overflow:hidden;
+      border:2px solid rgba(255,255,255,.25);
+    }
+    .level-finance-card::after{
+      content:attr(data-level);
+      position:absolute;
+      right:-7px;
+      bottom:-10px;
+      color:rgba(255,255,255,.08);
+      font-size:46px;
+      font-weight:1000;
+    }
+    .level-finance-card h4{margin:0 0 10px;position:relative;z-index:1;font-size:20px}
+    .level-finance-card label{color:#f8fafc;position:relative;z-index:1}
+    .level-finance-card input,.level-finance-card select{
+      background:rgba(255,255,255,.95);
+      position:relative;
+      z-index:1;
+    }
+    .summary-strip{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+      gap:12px;
+      margin-top:14px;
+    }
+    .summary-box{
+      border-radius:18px;
+      border:3px double #0B1F3A;
+      background:#fff;
+      padding:14px;
+      text-align:center;
+      box-shadow:0 10px 24px rgba(15,23,42,.08);
+    }
+    .summary-box span{
+      display:block;
+      color:#64748b;
+      font-size:11px;
+      text-transform:uppercase;
+      font-weight:1000;
+    }
+    .summary-box strong{
+      display:block;
+      color:#0B1F3A;
+      font-size:22px;
+      margin-top:8px;
+      font-weight:1000;
+    }
+    .inked-table-wrap{
+      overflow:auto;
+      border-radius:18px;
+      border:4px double #0B1F3A;
+      background:#fff;
+      box-shadow:0 18px 38px rgba(15,23,42,.12);
+      margin-top:14px;
+    }
+    .inked-table{
+      width:100%;
+      border-collapse:collapse;
+      table-layout:auto;
+      font-size:12px;
+      background:#fff;
+    }
+    .inked-table th{
+      background:linear-gradient(135deg,#0B1F3A,#123C69);
+      color:#fff;
+      border:3px double #D4AF37;
+      padding:10px;
+      text-align:center;
+      vertical-align:middle;
+      font-weight:1000;
+    }
+    .inked-table td{
+      border:2px solid #0B1F3A;
+      padding:9px;
+      text-align:center;
+      vertical-align:middle;
+      color:#0f172a;
+      font-weight:800;
+    }
+    .inked-table tr:nth-child(even) td{background:#f8fbff}
+    .inked-table td:first-child{
+      background:#fff8dc;
+      color:#7c2d12;
+      font-weight:1000;
+    }
+    .report-purpose{
+      border-radius:18px;
+      background:#eff6ff;
+      border:3px double #123C69;
+      color:#1e3a8a;
+      padding:14px;
+      margin:12px 0;
+      line-height:1.7;
+      font-weight:800;
+    }
+    .pdf-preview{
+      border:5px double #0B1F3A!important;
+      background:#fff!important;
+    }
+    .pdf-preview h2{
+      border-bottom:4px double #D4AF37;
+      padding-bottom:10px;
+    }
+    .pdf-preview .report-purpose{
+      text-align:left;
+    }
+    @media print{
+      .final-toolbar,.inline-actions,.top-actions,.module-grid,.kpi-tabs,.no-print{display:none!important}
+      .inked-table th,.inked-table td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    }
+
+
+    /* CONTRIBUTION FORMS DOWNLOAD + UPLOAD SYSTEM */
+    .forms-engine{
+      border-radius:34px;
+      border:4px double #0B1F3A;
+      background:linear-gradient(135deg,#ffffff,#f8fbff);
+      padding:22px;
+      box-shadow:0 28px 70px rgba(15,23,42,.16);
+      margin:18px 0;
+      position:relative;
+      overflow:hidden;
+    }
+    .forms-engine::after{
+      content:"FOMU";
+      position:absolute;
+      right:-8px;
+      bottom:-22px;
+      color:rgba(11,31,58,.045);
+      font-size:86px;
+      font-weight:1000;
+      letter-spacing:.08em;
+    }
+    .forms-tabs{
+      display:flex;
+      flex-wrap:wrap;
+      gap:8px;
+      margin:14px 0 18px;
+      position:relative;
+      z-index:1;
+    }
+    .forms-tab{
+      border-radius:999px;
+      border:1px solid #bfdbfe;
+      background:#eff6ff;
+      color:#1e3a8a;
+      padding:10px 13px;
+      font-size:12px;
+      font-weight:1000;
+    }
+    .forms-tab.active{
+      color:#fff;
+      background:linear-gradient(135deg,#0B1F3A,#123C69);
+      border-color:#D4AF37;
+    }
+    .forms-panel{display:none;position:relative;z-index:1}
+    .forms-panel.active{display:block}
+    .template-grid,.upload-grid,.validation-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+      gap:14px;
+    }
+    .template-card{
+      border-radius:24px;
+      border:3px double #0B1F3A;
+      background:#fff;
+      padding:16px;
+      box-shadow:0 16px 34px rgba(15,23,42,.10);
+      position:relative;
+      overflow:hidden;
+    }
+    .template-card::before{
+      content:"";
+      position:absolute;
+      left:0;right:0;top:0;height:7px;
+      background:var(--stripe,linear-gradient(90deg,#0B1F3A,#D4AF37));
+    }
+    .template-card h4{margin:10px 0 8px;color:#0B1F3A;font-size:17px}
+    .template-card p{margin:0 0 12px;color:#64748b;line-height:1.65;font-size:12px}
+    .dropzone{
+      border:4px dashed #38bdf8;
+      border-radius:26px;
+      background:linear-gradient(135deg,#f0f9ff,#ffffff);
+      padding:28px;
+      text-align:center;
+      box-shadow:inset 0 0 0 2px rgba(212,175,55,.18);
+    }
+    .dropzone h4{margin:0 0 8px;color:#0B1F3A;font-size:22px}
+    .dropzone p{margin:0 0 16px;color:#475569;line-height:1.7}
+    .progress-wrap{
+      height:16px;
+      border-radius:999px;
+      background:#e2e8f0;
+      overflow:hidden;
+      margin-top:14px;
+      border:1px solid #cbd5e1;
+    }
+    .progress-bar{
+      height:100%;
+      width:0%;
+      background:linear-gradient(90deg,#16a34a,#D4AF37);
+      transition:width .3s ease;
+    }
+    .contribution-template{
+      border:5px double #0B1F3A;
+      border-radius:18px;
+      background:#fff;
+      padding:18px;
+      box-shadow:0 20px 50px rgba(15,23,42,.12);
+      margin-top:14px;
+    }
+    .contribution-template h2{
+      text-align:center;
+      margin:0;
+      color:#0B1F3A;
+      font-size:20px;
+      text-transform:uppercase;
+      border-bottom:4px double #D4AF37;
+      padding-bottom:9px;
+    }
+    .template-meta{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+      gap:10px;
+      margin:14px 0;
+    }
+    .meta-box{
+      border:2px solid #0B1F3A;
+      padding:9px;
+      text-align:center;
+      font-weight:900;
+      min-height:38px;
+      background:#f8fbff;
+    }
+    .validation-item{
+      border-radius:18px;
+      border:2px solid #dbe7f5;
+      background:#fff;
+      padding:13px;
+      font-weight:900;
+      color:#0f172a;
+      box-shadow:0 10px 22px rgba(15,23,42,.06);
+    }
+    .validation-item.ok{border-color:#86efac;background:#f0fdf4;color:#166534}
+    .validation-item.bad{border-color:#fca5a5;background:#fef2f2;color:#991b1b}
+    .history-log{
+      border-left:5px solid #D4AF37;
+      background:#fff;
+      border-radius:16px;
+      padding:12px 14px;
+      margin:8px 0;
+      box-shadow:0 10px 22px rgba(15,23,42,.06);
+      font-size:13px;
+      color:#334155;
+      font-weight:800;
+    }
+
+    @media(max-width:760px){
+      main{padding:12px}
+      .hero{padding:20px;border-radius:24px}
+      .hero h2{font-size:24px}
+      .command-section,.dynamic-panel{padding:14px;border-radius:22px}
+    }
+
+    @media print{
+      header,.module-grid,.top-actions,.inline-actions,.kpi-tabs,.no-print{display:none!important}
+      main{padding:0}
+      .hero,.command-section,.dynamic-panel{box-shadow:none;border:none}
+      .pdf-preview{box-shadow:none;border:none}
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">K</div>
+      <div>
+        <h1>KMK(T) — Professional Module ya Tawi / Matawi</h1>
+        <p>Branch Engine · Auto Choose · 40+ Michango · Uploads · KPI · Tawi ➜ Jimbo ➜ Dayosisi ➜ KMK(T)</p>
+      </div>
+    </div>
+    <div class="top-actions no-print">
+      <button class="btn-gold" onclick="saveAll()">💾 Hifadhi</button>
+      <button class="btn-blue" onclick="generatePdf('Executive Branch Report')">📄 PDF</button>
+      <button class="btn-green" onclick="exportJson()">⬇ Backup JSON</button>
+      <button class="btn-red" onclick="clearData()">🧹 Futa</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <h2>🌿 Branch Enterprise Command Center</h2>
+    <p>
+      Module hii imeboreshwa kwa professional structure: usajili wa Tawi, viongozi 4 wakuu,
+      waumini kwa idadi/categories, mahudhurio, idara 10 + JV/JW, fedha na michango 40+,
+      miradi ya kanisa, uploads, auto choose, KPI na flow ya taarifa kwenda Jimbo, Dayosisi hadi KMK(T).
+    </p>
+    <div class="hero-pills">
+      <span class="pill">Clickable Modules Juu</span>
+      <span class="pill">Auto Choose</span>
+      <span class="pill">Upload Files</span>
+      <span class="pill">40+ Michango</span>
+      <span class="pill">PDF Standard</span>
+      <span class="pill">KPI Auto Flow</span>
+    </div>
+  </section>
+
+
+  <section class="command-section no-print">
+    <div class="section-title">
+      <div>
+        <h3>🛠️ Final Control Center</h3>
+        <p>Stability, edit, clear, add source, finance distribution, reports and final PDF controls.</p>
+      </div>
+      <span class="mode-switch">Final Stable Version</span>
+    </div>
+    <div class="final-toolbar">
+      <button class="btn-green btn-small" onclick="saveAll()">💾 Save All</button>
+      <button class="btn-blue btn-small" onclick="generatePdf('Full Branch Executive Report')">📄 Full PDF</button>
+      <button class="btn-gold btn-small" onclick="addFinanceSource()">➕ Add Source</button>
+      <button class="btn-muted btn-small" onclick="editSelectedSource()">✏️ Edit Source</button>
+      <button class="btn-red btn-small" onclick="deleteSelectedSource()">🗑️ Delete Source</button>
+      <button class="btn-dark btn-small" onclick="calculateDistribution()">🧮 Calculate Distribution</button>
+      <button class="btn-muted btn-small" onclick="clearCurrentForm()">🧹 Clear Current Form</button>
+      <button class="btn-red btn-small" onclick="clearData()">🧨 Clear All Draft</button>
+    </div>
+  </section>
+
+
+  <section class="command-section">
+    <div class="section-title">
+      <div>
+        <h3>🧱 Modules za Tawi — Clickable Frame Boxes</h3>
+        <p>Bonyeza module yoyote. Taarifa zake, sub-modules, upload fields, auto choose na PDF actions zitaonekana chini.</p>
+      </div>
+      <span class="auto-badge">Modules First · KPI Below</span>
+    </div>
+    <div id="moduleGrid" class="module-grid"></div>
+  </section>
+
+  <section class="dynamic-panel" id="dynamicPanel">
+    <div class="section-title">
+      <div>
+        <h3 id="panelTitle">📋 Chagua Module Juu</h3>
+        <p id="panelDesc">Ukibonyeza module, hapa utaona fields za kujaza, auto choose na upload sections.</p>
+      </div>
+      <button class="btn-green no-print" onclick="saveAll()">💾 Save Current</button>
+    </div>
+    <div id="panelContent"></div>
+  </section>
+
+
+  <section class="forms-engine" id="contributionFormsEngine">
+    <div class="section-title">
+      <div>
+        <h3>🧾 MFUMO WA DOWNLOAD + UPLOAD YA FOMU ZA MICHANGO</h3>
+        <p>Module hii inaonekana kwenye sehemu ya michango yote. Inaruhusu kupakua Excel/PDF/CSV template, upload fomu, preview, validation, verification, export na history logs.</p>
+      </div>
+      <span class="mode-switch">Download + Upload Ready</span>
+    </div>
+
+    <div class="forms-tabs no-print">
+      <button class="forms-tab active" onclick="showFormsTab('templates',this)">Templates</button>
+      <button class="forms-tab" onclick="showFormsTab('upload',this)">Upload Center</button>
+      <button class="forms-tab" onclick="showFormsTab('reports',this)">Uploaded Reports</button>
+      <button class="forms-tab" onclick="showFormsTab('verification',this)">Verification</button>
+      <button class="forms-tab" onclick="showFormsTab('export',this)">Export Center</button>
+      <button class="forms-tab" onclick="showFormsTab('history',this)">History Logs</button>
+    </div>
+
+    <div id="forms_templates" class="forms-panel active">
+      <div class="template-grid">
+        <div class="template-card" style="--stripe:linear-gradient(90deg,#16a34a,#D4AF37)">
+          <h4>📊 Excel Template (.xlsx)</h4>
+          <p>Kwa kujaza offline, ku-edit, bulk entry na upload ya data nyingi.</p>
+          <button class="btn-green no-print" onclick="downloadTemplate('excel')">➕ Pakua Excel Template</button>
+        </div>
+        <div class="template-card" style="--stripe:linear-gradient(90deg,#dc2626,#D4AF37)">
+          <h4>📄 PDF Template</h4>
+          <p>Kwa kuchapisha, kuandika kwa mkono, kuscan na ku-upload.</p>
+          <button class="btn-blue no-print" onclick="downloadTemplate('pdf')">➕ Pakua PDF Template</button>
+        </div>
+        <div class="template-card" style="--stripe:linear-gradient(90deg,#0ea5e9,#D4AF37)">
+          <h4>🧮 CSV Template</h4>
+          <p>Kwa upload nyepesi na fast validation.</p>
+          <button class="btn-gold no-print" onclick="downloadTemplate('csv')">➕ Pakua CSV Template</button>
+        </div>
+      </div>
+
+      <div class="contribution-template" id="printableContributionTemplate">
+        <h2>KANISA LA MENNONITE LA KIINJILI TANZANIA – KMK(T)<br>FOMU YA MICHANGO NA MAHUDHURIO</h2>
+        <div class="template-meta">
+          <div class="meta-box">Tarehe: ____________</div><div class="meta-box">Dayosisi: ____________</div>
+          <div class="meta-box">Jimbo: ____________</div><div class="meta-box">Tawi: ____________</div>
+          <div class="meta-box">Jina la Ibada: ____________</div><div class="meta-box">Mwenyekiti wa Ibada: ____________</div>
+          <div class="meta-box">Mtubishaji Jina: ____________</div><div class="meta-box">Receipt No: AUTO</div>
+        </div>
+        <div class="inked-table-wrap">
+          <table class="inked-table">
+            <thead><tr><th>No.</th><th>Mchango</th><th>Kiasi</th></tr></thead>
+            <tbody><tr><td>1</td><td>Meza ya Bwana</td><td><input id="form_contribution_0" data-draft placeholder="TZS 0"></td></tr>
+<tr><td>2</td><td>Sadaka</td><td><input id="form_contribution_1" data-draft placeholder="TZS 0"></td></tr>
+<tr><td>3</td><td>Zaka</td><td><input id="form_contribution_2" data-draft placeholder="TZS 0"></td></tr>
+<tr><td>4</td><td>Shukrani/Rizuku</td><td><input id="form_contribution_3" data-draft placeholder="TZS 0"></td></tr>
+<tr><td>5</td><td>Changizo/Harambee</td><td><input id="form_contribution_4" data-draft placeholder="TZS 0"></td></tr>
+<tr><td>6</td><td>Ukarimu</td><td><input id="form_contribution_5" data-draft placeholder="TZS 0"></td></tr>
+<tr><td>7</td><td>Matoleo kina mama</td><td><input id="form_contribution_6" data-draft placeholder="TZS 0"></td></tr>
+<tr><td>8</td><td>Matoleo vijana</td><td><input id="form_contribution_7" data-draft placeholder="TZS 0"></td></tr>
+<tr><td>9</td><td>Pasaka/Krismas</td><td><input id="form_contribution_8" data-draft placeholder="TZS 0"></td></tr>
+<tr><td>10</td><td>Mwaka mpya</td><td><input id="form_contribution_9" data-draft placeholder="TZS 0"></td></tr>
+<tr><td>11</td><td>Matoleo ya kwaya</td><td><input id="form_contribution_10" data-draft placeholder="TZS 0"></td></tr>
+<tr><td>12</td><td>Maelezo mengine</td><td><input id="form_contribution_11" data-draft placeholder="TZS 0"></td></tr></tbody>
+          </table>
+        </div>
+        <div class="inked-table-wrap">
+          <table class="inked-table">
+            <thead><tr><th>Kundi</th><th>Idadi</th></tr></thead>
+            <tbody><tr><td>Wanaume</td><td><input id="form_att_men" data-draft placeholder="0"></td></tr>
+<tr><td>Wanawake</td><td><input id="form_att_women" data-draft placeholder="0"></td></tr>
+<tr><td>Watoto</td><td><input id="form_att_children" data-draft placeholder="0"></td></tr>
+<tr><td>Jumla</td><td><input id="form_att_total" data-draft placeholder="0"></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="forms_upload" class="forms-panel">
+      <div class="dropzone" ondragover="event.preventDefault()" ondrop="handleDrop(event)">
+        <h4>⬆ Drag & Drop Upload Center</h4>
+        <p>Upload Excel, CSV au PDF iliyojazwa. Mfumo utaonyesha preview, validation errors na status.</p>
+        <input type="file" id="contributionUploadFile" accept=".xlsx,.csv,.pdf" onchange="handleContributionUpload(this.files[0])">
+        <div class="progress-wrap"><div id="uploadProgressBar" class="progress-bar"></div></div>
+      </div>
+      <div id="uploadPreview" class="contribution-template hidden"></div>
+    </div>
+
+    <div id="forms_reports" class="forms-panel">
+      <div id="uploadedReportsList">
+        <div class="history-log">Hakuna upload bado. Upload fomu kwenye Upload Center ili ionekane hapa.</div>
+      </div>
+    </div>
+
+    <div id="forms_verification" class="forms-panel">
+      <div class="validation-grid" id="validationGrid">
+        <div class="validation-item">✅ Tarehe ipo</div><div class="validation-item">✅ Tawi limechaguliwa</div>
+        <div class="validation-item">✅ Kiasi ni number</div><div class="validation-item">✅ Hakuna duplicate</div>
+        <div class="validation-item">✅ Jumla ni sahihi</div><div class="validation-item">✅ File type validation</div>
+      </div>
+      <div class="final-toolbar no-print">
+        <button class="btn-green" onclick="verifyContributionForm('Verified')">✅ Verify</button>
+        <button class="btn-gold" onclick="verifyContributionForm('Approved')">👍 Approve</button>
+        <button class="btn-red" onclick="verifyContributionForm('Rejected')">❌ Reject</button>
+      </div>
+    </div>
+
+    <div id="forms_export" class="forms-panel">
+      <div class="template-grid">
+        <div class="template-card"><h4>📄 Export PDF</h4><p>Report ya michango na mahudhurio yenye header, double lines na summary.</p><button class="btn-blue" onclick="generateContributionFormReport()">Export PDF</button></div>
+        <div class="template-card"><h4>📊 Export Excel</h4><p>Export data kwa matumizi ya office/accounting.</p><button class="btn-green" onclick="downloadTemplate('excel')">Export Excel</button></div>
+        <div class="template-card"><h4>🖨 Print</h4><p>Print-ready official form.</p><button class="btn-dark" onclick="window.print()">Print</button></div>
+      </div>
+    </div>
+
+    <div id="forms_history" class="forms-panel">
+      <div id="formsHistoryLogs">
+        <div class="history-log">System initialized: Contribution Form Download + Upload Engine ready.</div>
+      </div>
+    </div>
+  </section>
+
+
+  <section class="command-section">
+    <div class="section-title">
+      <div>
+        <h3>💰 Vyanzo vya Mapato / Michango — 40+ Auto Choose</h3>
+        <p>Hapa kuna sources zote za mapato zilizokubaliwa. Kila chanzo kina amount, level, distribution na upload ya receipt/bank slip.</p>
+      </div>
+      <button class="btn-green no-print" onclick="addFinanceSource()">➕ Add Other Source</button>
+    </div>
+    <div id="financeGrid" class="finance-source-grid"></div>
+  </section>
+
+
+  <section class="distribution-panel">
+    <div class="section-title">
+      <div>
+        <h3>💹 Mgawanyo wa Fedha kwa Ngazi — Matumizi na Salio</h3>
+        <p>Kila ngazi inaonyesha mapato, matumizi, kiasi kinachotumwa juu, na salio linalobaki. Hii ndiyo flow rasmi: Tawi → Jimbo → Dayosisi → KMK(T).</p>
+      </div>
+      <button class="btn-dark no-print" onclick="generateLevelFinanceReport()">📄 Level Finance Report</button>
+    </div>
+
+    <div class="level-finance-grid">
+      <div class="level-finance-card" data-level="TAWI" style="background:linear-gradient(135deg,#064e3b,#16a34a)">
+        <h4>🌿 Tawi</h4>
+        <label>Mapato ya Tawi</label><input id="lvl_tawi_income" data-draft placeholder="TZS 0">
+        <label>Matumizi ya Tawi</label><input id="lvl_tawi_expense" data-draft placeholder="TZS 0">
+        <label>% Kwenda Jimbo</label><input id="lvl_tawi_transfer_pct" data-draft type="number" value="35">
+      </div>
+      <div class="level-finance-card" data-level="JIMBO" style="background:linear-gradient(135deg,#075985,#0ea5e9)">
+        <h4>⛪ Jimbo</h4>
+        <label>Mapato ya Jimbo</label><input id="lvl_jimbo_income" data-draft placeholder="TZS 0">
+        <label>Matumizi ya Jimbo</label><input id="lvl_jimbo_expense" data-draft placeholder="TZS 0">
+        <label>% Kwenda Dayosisi</label><input id="lvl_jimbo_transfer_pct" data-draft type="number" value="35">
+      </div>
+      <div class="level-finance-card" data-level="DAYOSISI" style="background:linear-gradient(135deg,#7c2d12,#f59e0b)">
+        <h4>🏛️ Dayosisi</h4>
+        <label>Mapato ya Dayosisi</label><input id="lvl_dayosisi_income" data-draft placeholder="TZS 0">
+        <label>Matumizi ya Dayosisi</label><input id="lvl_dayosisi_expense" data-draft placeholder="TZS 0">
+        <label>% Kwenda KMK(T)</label><input id="lvl_dayosisi_transfer_pct" data-draft type="number" value="35">
+      </div>
+      <div class="level-finance-card" data-level="KMK(T)" style="background:linear-gradient(135deg,#061633,#123C69)">
+        <h4>🇹🇿 KMK(T)</h4>
+        <label>Mapato KMK(T)</label><input id="lvl_kmkt_income" data-draft placeholder="TZS 0">
+        <label>Matumizi KMK(T)</label><input id="lvl_kmkt_expense" data-draft placeholder="TZS 0">
+        <label>National Reserve %</label><input id="lvl_kmkt_reserve_pct" data-draft type="number" value="20">
+      </div>
+    </div>
+
+    <div class="summary-strip">
+      <div class="summary-box"><span>Tawi Balance</span><strong id="sum_tawi_balance">TZS 0</strong></div>
+      <div class="summary-box"><span>Jimbo Balance</span><strong id="sum_jimbo_balance">TZS 0</strong></div>
+      <div class="summary-box"><span>Dayosisi Balance</span><strong id="sum_dayosisi_balance">TZS 0</strong></div>
+      <div class="summary-box"><span>KMK(T) Balance</span><strong id="sum_kmkt_balance">TZS 0</strong></div>
+    </div>
+
+    <div class="inked-table-wrap">
+      <table class="inked-table" id="levelFinanceTable">
+        <thead>
+          <tr>
+            <th>Ngazi</th><th>Mapato</th><th>Matumizi</th><th>% Transfer</th><th>Kiasi Kinachotumwa</th><th>Salio Linalobaki</th><th>Report Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Tawi</td><td id="tbl_tawi_income">TZS 0</td><td id="tbl_tawi_expense">TZS 0</td><td id="tbl_tawi_pct">35%</td><td id="tbl_tawi_transfer">TZS 0</td><td id="tbl_tawi_balance">TZS 0</td><td>Taarifa ya fedha zinazokwenda Jimbo</td></tr>
+          <tr><td>Jimbo</td><td id="tbl_jimbo_income">TZS 0</td><td id="tbl_jimbo_expense">TZS 0</td><td id="tbl_jimbo_pct">35%</td><td id="tbl_jimbo_transfer">TZS 0</td><td id="tbl_jimbo_balance">TZS 0</td><td>Taarifa ya fedha zinazokwenda Dayosisi</td></tr>
+          <tr><td>Dayosisi</td><td id="tbl_dayosisi_income">TZS 0</td><td id="tbl_dayosisi_expense">TZS 0</td><td id="tbl_dayosisi_pct">35%</td><td id="tbl_dayosisi_transfer">TZS 0</td><td id="tbl_dayosisi_balance">TZS 0</td><td>Taarifa ya fedha zinazokwenda KMK(T)</td></tr>
+          <tr><td>KMK(T)</td><td id="tbl_kmkt_income">TZS 0</td><td id="tbl_kmkt_expense">TZS 0</td><td id="tbl_kmkt_pct">20%</td><td id="tbl_kmkt_transfer">Reserve</td><td id="tbl_kmkt_balance">TZS 0</td><td>National Executive Finance Summary</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+
+  <section class="command-section">
+    <div class="section-title">
+      <div>
+        <h3>📊 KPI Dashboards — Tawi, Jimbo, Dayosisi, KMK(T)</h3>
+        <p>KPI zinafuata baada ya modules. Data ya Tawi inakwenda Jimbo, Jimbo kwenda Dayosisi, Dayosisi kwenda KMK(T).</p>
+      </div>
+      <button class="btn-blue no-print" onclick="refreshKpis()">🔄 Refresh KPI</button>
+    </div>
+
+    <div class="kpi-tabs no-print">
+      <button class="kpi-tab active" onclick="showKpi('tawi',this)">🌿 Tawi</button>
+      <button class="kpi-tab" onclick="showKpi('jimbo',this)">⛪ Jimbo</button>
+      <button class="kpi-tab" onclick="showKpi('dayosisi',this)">🏛️ Dayosisi</button>
+      <button class="kpi-tab" onclick="showKpi('kmkt',this)">🇹🇿 KMK(T)</button>
+    </div>
+
+    <div id="kpiTawi" class="kpi-panel active"><div class="kpi-grid" id="kpiGridTawi"></div></div>
+    <div id="kpiJimbo" class="kpi-panel"><div class="kpi-grid" id="kpiGridJimbo"></div></div>
+    <div id="kpiDayosisi" class="kpi-panel"><div class="kpi-grid" id="kpiGridDayosisi"></div></div>
+    <div id="kpiKmkt" class="kpi-panel"><div class="kpi-grid" id="kpiGridKmkt"></div></div>
+  </section>
+
+  <section class="command-section">
+    <div class="section-title">
+      <div>
+        <h3>🔄 Auto Flow ya Taarifa</h3>
+        <p>Tawi huingiza taarifa za msingi. Mfumo unazisukuma kwenda Jimbo, Dayosisi, na KMK(T) kwa summary, approvals na KPI.</p>
+      </div>
+    </div>
+    <div class="flow-grid">
+      <div class="flow-card" data-flow="TAWI"><h4>🌿 Tawi</h4><p>Usajili, viongozi, waumini kwa idadi, mahudhurio, fedha, miradi na reports huanzia hapa.</p></div>
+      <div class="flow-card" data-flow="JIMBO"><h4>⛪ Jimbo</h4><p>Hupokea taarifa kutoka matawi, hufanya consolidation, approvals, rankings na PDF reports.</p></div>
+      <div class="flow-card" data-flow="DAYOSISI"><h4>🏛️ Dayosisi</h4><p>Hupokea data kutoka majimbo, hufanya audit, finance summary, institutions analytics na leadership reports.</p></div>
+      <div class="flow-card" data-flow="KMK(T)"><h4>🇹🇿 KMK(T)</h4><p>Makao makuu hupokea national analytics, finance, institutions, audit logs na executive dashboard.</p></div>
+    </div>
+  </section>
+
+
+  <section class="command-section">
+    <div class="section-title">
+      <div>
+        <h3>🚀 Advanced Enterprise Add-ons</h3>
+        <p>Imeongezwa: Notifications, SMS/WhatsApp, ID Cards, Smart Auto Detect, Executive Dashboard, Approval Workflow, Public/Internal Mode, na CV/Certificates.</p>
+      </div>
+      <span class="mode-switch">Enterprise Ready</span>
+    </div>
+    <div class="advanced-grid">
+      <div class="advanced-card" style="--stripe:linear-gradient(90deg,#eab308,#D4AF37)"><h4>🔔 Smart Notifications</h4><p>Alerts za low attendance, pending approvals, missing reports, low balance na events.</p></div>
+      <div class="advanced-card" style="--stripe:linear-gradient(90deg,#22c55e,#16a34a)"><h4>📱 WhatsApp & SMS</h4><p>Matangazo, reminders za michango, attendance, approvals na events.</p></div>
+      <div class="advanced-card" style="--stripe:linear-gradient(90deg,#6366f1,#7c3aed)"><h4>🪪 ID Card Engine</h4><p>ID cards za viongozi, staff, members na students zenye QR/photo/signature.</p></div>
+      <div class="advanced-card" style="--stripe:linear-gradient(90deg,#a855f7,#581c87)"><h4>🧠 Smart Auto Detect</h4><p>Detect low attendance, missing reports, finance anomalies na inactive branches.</p></div>
+      <div class="advanced-card" style="--stripe:linear-gradient(90deg,#2563eb,#0B1F3A)"><h4>📊 Executive Dashboard</h4><p>KPI dashboard ya Tawi, Jimbo, Dayosisi na KMK(T) kwa charts na rankings.</p></div>
+      <div class="advanced-card" style="--stripe:linear-gradient(90deg,#f97316,#7c2d12)"><h4>⚖️ Approval Workflow</h4><p>Tawi → Jimbo → Dayosisi → KMK(T) approval chain.</p></div>
+      <div class="advanced-card" style="--stripe:linear-gradient(90deg,#0ea5e9,#075985)"><h4>🌐 Public/Internal Mode</h4><p>Tenganisha public website na internal system kwa access salama.</p></div>
+      <div class="advanced-card" style="--stripe:linear-gradient(90deg,#334155,#0f172a)"><h4>🎓 CV & Certificates</h4><p>Vyeti vya viongozi, CV PDF, signatures, seal na approval rasmi.</p></div>
+    </div>
+  </section>
+
+
+  <section class="command-section">
+    <div class="section-title">
+      <div>
+        <h3>📄 PDF Reports Center</h3>
+        <p>Generate PDF preview kwa kila module. Production mode inaweza kuunganishwa na html2pdf au server PDF engine.</p>
+      </div>
+      <button class="btn-dark no-print" onclick="window.print()">🖨 Print</button>
+    </div>
+    <div id="pdfPreview" class="pdf-preview hidden"></div>
+    <div id="certificatePreview" class="certificate-preview hidden"></div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const contributionSources = [
+  "Meza ya Bwana","Sadaka","Sadaka Maalum","Zaka","Shukrani / Rizuku","Chango / Harambee",
+  "Ukarimu","Matoleo kwa Mama","Matoleo Vijana","Pasaka / Krismasi","Mwaka Mpya",
+  "Matoleo ya Kwaya","Sadaka ya Mavuno","Sadaka ya Uinjilisti","Sadaka ya Utuume",
+  "Sadaka ya Maombi","Sadaka ya Ujenzi","Sadaka ya Watoto","Matoleo ya KE","Matoleo ya ME",
+  "Matoleo ya JV","Michango ya Miradi","Michango ya Elimu","Michango ya Hospitali",
+  "Michango ya Chuo cha Biblia","Michango ya Wahisani","Mapato ya Taasisi za Kanisa",
+  "Mapato ya Ukumbi","Mapato ya Guest House","Mapato ya Mashamba","Mapato ya Vitabu",
+  "Donations za Online","Mobile Money Collections","Conference & Seminar Fees","Emergency Fund",
+  "Welfare Contributions","Mission Support Fund","Investment Income","Sadaka ya Wageni",
+  "Matoleo ya Wachungaji","Michango ya Safari za Huduma","Michango ya Mikutano Mikuu",
+  "Michango ya Mazishi","Michango ya Ndoa","Michango ya Youth Camps",
+  "Michango ya Mafunzo ya Biblia","Other Church Income"
+];
+
+const modules = [
+  {
+    id:"registration", icon:"🏛️", label:"Usajili wa Tawi", long:false,
+    bg:"linear-gradient(135deg,#061633,#2563eb)", tags:["Identity","Hierarchy","Uploads"],
+    desc:"Sajili Tawi, location, Jimbo/Dayosisi, documents na status.",
+    fields:[
+      ["Jina la Tawi","text","auto_code"],["Branch Code","text","auto"],["Dayosisi","select","diocese"],["Jimbo","select","jimbo"],
+      ["Mkoa","text",""],["Wilaya","text",""],["Kata","text",""],["Kijiji/Mtaa","text",""],
+      ["GPS Location","text","auto"],["Google Map Link","text",""],["Registration Number","text",""],["Tarehe ya Kuanzishwa","date",""],
+      ["Status","select","status"],["Kauli Mbiu","text",""],["Vision","textarea",""],["Mission","textarea",""],["Historia Fupi","textarea",""]
+    ],
+    uploads:["Logo ya Tawi","Muhuri wa Tawi","Picha ya Tawi","Registration Certificate PDF","Land / Ownership Document PDF","Constitution PDF"]
+  },
+  {
+    id:"leaders", icon:"👔", label:"Viongozi wa Tawi", long:false,
+    bg:"linear-gradient(135deg,#7c2d12,#f59e0b)", tags:["4 Leaders","CV","Signatures"],
+    desc:"Viongozi 4 wakuu: Mwongozi, Katibu, Naibu Katibu na Mhazini.",
+    fields:[
+      ["Nafasi ya Kiongozi","select","branch_roles"],["Jina Kamili","text",""],["Simu","text",""],["WhatsApp","text",""],
+      ["Email","email",""],["Jinsia","select","gender"],["Elimu","select","education"],["Theology Training","text",""],
+      ["Experience / Uzoefu","textarea",""],["Tarehe ya Kuanza","date",""],["Status","select","status"],["Biography","textarea",""]
+    ],
+    uploads:["Passport Photo","Signature","CV PDF","Certificates PDF","Appointment Letter PDF"]
+  },
+  {
+    id:"members", icon:"👥", label:"Waumini kwa Idadi", long:false,
+    bg:"linear-gradient(135deg,#064e3b,#10b981)", tags:["Summary","Categories","Auto KPI"],
+    desc:"Waumini kwa idadi/category, si lazima kusajili kila muumini mmoja mmoja.",
+    fields:[
+      ["Wanaume","number",""],["Wanawake","number",""],["Vijana","number",""],["Watoto","number",""],
+      ["Wazee","number",""],["Wageni","number",""],["Waliobatizwa","number",""],["Wasio Batizwa","number",""],
+      ["Familia / Nyumba","number",""],["KE","number",""],["ME","number",""],["JVKMK(T)","number",""],["JWKMK(T)","number",""]
+    ],
+    uploads:["Membership Summary PDF","Baptism Register PDF","Visitor Register PDF"]
+  },
+  {
+    id:"attendance", icon:"🙌", label:"Mahudhurio", long:false,
+    bg:"linear-gradient(135deg,#0f766e,#06b6d4)", tags:["Weekly","Monthly","Yearly"],
+    desc:"Mahudhurio ya ibada kwa mfumo wa Weekly, Monthly na Yearly; date/period/status ni auto choose.",
+    fields:[
+      ["Attendance Period","select","attendance_period"],["Date Status","select","date_status"],["Attendance Date","date","auto"],
+      ["Week","select","week_select"],["Month","select","month_select"],["Year","select","year_select"],
+      ["Aina ya Ibada","select","service_type"],["Sunday Service","number",""],["Prayer Meeting","number",""],
+      ["Youth Meeting","number",""],["Women Meeting","number",""],["Choir Practice","number",""],["Bible Study","number",""],
+      ["Children / Sunday School","number",""],["Visitors Attendance","number",""],["Online / Livestream","number",""],
+      ["Total Attendance","number","auto"],["Report Status","select","attendance_status"],["Notes","textarea",""]
+    ],
+    uploads:["Weekly Attendance Sheet PDF","Monthly Attendance Report PDF","Yearly Attendance Report PDF","Ibada Photos","Event Report PDF"]
+  },
+  {
+    id:"departments", icon:"🧩", label:"Idara & Jumuiya", long:false,
+    bg:"linear-gradient(135deg,#991b1b,#f97316)", tags:["10 Idara","JV","JW"],
+    desc:"Idara 10 rasmi + Jumuiya JVKMK(T) na JWKMK(T).",
+    fields:[
+      ["Aina","select","department_or_fellowship"],["Jina la Idara/Jumuiya","select","departments"],["Kiongozi","text",""],
+      ["Katibu","text",""],["Mhazini","text",""],["Wanachama","number",""],["Mahudhurio","number",""],
+      ["Mapato","text","money"],["Matumizi","text","money"],["Projects","textarea",""],["Reports","textarea",""]
+    ],
+    uploads:["Department Report PDF","Meeting Minutes PDF","Photos","Videos"]
+  },
+
+  {
+    id:"contributionForms", icon:"🧾", label:"Fomu za Michango", long:true,
+    bg:"linear-gradient(135deg,#0B1F3A,#D4AF37)", tags:["Download","Upload","Verify"],
+    desc:"Mfumo wa kupakua templates za michango, ku-upload fomu zilizojazwa, preview, validation, verification na export.",
+    fields:[
+      ["Template Type","select","template_type_forms"],["Tarehe","date","auto"],["Dayosisi","select","diocese"],["Jimbo","select","jimbo"],
+      ["Tawi","text",""],["Jina la Ibada","text",""],["Mwenyekiti wa Ibada","text",""],["Mtubishaji Jina","text",""],
+      ["Upload Status","select","upload_status"],["Verification Status","select","finance_status"],["Receipt Number","text","auto"],["Notes","textarea",""]
+    ],
+    uploads:["Excel Template / Completed Form","PDF Scanned Form","CSV Upload File","Supporting Receipt","Signed Form PDF"]
+  },
+
+  {
+    id:"finance", icon:"💰", label:"Fedha & Michango", long:false,
+    bg:"linear-gradient(135deg,#14532d,#22c55e)", tags:["40+ Sources","Distribution","Receipts"],
+    desc:"Michango yote 40+ na distribution settings kwa Jimbo, Dayosisi na KMK(T).",
+    fields:[
+      ["Chanzo cha Mapato","select","finance_source"],["Kiasi","text","money"],["Payment Method","select","payment_method"],
+      ["Level","select","level"],["Jimbo %","number",""],["Dayosisi %","number",""],["KMK(T) %","number",""],
+      ["Direct to KMK(T)?","select","yes_no"],["Receipt Number","text","auto"],["Status","select","finance_status"],
+      ["Approved By","text",""],["Transaction Date","date",""],["Notes","textarea",""]
+    ],
+    uploads:["Receipt PDF","Bank Slip","Mobile Money Screenshot","Finance Excel","Audit Report PDF"]
+  },
+  {
+    id:"projects", icon:"🏗️", label:"Miradi ya Kanisa", long:false,
+    bg:"linear-gradient(135deg,#075985,#0ea5e9)", tags:["Bible College","Schools","Hospital"],
+    desc:"Miradi/taasisi za kanisa: chuo cha Biblia, shule, hospitali, clinics, admin centers.",
+    fields:[
+      ["Aina ya Mradi/Taasisi","select","project_types"],["Jina la Mradi/Taasisi","text",""],["Registration Number","text",""],
+      ["Mkoa","text",""],["Wilaya","text",""],["Kiongozi/Meneja","text",""],["Mkurugenzi","text",""],
+      ["Phone","text",""],["Email","email",""],["Wanafunzi/Wagonjwa/Wanufaika","number",""],["Mapato","text","money"],
+      ["Matumizi","text","money"],["Status","select","status"],["Description","textarea",""]
+    ],
+    uploads:["Registration Certificate PDF","Photos","Ownership Documents","Financial Report PDF","Audit Report PDF","School Results PDF"]
+  },
+
+  {
+    id:"notifications", icon:"🔔", label:"Smart Notifications", long:true,
+    bg:"linear-gradient(135deg,#92400e,#eab308)", tags:["Alerts","Risks","Reminders"],
+    desc:"Notifications za pending approvals, low attendance, missing reports, low balance na upcoming events.",
+    fields:[
+      ["Notification Type","select","notification_type"],["Priority","select","priority"],["Target Level","select","level"],
+      ["Recipient Group","select","recipient_group"],["Message","textarea",""],["Status","select","status"],["Send Date","date","auto"]
+    ],
+    uploads:["Notification Attachment PDF","Announcement Image"]
+  },
+  {
+    id:"smswhatsapp", icon:"📱", label:"WhatsApp & SMS Engine", long:true,
+    bg:"linear-gradient(135deg,#065f46,#22c55e)", tags:["SMS","WhatsApp","Email"],
+    desc:"Engine ya kutuma matangazo, reminders, michango, mahudhurio na events kwa SMS/WhatsApp.",
+    fields:[
+      ["Channel","select","message_channel"],["Recipient Group","select","recipient_group"],["Template Type","select","template_type"],
+      ["Message Body","textarea",""],["Schedule Status","select","schedule_status"],["Send Date","date",""]
+    ],
+    uploads:["Contacts Excel","Message Attachment PDF"]
+  },
+  {
+    id:"idcards", icon:"🪪", label:"ID Card Engine", long:false,
+    bg:"linear-gradient(135deg,#312e81,#6366f1)", tags:["Leaders","Members","Staff"],
+    desc:"Tengeneza ID cards za viongozi, staff, members, students na QR code.",
+    fields:[
+      ["Card Type","select","card_type"],["Full Name","text",""],["Role/Position","text",""],["ID Number","text","auto"],
+      ["Phone","text",""],["Valid Until","date",""],["Status","select","status"]
+    ],
+    uploads:["Passport Photo","Signature","QR Code Image"]
+  },
+  {
+    id:"smartdetect", icon:"🧠", label:"Smart Auto Detect", long:true,
+    bg:"linear-gradient(135deg,#581c87,#a855f7)", tags:["AI","Risks","Auto"],
+    desc:"Auto detect inactive branches, low attendance, missing reports, finance anomalies na missing uploads.",
+    fields:[
+      ["Detection Type","select","detection_type"],["Risk Level","select","risk_level"],["Affected Module","select","module_access"],
+      ["Auto Recommendation","textarea",""],["Action Status","select","status"]
+    ],
+    uploads:["Detection Evidence PDF","Screenshot"]
+  },
+  {
+    id:"executive", icon:"📊", label:"Executive Dashboard", long:true,
+    bg:"linear-gradient(135deg,#061633,#2563eb)", tags:["Charts","KPI","National"],
+    desc:"Dashboard ya executive kwa Tawi, Jimbo, Dayosisi na KMK(T) yenye charts na analytics.",
+    fields:[
+      ["Dashboard Level","select","level"],["KPI Group","select","kpi_group"],["Period","select","attendance_period"],
+      ["Chart Type","select","chart_type"],["Report Status","select","status"]
+    ],
+    uploads:["Dashboard Screenshot","Executive Report PDF"]
+  },
+  {
+    id:"approval", icon:"⚖️", label:"Approval Workflow", long:true,
+    bg:"linear-gradient(135deg,#7c2d12,#f97316)", tags:["Tawi","Jimbo","Dayosisi"],
+    desc:"Workflow ya approvals: Tawi → Jimbo → Dayosisi → KMK(T).",
+    fields:[
+      ["Request Type","select","request_type"],["Current Level","select","level"],["Next Approval Level","select","approval_chain"],
+      ["Approval Status","select","finance_status"],["Submitted By","text",""],["Approved By","text",""],["Remarks","textarea",""]
+    ],
+    uploads:["Approval Document PDF","Supporting Evidence"]
+  },
+  {
+    id:"publicmode", icon:"🌐", label:"Public / Internal Mode", long:true,
+    bg:"linear-gradient(135deg,#075985,#0ea5e9)", tags:["Website","Internal","Access"],
+    desc:"Public website mode na internal system mode kwa kutenganisha taarifa za umma na za ndani.",
+    fields:[
+      ["Display Mode","select","display_mode"],["Page Section","select","public_section"],["Visibility","select","visibility"],
+      ["Title","text",""],["Content","textarea",""],["Publish Status","select","status"]
+    ],
+    uploads:["Public Image","Public PDF","Gallery Media"]
+  },
+  {
+    id:"certificates", icon:"🎓", label:"CV & Certificates", long:true,
+    bg:"linear-gradient(135deg,#0f172a,#334155)", tags:["CV","Leaders","PDF"],
+    desc:"Vyeti vya viongozi na CV reports kwa muonekano wa chuo/university-style.",
+    fields:[
+      ["Certificate Type","select","certificate_type"],["Leader Name","text",""],["Position","select","branch_roles"],
+      ["Approved By","select","approved_by"],["Certificate Number","text","auto"],["Issued Date","date","auto"],["Status","select","status"]
+    ],
+    uploads:["Leader Photo","Signature","Official Seal","CV Attachment PDF","Certificates PDF"]
+  },
+
+  {
+    id:"security", icon:"🔐", label:"Security & Audit", long:false,
+    bg:"linear-gradient(135deg,#7f1d1d,#ef4444)", tags:["RBAC","chief_admin","Audit"],
+    desc:"Roles, approvals, audit logs na access control.",
+    fields:[
+      ["Role","select","roles"],["User Name","text",""],["Permission Level","select","permission"],["Module Access","select","module_access"],
+      ["Approval Chain","select","approval_chain"],["Login Status","select","status"],["Audit Notes","textarea",""],["Backup Status","select","backup_status"]
+    ],
+    uploads:["Audit Report PDF","Backup File","Approval Document PDF"]
+  }
+];
+
+const selectOptions = {
+  diocese:["Dayosisi ya Mara","Dayosisi ya Mwanza","Dayosisi ya Bunda","Dayosisi ya Dodoma","Dayosisi ya Dar es Salaam","Dayosisi ya Kigoma","Nyingine — Andika Mwenyewe"],
+  jimbo:["Jimbo la Nkuyu","Jimbo la Mhunze","Jimbo la Itilima","Jimbo la Budalabujiga","Jimbo la Bariadi","Jimbo la Lamadi","Jimbo la Nassa","Jimbo la Busega","Jimbo la Saragana","Jimbo la Wanyere","Jimbo la Murangi","Jimbo la Ukerewe","Jimbo la Kisorya","Nyingine — Andika Mwenyewe"],
+  status:["Active","Pending","Approved","Suspended","Closed","Transferred","Retired","Verified","Nyingine — Andika Mwenyewe"],
+  branch_roles:["Mwongozi wa Tawi","Katibu wa Tawi","Naibu Katibu wa Tawi","Mhazini wa Tawi","Nyingine — Andika Mwenyewe"],
+  gender:["Male","Female"],
+  education:["Primary","Secondary","Certificate","Diploma","Degree","Masters","PhD","Bible College","Nyingine — Andika Mwenyewe"],
+
+  notification_type:["Low Attendance Alert","Low Balance Alert","Missing Reports Alert","Pending Approval Alert","Upcoming Event Alert","Finance Risk Alert","System Alert"],
+  priority:["Low","Medium","High","Critical"],
+  recipient_group:["All Leaders","Tawi Leaders","Jimbo Office","Dayosisi Office","KMK(T) HQ","Members","Youth","Women","Finance Team"],
+  message_channel:["SMS","WhatsApp","Email","System Notification","All Channels"],
+  template_type:["Contribution Reminder","Attendance Reminder","Event Invitation","Approval Notice","General Announcement","Emergency Alert"],
+  schedule_status:["Send Now","Scheduled","Draft","Sent","Failed"],
+  card_type:["Leader ID","Member ID","Staff ID","Student ID","Visitor Pass","Temporary Card"],
+  detection_type:["Inactive Branch","Low Attendance","Missing Report","Finance Anomaly","Missing Upload","Unverified Transaction","Weak Growth"],
+  risk_level:["Low","Medium","High","Critical"],
+  kpi_group:["Membership","Attendance","Finance","Projects","Institutions","Leadership","Security","National Overview"],
+  chart_type:["Bar Chart","Line Chart","Pie Chart","KPI Cards","Trend Analysis","Ranking Table"],
+  request_type:["Finance Approval","Report Approval","Project Approval","Document Approval","Leader Approval","Asset Approval","Institution Approval"],
+  display_mode:["Public Website Mode","Internal System Mode","Hybrid Mode"],
+  public_section:["Home","Announcements","Events","Gallery","Leaders","Statistics","Projects","Contacts"],
+  visibility:["Public","Internal","Confidential","Chief Admin Only"],
+  certificate_type:["Leadership CV Certificate","Appointment Certificate","Service Certificate","Training Certificate","Ordination Certificate","Recognition Certificate"],
+  approved_by:["Katibu Mkuu KMK(T)","Naibu Katibu Mkuu KMK(T)","Mwongozi wa Tawi","Katibu wa Tawi","Chief Admin"],
+
+  attendance_period:["Weekly","Monthly","Yearly","Custom / Manual"],
+  date_status:["Today","This Week","This Month","This Year","Custom Date"],
+  week_select:["Week 1","Week 2","Week 3","Week 4","Week 5","Current Week","Custom Week"],
+  month_select:["January","February","March","April","May","June","July","August","September","October","November","December","Current Month"],
+  year_select:["2024","2025","2026","2027","2028","2029","2030","Current Year"],
+  attendance_status:["Draft","Submitted","Verified","Approved","Sent to Jimbo","Returned for Correction"],
+  service_type:["Ibada ya Jumapili","Maombi","Vijana","Wanawake","Kwaya","Bible Study","Watoto / Sunday School","Conference","Nyingine — Andika Mwenyewe"],
+  department_or_fellowship:["Idara","Jumuiya"],
+  departments:["JVKMK(T) — Jumuiya ya Vijana","JWKMK(T) — Jumuiya ya Wanawake","Uinjilisti","Elimu ya Kikristo","Maombi","Watoto","Muziki & Kwaya","Maendeleo","Fedha","Afya","Ndoa & Familia","Mawasiliano","Nyingine — Andika Mwenyewe"],
+
+  template_type_forms:["Excel Template (.xlsx)","PDF Template","CSV Template","Completed Excel Upload","Scanned PDF Upload","CSV Upload"],
+  upload_status:["Draft","Uploaded","Previewed","Validated","Saved to Supabase","Rejected"],
+
+  finance_source:contributionSources,
+  payment_method:["Cash","Bank","Mobile Money","M-Pesa","Airtel Money","Tigo Pesa","HaloPesa","Online Donation","Nyingine — Andika Mwenyewe"],
+  level:["Tawi","Jimbo","Dayosisi","KMK(T)"],
+  yes_no:["No","Yes"],
+  finance_status:["Draft","Pending Approval","Approved","Verified","Transferred","Received","Rejected"],
+  project_types:["Chuo cha Biblia","Shule ya Awali","Shule ya Msingi","Shule ya Sekondari","Vocational Center","Hospital","Clinic / Zahanati","Admin Center","Mission Center","Training Center","Nyingine — Andika Mwenyewe"],
+  roles:["chief_admin","admin","national_admin","diocese_admin","jimbo_admin","tawi_admin","finance_admin","auditor","secretary","viewer"],
+  permission:["Full Access","Read & Write","Read Only","Approval Only","Finance Only","Module Specific"],
+  module_access:["All Modules","Tawi Only","Finance","Reports","Security","Projects","Leadership"],
+  approval_chain:["Tawi → Jimbo","Tawi → Jimbo → Dayosisi","Tawi → Jimbo → Dayosisi → KMK(T)","Direct to KMK(T)"],
+  backup_status:["Ready","Pending","Completed","Failed"]
+};
+
+function slug(s){
+  return s.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+}
+
+function isLong(label){
+  return label.length >= 20 || label.includes("&") || label.includes("/");
+}
+
+function renderModules(){
+  $("moduleGrid").innerHTML = modules.map(m => `
+    <button type="button" aria-label="Fungua ${m.label}" class="module-card ${isLong(m.label) ? 'long' : ''}" style="background:${m.bg}" onclick="openModule('${m.id}', this)">
+      <div class="module-icon">${m.icon}</div>
+      <div class="module-label">${m.label}</div>
+      <div class="module-tags">${m.tags.map(t=>`<span>${t}</span>`).join("")}</div>
+    </button>
+  `).join("");
+}
+
+function fieldHtml(moduleId, field){
+  const [label,type,kind] = field;
+  const id = `${moduleId}_${slug(label)}`;
+  const auto = kind && ["auto","auto_code","money"].includes(kind) ? `<span class="auto-badge">AUTO</span>` : "";
+
+  if(type === "select"){
+    const opts = selectOptions[kind] || ["Auto Choose","Manual Entry","Nyingine — Andika Mwenyewe"];
+    return `<div class="field"><label>${label}${auto}</label><select id="${id}" data-draft>${opts.map(o=>`<option>${o}</option>`).join("")}</select></div>`;
+  }
+
+  if(type === "textarea"){
+    return `<div class="field"><label>${label}${auto}</label><textarea id="${id}" data-draft placeholder="${label}"></textarea></div>`;
+  }
+
+  return `<div class="field"><label>${label}${auto}</label><input id="${id}" type="${type}" data-draft placeholder="${kind==='money'?'TZS 0':label}"></div>`;
+}
+
+function uploadHtml(moduleId, uploads){
+  if(!uploads || !uploads.length) return "";
+  return `
+    <div class="notice" style="margin-top:14px">📤 Upload Section: tumia choose file kwa documents, photos, signatures, receipts na certificates.</div>
+    <div class="form-grid" style="margin-top:14px">
+      ${uploads.map(u=>`
+        <div class="field upload-field">
+          <label>${u}</label>
+          <input id="${moduleId}_${slug(u)}" type="file" data-upload>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+let __currentModuleId = "registration";
+const PORTAL_MODULE_LINKS = {
+  registration:{moduleKey:"muundo",submodule:"Orodha ya Matawi / Vituo"},
+  leaders:{moduleKey:"viongozi",submodule:"Viongozi wa Matawi/Vituo"},
+  members:{moduleKey:"waumini",submodule:"Orodha ya Waumini"},
+  attendance:{moduleKey:"attendance",submodule:"Sessions"},
+  departments:{moduleKey:"jumuiya"},
+  contributionForms:{moduleKey:"mapato_income"},
+  finance:{moduleKey:"fedha"},
+  projects:{moduleKey:"mapato_income",submodule:"Mapato ya Miradi na Uwekezaji"},
+  notifications:{moduleKey:"notifications"},
+  smswhatsapp:{moduleKey:"communications"},
+  idcards:{moduleKey:"waumini",submodule:"Member Profiles"},
+  smartdetect:{moduleKey:"analytics"},
+  executive:{moduleKey:"muundo",submodule:"Injini ya Ngazi — Executive"},
+  approval:{moduleKey:"dashboard",submodule:"Vibali vinavyosubiri"},
+  publicmode:{moduleKey:"mipangilio",submodule:"SEO & Umma"},
+  certificates:{moduleKey:"mipangilio",submodule:"Master Settings Center"},
+  security:{moduleKey:"usalama"}
+};
+function openModuleInPortal(){
+  const link = PORTAL_MODULE_LINKS[__currentModuleId];
+  if(!link){ alert("Moduli hii haijaunganishwa na portal."); return; }
+  if(window.parent && window.parent !== window){
+    window.parent.postMessage({
+      type:"kmt-matawi-dd-navigate",
+      moduleKey:link.moduleKey,
+      submodule:link.submodule || ""
+    }, "*");
+  } else {
+    alert("Fungua kwenye KMK(T) Portal ili kuendelea: "+(link.submodule || link.moduleKey));
+  }
+}
+function openModule(id, btn){
+  __currentModuleId = id;
+  document.querySelectorAll(".module-card").forEach(b=>b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  const m = modules.find(x=>x.id===id);
+  $("panelTitle").textContent = `${m.icon} ${m.label}`;
+  $("panelDesc").textContent = m.desc;
+  const portalBtn = PORTAL_MODULE_LINKS[id] && id !== "executive"
+    ? `<button type="button" class="btn-dark" onclick="openModuleInPortal()">🔗 Fungua kwenye Portal</button>`
+    : "";
+  $("panelContent").innerHTML = `
+    <div class="notice">
+      ➕ Add / Sajili · ✏ Edit · 🔍 Search · 📄 PDF · 📊 KPI · ✅ Approval · 🧾 Audit Logs · 🤖 Auto Choose
+    </div>
+    <div class="form-grid">
+      ${m.fields.map(f=>fieldHtml(m.id, f)).join("")}
+    </div>
+    ${uploadHtml(m.id, m.uploads)}
+    <div class="inline-actions no-print">
+      <button class="btn-green" onclick="saveAll()">💾 Hifadhi ${m.label}</button>
+      <button class="btn-blue" onclick="generatePdf('${m.label}')">📄 Generate ${m.label} PDF</button>
+      <button class="btn-gold" onclick="refreshKpis()">📊 Update KPI</button>
+      ${m.id === "certificates" ? '<button class="btn-dark" onclick="generateCertificate()">🎓 Generate Certificate</button>' : ''}
+      ${portalBtn}
+      <button class="btn-muted" onclick="scrollToKpi()">⬇ Nenda KPI</button>
+    </div>
+  `;
+  restoreAll();
+  if(id === "attendance"){
+    applyAttendanceAutoFields();
+    document.querySelectorAll("#panelContent input[type='number']").forEach(el=>{
+      el.addEventListener("input", calculateAttendanceTotal);
+    });
+    calculateAttendanceTotal();
+  }
+  bindModuleUploads(id);
+  $("dynamicPanel").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function renderFinanceGrid(){
+  $("financeGrid").innerHTML = `
+    <div class="finance-source" style="border:3px double #0B1F3A">
+      <h4>⚙️ Source Control</h4>
+      <label>Select Source to Edit/Delete</label>
+      <select id="selectedFinanceSource">${contributionSources.map((s,i)=>`<option value="${i}">${i+1}. ${s}</option>`).join("")}</select>
+      <div class="final-toolbar">
+        <button class="btn-gold btn-small" onclick="addFinanceSource()">➕ Add</button>
+        <button class="btn-muted btn-small" onclick="editSelectedSource()">✏️ Edit</button>
+        <button class="btn-red btn-small" onclick="deleteSelectedSource()">🗑️ Delete</button>
+      </div>
+    </div>
+    ${contributionSources.map((source, index) => `
+      <div class="finance-source">
+        <h4>${index+1}. ${source}</h4>
+        <label>Amount</label>
+        <input id="fin_${index}_amount" data-draft placeholder="TZS 0">
+        <label style="margin-top:8px">Level</label>
+        <select id="fin_${index}_level" data-draft>
+          <option>Tawi</option><option>Jimbo</option><option>Dayosisi</option><option>KMK(T)</option>
+        </select>
+        <label style="margin-top:8px">Matumizi</label>
+        <input id="fin_${index}_expense" data-draft placeholder="TZS 0">
+        <label style="margin-top:8px">Receipt / Bank Slip</label>
+        <input type="file" id="fin_${index}_receipt" data-upload>
+        <div class="final-toolbar">
+          <button class="btn-muted btn-small" onclick="editFinanceSource(${index})">✏️ Edit</button>
+          <button class="btn-red btn-small" onclick="deleteFinanceSource(${index})">🗑️ Delete</button>
+        </div>
+      </div>
+    `).join("")}
+  `;
+}
+
+function addFinanceSource(){
+  const name = prompt("Andika chanzo kipya cha mapato/mchango:");
+  if(name && name.trim()){
+    contributionSources.push(name.trim());
+    selectOptions.finance_source = contributionSources;
+    renderFinanceGrid();
+    saveAll(false);
+  }
+}
+
+const kpis = {
+  tawi:[
+    ["Total Waumini","0","Idadi yote ya waumini","#22c55e"],["Wanaume","0","Male members","#0ea5e9"],["Wanawake","0","Female members","#ec4899"],
+    ["Vijana","0","JVKMK(T)","#6366f1"],["Watoto","0","Sunday School","#a855f7"],["Waliobatizwa","0","Baptized","#10b981"],
+    ["Mahudhurio Wiki","0","Weekly attendance","#06b6d4"],["Zaka","TZS 0","Tithe","#eab308"],["Sadaka","TZS 0","Offerings","#22c55e"],
+    ["Total Income","TZS 0","Mapato yote","#16a34a"],["Projects","0","Miradi hai","#f97316"],["PDF Reports","0","Reports generated","#64748b"]
+  ],
+  jimbo:[
+    ["Matawi","0","Branches under Jimbo","#0ea5e9"],["Waumini","0","Members summary","#22c55e"],["Mahudhurio","0","Attendance summary","#06b6d4"],
+    ["Finance","TZS 0","Fedha kutoka matawi","#16a34a"],["Pending Reports","0","Ripoti zinazosubiri","#ef4444"],["Approvals","0","Approval workflow","#f59e0b"]
+  ],
+  dayosisi:[
+    ["Majimbo","0","Majimbo under Dayosisi","#f59e0b"],["Matawi","0","Total branches","#0ea5e9"],["Waumini","0","Diocese members","#22c55e"],
+    ["Finance Summary","TZS 0","Mapato consolidate","#16a34a"],["Institutions","0","Church projects","#7c3aed"],["Audit Alerts","0","Audit issues","#ef4444"]
+  ],
+  kmkt:[
+    ["Dayosisi","6","Official dioceses","#0ea5e9"],["Majimbo","38","Confirmed majimbo","#22c55e"],["National Finance","TZS 0","Mapato national","#16a34a"],
+    ["National Attendance","0","Attendance all levels","#06b6d4"],["Institutions","0","Schools/Hospital/Bible colleges","#7c3aed"],["System Health","OK","Realtime status","#22c55e"]
+  ]
+};
+
+function kpiCard(k){
+  return `
+    <article class="kpi-card" style="--stripe:linear-gradient(90deg,${k[3]},var(--gold))">
+      <span>${k[0]}</span>
+      <strong>${k[1]}</strong>
+      <small>${k[2]}</small>
+    </article>
+  `;
+}
+
+function renderKpis(){
+  $("kpiGridTawi").innerHTML = kpis.tawi.map(kpiCard).join("");
+  $("kpiGridJimbo").innerHTML = kpis.jimbo.map(kpiCard).join("");
+  $("kpiGridDayosisi").innerHTML = kpis.dayosisi.map(kpiCard).join("");
+  $("kpiGridKmkt").innerHTML = kpis.kmkt.map(kpiCard).join("");
+}
+
+function applyKpisFromPortal(next){
+  if(!next) return;
+  ["tawi","jimbo","dayosisi","kmkt"].forEach(level=>{
+    if(next[level] && Array.isArray(next[level])) kpis[level] = next[level];
+  });
+  renderKpis();
+}
+
+function showKpi(level, btn){
+  document.querySelectorAll(".kpi-panel").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".kpi-tab").forEach(b=>b.classList.remove("active"));
+  $(`kpi${level[0].toUpperCase()+level.slice(1)}`).classList.add("active");
+  btn.classList.add("active");
+}
+
+function scrollToKpi(){
+  document.querySelector(".kpi-tabs").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function collectData(){
+  const data = {};
+  document.querySelectorAll("[data-draft]").forEach(el=>{
+    if(el.id) data[el.id] = el.value;
+  });
+  return data;
+}
+
+function collectFullState(){
+  return {
+    fields: collectData(),
+    contributionSources: contributionSources.slice(),
+    uploads: __cloudState.uploads || {},
+    formHistory: __formHistory.slice(-80)
+  };
+}
+
+function isPortalEmbedded(){
+  return window.parent !== window && new URLSearchParams(location.search).get("embedded") === "1";
+}
+
+function getScope(){
+  return new URLSearchParams(location.search).get("scope") || "kitaifa";
+}
+
+function getEntityId(){
+  return new URLSearchParams(location.search).get("entityId") || "";
+}
+
+function postToPortal(msg){
+  if(window.parent && window.parent !== window){
+    window.parent.postMessage(msg, window.location.origin);
+  }
+}
+
+function migrateLocalIfAny(){
+  const key = "kmkt_branch_enterprise_data";
+  try {
+    const raw = localStorage.getItem(key);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    localStorage.removeItem(key);
+    if(parsed && typeof parsed === "object" && parsed.fields) return parsed;
+    return { fields: parsed || {} };
+  } catch {
+    localStorage.removeItem(key);
+    return null;
+  }
+}
+
+function applyFullState(state){
+  if(!state) return;
+  const fields = state.fields || state;
+  Object.entries(fields).forEach(([id,val])=>{
+    const el = $(id);
+    if(el) el.value = val;
+  });
+  if(state.contributionSources && Array.isArray(state.contributionSources) && state.contributionSources.length){
+    contributionSources.length = 0;
+    state.contributionSources.forEach(s=>contributionSources.push(s));
+    selectOptions.finance_source = contributionSources;
+    renderFinanceGrid();
+  }
+  if(state.formHistory && Array.isArray(state.formHistory)){
+    __formHistory = state.formHistory.slice();
+    const logs = $("formsHistoryLogs");
+    if(logs){
+      logs.innerHTML = __formHistory.map(line=>`<div class="history-log">${line}</div>`).join("") || '<div class="history-log">Hakuna upload bado.</div>';
+    }
+  }
+}
+
+function saveAll(show=true){
+  const payload = collectFullState();
+  if(isPortalEmbedded()){
+    postToPortal({
+      type: "kmt-matawi-dd-save",
+      scope: getScope(),
+      entityId: getEntityId(),
+      moduleId: __currentModuleId,
+      payload,
+      show: !!show
+    });
+    return;
+  }
+  alert("Fungua Injini ya Matawi kupitia KMK(T) Portal ili kuhifadhi kwenye Supabase (si localStorage).");
+}
+
+function restoreAll(){
+  applyFullState(__cloudState);
+}
+
+function exportJson(){
+  const blob = new Blob([JSON.stringify(collectFullState(), null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "kmkt_branch_enterprise_backup.json";
+  a.click();
+}
+
+function clearData(){
+  if(!confirm("Una uhakika unataka kufuta draft data kwenye Supabase?")) return;
+  if(isPortalEmbedded()){
+    postToPortal({ type: "kmt-matawi-dd-clear", scope: getScope(), entityId: getEntityId() });
+    return;
+  }
+  alert("Fungua kupitia portal ili kufuta data kwenye Supabase.");
+}
+
+let __cloudState = { fields: {}, uploads: {} };
+let __formHistory = [];
+
+function bindModuleUploads(moduleId){
+  document.querySelectorAll("#panelContent input[data-upload]").forEach(input=>{
+    input.onchange = ()=>{
+      const file = input.files && input.files[0];
+      if(!file) return;
+      if(isPortalEmbedded()){
+        postToPortal({
+          type:"kmt-matawi-dd-upload",
+          scope:getScope(),
+          entityId:getEntityId(),
+          moduleId,
+          fieldId:input.id || "upload",
+          uploadKind:"module",
+          file
+        });
+      } else {
+        alert("Pakia faili kupitia KMK(T) Portal ili iende Supabase Storage.");
+      }
+    };
+  });
+}
+
+window.addEventListener("message", function(event){
+  if(event.origin !== window.location.origin) return;
+  const data = event.data || {};
+  if(data.type === "kmt-matawi-dd-data"){
+    __cloudState = data.payload || { fields: {} };
+    if(data.payload && data.payload.formHistory) __formHistory = data.payload.formHistory.slice();
+    applyFullState(__cloudState);
+    if(data.activeModuleId && data.activeModuleId !== __currentModuleId){
+      const btn = document.querySelector(`.module-card[onclick*="'${data.activeModuleId}'"]`);
+      if(btn) openModule(data.activeModuleId, btn);
+    }
+  }
+  if(data.type === "kmt-matawi-dd-kpis" && data.kpis){
+    applyKpisFromPortal(data.kpis);
+  }
+  if(data.type === "kmt-matawi-dd-saved" && data.show){
+    alert("Imehifadhiwa kwenye Supabase.");
+  }
+  if(data.type === "kmt-matawi-dd-error"){
+    alert(data.message || "Hitilafu ya kuhifadhi kwenye Supabase.");
+  }
+  if(data.type === "kmt-matawi-dd-uploaded"){
+    if(data.ok && data.meta){
+      __cloudState.uploads = __cloudState.uploads || {};
+      const key = data.fieldId || data.uploadKind || "file";
+      __cloudState.uploads[key] = {
+        publicUrl: data.meta.publicUrl,
+        fileName: data.meta.fileName,
+        uploadedAt: data.meta.uploadedAt
+      };
+      saveAll(false);
+      if(data.uploadKind === "contribution") updateContributionUploadPreview(data.meta, true);
+    } else if(data.uploadKind === "contribution") {
+      updateContributionUploadPreview(null, false, data.message);
+    }
+  }
+});
+
+function updateContributionUploadPreview(meta, ok, errMsg){
+  const preview = $("uploadPreview");
+  if(!preview) return;
+  preview.classList.remove("hidden");
+  preview.innerHTML = `
+    <h2>UPLOAD PREVIEW</h2>
+    <div class="report-purpose"><b>File:</b> ${meta ? meta.fileName : "—"}<br><b>Status:</b> ${ok ? "Saved to Supabase Storage" : (errMsg || "Rejected")}</div>
+    <div class="inked-table-wrap"><table class="inked-table"><thead><tr><th>Validation</th><th>Result</th></tr></thead><tbody>
+      <tr><td>Supabase Storage</td><td>${ok ? "OK · " + (meta.publicUrl || "") : "Failed"}</td></tr>
+    </tbody></table></div>
+  `;
+}
+
+function notifyPortalReady(){
+  postToPortal({
+    type: "kmt-matawi-dd-ready",
+    scope: getScope(),
+    entityId: getEntityId(),
+    migration: migrateLocalIfAny()
+  });
+}
+
+
+function applyAttendanceAutoFields(){
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth()+1).padStart(2,"0");
+  const dd = String(today.getDate()).padStart(2,"0");
+
+  const dateEl = $("attendance_attendance_date");
+  const yearEl = $("attendance_year");
+  const monthEl = $("attendance_month");
+  const statusEl = $("attendance_date_status");
+
+  if(dateEl && !dateEl.value) dateEl.value = `${yyyy}-${mm}-${dd}`;
+  if(yearEl && yearEl.value === "Current Year") yearEl.value = String(yyyy);
+  if(monthEl && monthEl.value === "Current Month") {
+    monthEl.selectedIndex = today.getMonth();
+  }
+  if(statusEl && !statusEl.value) statusEl.value = "Today";
+}
+
+function calculateAttendanceTotal(){
+  const ids = [
+    "attendance_sunday_service",
+    "attendance_prayer_meeting",
+    "attendance_youth_meeting",
+    "attendance_women_meeting",
+    "attendance_choir_practice",
+    "attendance_bible_study",
+    "attendance_children_sunday_school",
+    "attendance_visitors_attendance",
+    "attendance_online_livestream"
+  ];
+  const total = ids.reduce((sum,id)=>sum + Number($(id)?.value || 0), 0);
+  const totalEl = $("attendance_total_attendance");
+  if(totalEl) totalEl.value = total;
+  return total;
+}
+
+function refreshKpis(){
+  const totalMembers =
+    Number($("members_wanaume")?.value || 0) +
+    Number($("members_wanawake")?.value || 0) +
+    Number($("members_vijana")?.value || 0) +
+    Number($("members_watoto")?.value || 0) +
+    Number($("members_wazee")?.value || 0);
+
+  kpis.tawi[0][1] = totalMembers.toLocaleString();
+  kpis.tawi[1][1] = $("members_wanaume")?.value || "0";
+  kpis.tawi[2][1] = $("members_wanawake")?.value || "0";
+  kpis.tawi[3][1] = $("members_vijana")?.value || "0";
+  kpis.tawi[4][1] = $("members_watoto")?.value || "0";
+  kpis.tawi[5][1] = $("members_waliobatizwa")?.value || "0";
+  kpis.tawi[6][1] = String(calculateAttendanceTotal() || $("attendance_sunday_service")?.value || "0");
+  kpis.tawi[7][1] = $("finance_kiasi")?.value || "TZS 0";
+
+  renderKpis();
+  saveAll(false);
+  if(isPortalEmbedded()){
+    postToPortal({ type:"kmt-matawi-dd-refresh-kpis", scope:getScope(), entityId:getEntityId() });
+  }
+}
+
+
+function generateCertificate(){
+  const now = new Date().toLocaleDateString();
+  $("certificatePreview").classList.remove("hidden");
+  $("certificatePreview").innerHTML = `
+    <h2>KANISA LA MENNONITE LA KIINJILI TANZANIA — KMK(T)</h2>
+    <h3>Leadership CV / Service Certificate</h3>
+    <p style="text-align:center;color:#475569;font-weight:800">Official University-Style Certificate Profile</p>
+    <div class="cert-line"><b>Jina la Kiongozi:</b> ${$("certificates_leader_name")?.value || "........................................"}</div>
+    <div class="cert-line"><b>Cheo / Position:</b> ${$("certificates_position")?.value || "........................................"}</div>
+    <div class="cert-line"><b>Certificate Type:</b> ${$("certificates_certificate_type")?.value || "Leadership CV Certificate"}</div>
+    <div class="cert-line"><b>Certificate No:</b> ${$("certificates_certificate_number")?.value || "KMKT-CERT-AUTO"}</div>
+    <p style="line-height:1.8;color:#334155">
+      Hati hii imetolewa kuthibitisha taarifa za uongozi, huduma, CV profile, na ushiriki rasmi ndani ya mfumo wa KMK(T).
+      Imethibitishwa kupitia approval workflow na inaweza kuambatanishwa na picha, saini, muhuri na PDF attachments.
+    </p>
+    <div class="signature-row">
+      <div class="signature-box">Prepared by<br>Branch / Tawi Office</div>
+      <div class="signature-box">${$("certificates_approved_by")?.value || "Katibu Mkuu KMK(T)"}</div>
+      <div class="signature-box">Official Seal / Muhuri</div>
+    </div>
+    <p style="text-align:center;margin-top:25px;color:#64748b;font-size:12px">Issued: ${now} · QR / Verification Ready</p>
+  `;
+  $("certificatePreview").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+
+function parseMoney(value){
+  const n = String(value || "0").replace(/[^\d.-]/g,"");
+  return Number(n || 0);
+}
+function fmtMoney(n){
+  return "TZS " + Number(n || 0).toLocaleString();
+}
+function editFinanceSource(index){
+  const next = prompt("Edit source name:", contributionSources[index]);
+  if(next && next.trim()){
+    contributionSources[index] = next.trim();
+    selectOptions.finance_source = contributionSources;
+    renderFinanceGrid();
+    saveAll(false);
+  }
+}
+function deleteFinanceSource(index){
+  if(confirm("Futa chanzo hiki? "+contributionSources[index])){
+    contributionSources.splice(index,1);
+    selectOptions.finance_source = contributionSources;
+    renderFinanceGrid();
+    saveAll(false);
+  }
+}
+function editSelectedSource(){
+  const sel = $("selectedFinanceSource");
+  if(!sel) return alert("Chagua source kwanza.");
+  editFinanceSource(Number(sel.value));
+}
+function deleteSelectedSource(){
+  const sel = $("selectedFinanceSource");
+  if(!sel) return alert("Chagua source kwanza.");
+  deleteFinanceSource(Number(sel.value));
+}
+function clearCurrentForm(){
+  document.querySelectorAll("#panelContent input,#panelContent select,#panelContent textarea").forEach(el=>{
+    if(el.type === "file") el.value = "";
+    else if(el.tagName === "SELECT") el.selectedIndex = 0;
+    else el.value = "";
+  });
+  saveAll(false);
+}
+function calculateDistribution(){
+  const levels = [
+    ["tawi","Tawi","Jimbo"],
+    ["jimbo","Jimbo","Dayosisi"],
+    ["dayosisi","Dayosisi","KMK(T)"],
+    ["kmkt","KMK(T)","Reserve"]
+  ];
+  levels.forEach(([key])=>{
+    const income = parseMoney($(`lvl_${key}_income`)?.value);
+    const expense = parseMoney($(`lvl_${key}_expense`)?.value);
+    const pctId = key === "kmkt" ? "reserve_pct" : "transfer_pct";
+    const pct = Number($(`lvl_${key}_${pctId}`)?.value || 0);
+    const transfer = key === "kmkt" ? (income * pct / 100) : (income * pct / 100);
+    const balance = income - expense - transfer;
+
+    const pctEl = $(`tbl_${key}_pct`); if(pctEl) pctEl.textContent = pct + "%";
+    const incEl = $(`tbl_${key}_income`); if(incEl) incEl.textContent = fmtMoney(income);
+    const expEl = $(`tbl_${key}_expense`); if(expEl) expEl.textContent = fmtMoney(expense);
+    const trEl = $(`tbl_${key}_transfer`); if(trEl) trEl.textContent = key === "kmkt" ? "Reserve: "+fmtMoney(transfer) : fmtMoney(transfer);
+    const balEl = $(`tbl_${key}_balance`); if(balEl) balEl.textContent = fmtMoney(balance);
+    const sumEl = $(`sum_${key}_balance`); if(sumEl) sumEl.textContent = fmtMoney(balance);
+  });
+  saveAll(false);
+}
+function generateLevelFinanceReport(){
+  calculateDistribution();
+  $("pdfPreview").classList.remove("hidden");
+  $("pdfPreview").innerHTML = `
+    <h2>KMK(T) LEVEL FINANCE DISTRIBUTION REPORT</h2>
+    <div class="report-purpose">
+      <b>Report hii ni ya nini?</b><br>
+      Hii ni report ya mgawanyo wa fedha kwa ngazi zote: Tawi, Jimbo, Dayosisi na KMK(T). Inaonyesha mapato, matumizi,
+      kiasi kinachotumwa ngazi inayofuata, na salio linalobaki kwa kila ngazi.
+    </div>
+    ${document.querySelector(".inked-table-wrap").outerHTML}
+    <p style="margin-top:16px"><b>Flow:</b> Tawi → Jimbo → Dayosisi → KMK(T)</p>
+  `;
+  $("pdfPreview").scrollIntoView({behavior:"smooth"});
+}
+function stabilizeSystem(){
+  document.querySelectorAll(".module-card,.kpi-card,.finance-source,.field,.advanced-card").forEach(el=>{
+    el.classList.add("stable-lock");
+    el.style.opacity = "1";
+    el.style.visibility = "visible";
+  });
+}
+window.addEventListener("load", stabilizeSystem);
+window.addEventListener("resize", stabilizeSystem);
+
+function generatePdf(type){
+  const now = new Date().toLocaleString();
+  $("pdfPreview").classList.remove("hidden");
+  $("pdfPreview").innerHTML = `
+    <h2>KANISA LA MENNONITE LA KIINJILI TANZANIA — KMK(T)</h2>
+    <p style="text-align:center"><b>BRANCH / TAWI PROFESSIONAL REPORT</b></p>
+    <div class="report-purpose">
+      <b>Report hii ni ya nini?</b><br>
+      <b>${type}</b> inahusu taarifa rasmi za module husika ndani ya Tawi. Inaonyesha content, matumizi yake, status,
+      uploads, approvals na flow ya taarifa kwenda Jimbo, Dayosisi hadi KMK(T).
+    </div>
+    <p><b>Report Type:</b> ${type}</p>
+    <p><b>Generated:</b> ${now}</p>
+    <div class="inked-table-wrap">
+      <table class="inked-table">
+        <thead><tr><th>Section</th><th>Inahusu Nini</th><th>Matumizi</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Usajili wa Tawi</td><td>Branch identity, Jimbo, Dayosisi, uploads</td><td>Kutambua Tawi rasmi</td><td>Ready</td></tr>
+          <tr><td>Viongozi</td><td>Mwongozi, Katibu, Naibu Katibu, Mhazini</td><td>Leadership CV & certificates</td><td>Ready</td></tr>
+          <tr><td>Waumini</td><td>Summary mode by categories</td><td>KPI za membership</td><td>Ready</td></tr>
+          <tr><td>Mahudhurio</td><td>Weekly, monthly, yearly attendance</td><td>Attendance analytics</td><td>Ready</td></tr>
+          <tr><td>Fedha</td><td>${contributionSources.length}+ finance sources with receipts</td><td>Finance tracking & distribution</td><td>Ready</td></tr>
+          <tr><td>Miradi</td><td>Bible College, schools, hospitals, admin centers</td><td>Institution/project reporting</td><td>Ready</td></tr>
+          <tr><td>Flow</td><td>Tawi → Jimbo → Dayosisi → KMK(T)</td><td>Hierarchy reporting</td><td>Ready</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:16px"><b>Prepared by:</b> KMK(T) Branch Enterprise Engine</p>
+  `;
+  $("pdfPreview").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+
+function showFormsTab(tab, btn){
+  document.querySelectorAll(".forms-panel").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".forms-tab").forEach(b=>b.classList.remove("active"));
+  const panel = $("forms_"+tab);
+  if(panel) panel.classList.add("active");
+  if(btn) btn.classList.add("active");
+}
+function addFormHistory(message){
+  const line = new Date().toLocaleString() + " · " + message;
+  __formHistory.unshift(line);
+  const logs = $("formsHistoryLogs");
+  if(logs){
+    const div = document.createElement("div");
+    div.className = "history-log";
+    div.textContent = line;
+    logs.prepend(div);
+  }
+  if(isPortalEmbedded()) saveAll(false);
+}
+function downloadTemplate(type){
+  addFormHistory("Template downloaded: "+type.toUpperCase());
+  if(type === "csv"){
+    const header = "Tarehe,Dayosisi,Jimbo,Tawi,Jina la Ibada,Mwenyekiti wa Ibada,Mtubishaji Jina,Meza ya Bwana,Sadaka,Zaka,Shukrani/Rizuku,Changizo/Harambee,Ukarimu,Matoleo kina mama,Matoleo vijana,Pasaka/Krismas,Mwaka mpya,Matoleo ya kwaya,Maelezo mengine,Wanaume,Wanawake,Watoto,Jumla\n";
+    const blob = new Blob([header], {type:"text/csv"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "KMKT_fomu_michango_template.csv";
+    a.click();
+    return;
+  }
+  if(type === "excel"){
+    const csv = "KMK(T) FOMU YA MICHANGO NA MAHUDHURIO\nTarehe,Dayosisi,Jimbo,Tawi,Jina la Ibada,Mwenyekiti wa Ibada,Mtubishaji Jina\n\nMchango,Kiasi\nMeza ya Bwana,\nSadaka,\nZaka,\nShukrani/Rizuku,\nChangizo/Harambee,\nUkarimu,\nMatoleo kina mama,\nMatoleo vijana,\nPasaka/Krismas,\nMwaka mpya,\nMatoleo ya kwaya,\nMaelezo mengine,\n\nKundi,Idadi\nWanaume,\nWanawake,\nWatoto,\nJumla,\n";
+    const blob = new Blob([csv], {type:"application/vnd.ms-excel"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "KMKT_fomu_michango_template.xls";
+    a.click();
+    return;
+  }
+  if(type === "pdf"){
+    generateContributionFormReport();
+  }
+}
+function handleDrop(e){
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  handleContributionUpload(file);
+}
+function handleContributionUpload(file){
+  if(!file) return;
+  const allowed = [".xlsx",".csv",".pdf",".xls"];
+  const ok = allowed.some(ext=>file.name.toLowerCase().endsWith(ext));
+  const bar = $("uploadProgressBar");
+  if(bar) bar.style.width = "15%";
+  setTimeout(()=>{ if(bar) bar.style.width = "55%"; }, 250);
+  if(!ok){
+    if(bar) setTimeout(()=>{ bar.style.width = "35%"; }, 650);
+    updateContributionUploadPreview(null, false, "Invalid file type");
+    addFormHistory("Rejected upload: "+file.name);
+    return;
+  }
+  if(isPortalEmbedded()){
+    if(bar) setTimeout(()=>{ bar.style.width = "75%"; }, 650);
+    postToPortal({
+      type:"kmt-matawi-dd-upload",
+      scope:getScope(),
+      entityId:getEntityId(),
+      moduleId:"contributionForms",
+      fieldId:"contribution_upload",
+      uploadKind:"contribution",
+      file
+    });
+    addFormHistory("Uploading to Supabase: "+file.name);
+    return;
+  }
+  if(bar) setTimeout(()=>{ bar.style.width = "100%"; }, 650);
+  updateContributionUploadPreview({ fileName: file.name }, false, "Fungua kupitia portal");
+}
+function verifyContributionForm(status){
+  addFormHistory("Contribution form status changed to: "+status);
+  alert("Status: "+status);
+}
+function generateContributionFormReport(){
+  $("pdfPreview").classList.remove("hidden");
+  $("pdfPreview").innerHTML = `
+    <h2>KANISA LA MENNONITE LA KIINJILI TANZANIA – KMK(T)</h2>
+    <p style="text-align:center"><b>FOMU YA MICHANGO NA MAHUDHURIO</b></p>
+    <div class="report-purpose">
+      <b>Report hii ni ya nini?</b><br>
+      Hii ni report rasmi ya michango na mahudhurio ya ibada. Inatumika kuthibitisha kiasi kilichokusanywa,
+      mahudhurio ya wanaume/wanawake/watoto, na kuandaa data ya kupanda kutoka Tawi kwenda Jimbo, Dayosisi na KMK(T).
+    </div>
+    ${$("printableContributionTemplate") ? $("printableContributionTemplate").innerHTML : ""}
+    <p style="margin-top:16px"><b>Status:</b> Pending / Verified / Approved / Rejected · <b>Audit:</b> Auto logs enabled</p>
+  `;
+  $("pdfPreview").scrollIntoView({behavior:"smooth"});
+  addFormHistory("Contribution PDF report generated.");
+}
+
+renderModules();
+renderFinanceGrid();
+renderKpis();
+calculateDistribution();
+notifyPortalReady();
+(function bootMatawiModule(){
+  const params = new URLSearchParams(location.search);
+  const mod = params.get("module");
+  if(mod){
+    const btn = document.querySelector(`.module-card[onclick*="'${mod}'"]`);
+    openModule(mod, btn || null);
+    return;
+  }
+  openModule("registration", document.querySelector(".module-card"));
+})();
+</script>
+</body>
+</html>

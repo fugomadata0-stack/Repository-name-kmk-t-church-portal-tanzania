@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { usePortal } from "../../context/PortalContext";
 import { uploadSitePublicAsset } from "../../lib/siteAssetsUpload";
 import { getSupabase } from "../../lib/supabaseClient";
@@ -148,11 +149,20 @@ export function SiteBrandingPanel() {
         <article className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-lg backdrop-blur">
           <h3 className="text-lg font-bold text-slate-900">Picha ya Hero (kilele)</h3>
           <p className="text-sm text-slate-500">Inaonekana kwenye kilele cha dashibodi.</p>
-          <div className="mt-4 aspect-[21/9] overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-200 to-slate-100">
+          <div className="relative mt-4 aspect-[21/9] overflow-hidden rounded-xl border border-slate-200 bg-gradient-to-br from-slate-200 to-slate-100">
             {heroPreview || site.hero_image_url ? (
-              <img src={heroPreview || site.hero_image_url} alt="Hero" className="h-full w-full object-cover" />
+              <ResponsiveLazyImage
+                src={(heroPreview || site.hero_image_url)!}
+                alt="Hero"
+
+                className="absolute inset-0 h-full w-full object-cover"
+                width={2100}
+                height={900}
+                loading="eager"
+                fetchpriority="high"
+              />
             ) : (
-              <div className="flex h-full items-center justify-center text-sm text-slate-500">Hakuna picha — pakia hero</div>
+              <div className="flex h-full min-h-[8rem] items-center justify-center text-sm text-slate-500">Hakuna picha — pakia hero</div>
             )}
           </div>
           <input
@@ -190,9 +200,17 @@ export function SiteBrandingPanel() {
           <h3 className="text-lg font-bold text-slate-900">Picha ya Msalaba (upande wa kulia)</h3>
           <p className="text-sm text-slate-500">Cross image juu ya dashibodi / hero.</p>
           <div className="mt-4 flex justify-end">
-            <div className="h-40 w-40 overflow-hidden rounded-2xl border border-amber-200/80 bg-white shadow-inner">
+            <div className="relative h-40 w-40 overflow-hidden rounded-2xl border border-amber-200/80 bg-white shadow-inner">
               {crossPreview || site.cross_image_url ? (
-                <img src={crossPreview || site.cross_image_url} alt="Cross" className="h-full w-full object-contain p-2" />
+                <ResponsiveLazyImage
+                  src={(crossPreview || site.cross_image_url)!}
+                  alt="Cross"
+
+                  className="absolute inset-0 h-full w-full object-contain p-2"
+                  width={160}
+                  height={160}
+                  loading="lazy"
+                />
               ) : (
                 <div className="flex h-full items-center justify-center p-2 text-center text-xs text-slate-400">Msalaba — pakia picha</div>
               )}
@@ -307,9 +325,15 @@ export function SiteBrandingPanel() {
           ) : (
             galleryUrls.map((url) => (
               <li key={url} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                <div className="aspect-video bg-slate-100">
-                  <img src={url} alt="" className="h-full w-full object-cover" />
-                </div>
+                <ResponsiveLazyImage
+                  src={url}
+                  alt="Picha ya gallery"
+
+                  className="aspect-video w-full rounded-t-xl bg-slate-100 object-cover"
+                  width={1280}
+                  height={720}
+                  loading="lazy"
+                />
                 <div className="flex items-center justify-between gap-2 p-2">
                   <a href={url} target="_blank" rel="noreferrer" className="truncate text-xs text-blue-700 underline">
                     fungua

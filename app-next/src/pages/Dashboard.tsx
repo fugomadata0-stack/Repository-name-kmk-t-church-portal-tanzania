@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Bell, ShieldAlert, Activity, Siren, LayoutGrid } from "lucide-react";
+import { Bell, ShieldAlert, Activity, Siren, LayoutGrid, Building2 } from "lucide-react";
 import { GradientKpiCard } from "../components/common/GradientKpiCard";
 import { DashboardSubnav } from "../components/dashboard/DashboardSubnav";
+import { EnterpriseCommandPanel } from "../components/dashboard/EnterpriseCommandPanel";
 import { PendingApprovalsDashboard } from "../components/dashboard/PendingApprovalsDashboard";
 import { modules } from "../data/portalModules";
 import { usePortal } from "../context/PortalContext";
@@ -20,6 +21,17 @@ import type { PortalNotificationRow, SystemAlertRow } from "../types";
 import { getSupabase, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
 import { KMT_PORTAL_RELOAD_METRICS_EVENT } from "../lib/portalEvents";
 import { priorityMeta } from "../components/notifications/notificationUi";
+import { ResponsiveLazyImage } from "../components/common/ResponsiveLazyImage";
+import {
+  DASHBOARD_PENDING_APPROVALS_SUBMODULE,
+  getDashboardDefaultSubmodule,
+  getFirstSubmoduleForModule,
+  normalizeDashboardSubmodule,
+} from "../lib/dashboardSubmodules";
+import { navigateToMasterBranchEngine } from "../lib/navigateToMasterBranchEngine";
+
+const PUBLIC_RPC_ATTENDANCE_SCHEMA_BANNER_SW =
+  "Ulinganisho wa KPI na RPC ya umma umegundua kuwa portal_public_dashboard_counts bado haijapata safu za mahudhurio kwenye database. Hesabu nyingine zilizolinganishwa na RPC bado halali; mahudhurio zinaendeshwa kutoka maswali ya moja kwa moja hadi migration husika ipakiwe.";
 
 const fedhaDatePrefix10 = (value: unknown): string | null => {
   const raw =
@@ -42,11 +54,11 @@ const fedhaDatePrefix10 = (value: unknown): string | null => {
 type DashMode = "overview" | "kpi" | "alerts" | "activity" | "pending";
 
 function resolveDashMode(submodule: string | undefined): DashMode {
-  const s = (submodule ?? "Overview").trim();
-  if (s === "KPI Cards") return "kpi";
-  if (s === "Alerts") return "alerts";
-  if (s === "Recent Activity") return "activity";
-  if (s === "Pending Approvals") return "pending";
+  const s = normalizeDashboardSubmodule(submodule);
+  if (s === "Kadi za KPI") return "kpi";
+  if (s === "Arifa") return "alerts";
+  if (s === "Shughuli za hivi karibuni") return "activity";
+  if (s === "Vibali vinavyosubiri") return "pending";
   return "overview";
 }
 
@@ -92,7 +104,7 @@ interface Props {
 }
 
 export function Dashboard({
-  submodule = "Overview",
+  submodule = getDashboardDefaultSubmodule(),
   dayosisi: _dayosisi,
   majimbo,
   matawi,
@@ -227,10 +239,46 @@ export function Dashboard({
   const failedValue = (value: string | number, keys: string[]): string | number =>
     keys.some((k) => kpiFailedKeys.includes(k)) ? HAIJAPATIKANA_DATA_SW : value;
 
+  const wauminiPerTawiLabel = useMemo(() => {
+    if (kpiLive.matawiCount <= 0) return "—";
+    const n = wauminiCounts.members / kpiLive.matawiCount;
+    if (!Number.isFinite(n)) return "—";
+    return n.toLocaleString("sw-TZ", { maximumFractionDigits: 1 });
+  }, [kpiLive.matawiCount, wauminiCounts.members]);
+
+  const matawiKpiFailed = [
+    "kpi.church_tawi.count",
+    "kpi.church_tawi.count_active",
+    "kpi.church_tawi.count_pending_status",
+    "kpi.pending_count.church_tawi",
+    "kpi.church_tawi.count_registry_verified",
+    "kpi.church_tawi.count_registry_pending_review",
+  ].some((k) => kpiFailedKeys.includes(k));
+
   const cards: readonly (readonly [string, string | number, string])[] = [
     ["Jumla ya Dayosisi", failedValue(kpiLive.dayosisiCount, ["kpi.dayosisi.count"]), "from-blue-600 to-blue-800"],
     ["Jumla ya Majimbo", failedValue(kpiLive.majimboCount, ["kpi.church_jimbo.count"]), "from-slate-700 to-slate-900"],
     ["Jumla ya Matawi / Vituo", failedValue(kpiLive.matawiCount, ["kpi.church_tawi.count"]), "from-amber-500 to-yellow-700"],
+    [
+      "Matawi active (operational)",
+      failedValue(kpiLive.matawiActiveCount, ["kpi.church_tawi.count_active"]),
+      "from-emerald-600 to-teal-800",
+    ],
+    [
+      "Matawi pending (usajili)",
+      failedValue(kpiLive.matawiPendingStatusCount, ["kpi.church_tawi.count_pending_status", "kpi.pending_count.church_tawi"]),
+      "from-amber-600 to-orange-700",
+    ],
+    [
+      "Matawi zilizothibitishwa (sajili)",
+      failedValue(kpiLive.matawiRegistryVerifiedCount, ["kpi.church_tawi.count_registry_verified"]),
+      "from-cyan-700 to-blue-900",
+    ],
+    [
+      "Matawi zinasubiri uhakiki wa sajili (pending_review)",
+      failedValue(kpiLive.matawiRegistryPendingReviewCount, ["kpi.church_tawi.count_registry_pending_review"]),
+      "from-violet-600 to-purple-800",
+    ],
     ["Jumla ya Viongozi", failedValue(kpiLive.viongoziCount, ["kpi.church_viongozi.count"]), "from-emerald-600 to-emerald-800"],
     ["KMK(T) Viongozi wa Ngazi Kuu", failedValue(kpiLive.viongoziNgaziKuuCount, ["kpi.church_viongozi.count_national"]), "from-[#0B1F3A] to-[#123C69]"],
     ["Viongozi wa Dayosisi", failedValue(kpiLive.viongoziDayosisiCount, ["kpi.church_viongozi.count_dayosisi"]), "from-blue-700 to-indigo-800"],
@@ -270,7 +318,7 @@ export function Dashboard({
       "from-cyan-600 to-blue-800",
     ],
     [
-      "Visitors (Mwezi)",
+      "Wageni (mwezi)",
       failedValue(kpiLive.attendanceVisitorsMonth, ["kpi.attendance_sessions.sum_visitors_month"]),
       "from-[#D4AF37] to-amber-700",
     ],
@@ -305,7 +353,7 @@ export function Dashboard({
       failedValue(`TZS ${formatMoneyTz(kpiLive.matumiziFedhaMwezi)}`, ["kpi.church_finance_entries.sum_matumizi_month"]),
       "from-green-600 to-green-800",
     ],
-    ["Pending Approvals", pending, "from-pink-600 to-rose-700"],
+    ["Vibali vinavyosubiri", pending, "from-pink-600 to-rose-700"],
     ["Rekodi za Audit (jumla)", failedValue(String(auditLogCount), ["kpi.audit_logs.count"]), "from-zinc-700 to-zinc-900"],
     [
       "Watumiaji — directory",
@@ -357,7 +405,7 @@ export function Dashboard({
     ],
     ["Jumla ya Donations", failedValue(`TZS ${formatMoneyTz(kpiLive.jumlaDonationsMwezi)}`, ["kpi.church_income_lines.sum_donations_month"]), "from-teal-600 to-teal-800"],
     ["Pending Verifications", failedValue(pendingVerifLabel, ["kpi.church_income_lines.count_submitted", "kpi.church_income_lines.sum_submitted"]), "from-orange-500 to-orange-700"],
-    ["Pending Approvals (Income)", failedValue(pendingApprIncLabel, ["kpi.church_income_lines.count_verified", "kpi.church_income_lines.sum_verified"]), "from-indigo-600 to-indigo-800"],
+    ["Vibali vya mapato (mistari)", failedValue(pendingApprIncLabel, ["kpi.church_income_lines.count_verified", "kpi.church_income_lines.sum_verified"]), "from-indigo-600 to-indigo-800"],
     ["Restricted Funds Balance", failedValue(`TZS ${formatMoneyTz(kpiLive.restrictedFundBalance)}`, ["kpi.church_income_lines.sum_restricted_ytd"]), "from-green-600 to-green-800"],
     ["Unposted Collections", failedValue(unpostedLabel, ["kpi.church_income_lines.count_unposted", "kpi.church_income_lines.sum_unposted"]), "from-pink-600 to-rose-700"],
     ["Budget vs Actual Income", kpiLive.budgetedVsActualLabel, "from-cyan-600 to-cyan-800"],
@@ -386,11 +434,18 @@ export function Dashboard({
     if (incomplete > 0) items.push({ label: "Viongozi wasio kamili / Needs Review", count: incomplete });
     if (unposted > 0) items.push({ label: "Makusanyo yasiyochapishwa kwenye ledger", count: unposted });
     if (pendingVerification > 0) items.push({ label: "Mapato yanayosubiri uhakiki / idhini", count: pendingVerification });
+    if (canPortalViewModule("muundo") && kpiLive.matawiRegistryPendingReviewCount > 0) {
+      items.push({
+        label: "Matawi zinasubiri uhakiki wa sajili (pending_review)",
+        count: kpiLive.matawiRegistryPendingReviewCount,
+      });
+    }
     return items;
-  }, [pending, incomplete, unposted, pendingVerification]);
+  }, [pending, incomplete, unposted, pendingVerification, canPortalViewModule, kpiLive.matawiRegistryPendingReviewCount]);
 
   const showWaumini = mode === "overview" || mode === "alerts";
-  const showModuleShortcuts = mode === "overview" || mode === "activity";
+  const showEnterpriseCommand = mode === "overview";
+  const showModuleShortcuts = mode === "activity";
   const showMapatoKat = mode === "overview" || mode === "activity";
   const mapatoKwaKategoriaMwezi = kpiLive.mapatoKwaKategoriaMwezi;
   const incomeBySourceMwezi = kpiLive.incomeBySourceMwezi;
@@ -426,10 +481,10 @@ export function Dashboard({
       out.push({
         type: "auto_rule.finance.pending_approvals",
         module: "fedha",
-        title: "Pending finance approvals",
-        message: `Kuna approvals ${pending} zinazohitaji hatua.`,
+        title: "Vibali vya fedha visivyokamilika",
+        message: `Kuna rekodi ${pending} zinazosubiri hatua (ngazi mbalimbali za mfumo).`,
         priority: pending >= 10 ? "critical" : "warning",
-        action_url: "/portal?module=dashboard&submodule=Pending%20Approvals",
+        action_url: `/portal?module=dashboard&submodule=${encodeURIComponent(DASHBOARD_PENDING_APPROVALS_SUBMODULE)}`,
         metadata: { count: pending },
       });
     }
@@ -437,7 +492,7 @@ export function Dashboard({
       out.push({
         type: "auto_rule.finance.low_income",
         module: "mapato_income",
-        title: "Low income warning",
+        title: "Onyo: mapato ya mwezi ni chini",
         message: "Mapato ya mwezi huu yapo chini ya kiwango (au sifuri).",
         priority: "critical",
         action_url: "/portal?module=mapato_income",
@@ -447,8 +502,8 @@ export function Dashboard({
       out.push({
         type: "auto_rule.finance.restricted_misuse",
         module: "fedha",
-        title: "Restricted fund misuse attempt",
-        message: "Balance ya restricted funds imeingia hasi; hakiki matumizi mara moja.",
+        title: "Jaribio la kutumia fedha zilizowekewa vikwazo",
+        message: "Salio la restricted funds limeingia hasi; hakiki matumizi mara moja.",
         priority: "critical",
         action_url: "/portal?module=fedha",
       });
@@ -457,8 +512,8 @@ export function Dashboard({
       out.push({
         type: "auto_rule.content.missing_reports",
         module: "viongozi",
-        title: "Missing reports",
-        message: `Kuna profiles ${incomplete} zisizo kamili zinazohitaji taarifa.`,
+        title: "Wasifu / ripoti zisizo kamili",
+        message: `Kuna wasifu ${incomplete} wasio kamili wanaohitaji taarifa.`,
         priority: "warning",
         action_url: "/portal?module=viongozi",
       });
@@ -467,7 +522,7 @@ export function Dashboard({
       out.push({
         type: "auto_rule.content.failed_uploads",
         module: "fedha",
-        title: "Unposted collections detected",
+        title: "Makusanyo yasiyochapishwa kwenye ledger",
         message: `Makusanyo ${unposted} hayajachapishwa kwenye ledger.`,
         priority: "warning",
         action_url: "/portal?module=fedha",
@@ -478,8 +533,8 @@ export function Dashboard({
       out.push({
         type: "auto_rule.system.failed_logins",
         module: "usalama",
-        title: "Failed logins detected",
-        message: `Kuna matukio ${failedLogins} ya login zilizofeli hivi karibuni.`,
+        title: "Kuingia kwa akaunti kumeshindikana",
+        message: `Kuna matukio ${failedLogins} ya kuingia ambayo yameshindikana hivi karibuni.`,
         priority: failedLogins >= 5 ? "critical" : "warning",
         action_url: "/portal?module=usalama",
       });
@@ -493,8 +548,8 @@ export function Dashboard({
       out.push({
         type: "auto_rule.system.suspicious_permissions",
         module: "usalama",
-        title: "Suspicious permission changes",
-        message: `Mabadiliko ${suspiciousPerms} ya role/permission yameonekana kwenye audit trail.`,
+        title: "Mabadiliko ya shaka ya ruhusa",
+        message: `Mabadiliko ${suspiciousPerms} ya majukumu / ruhusa yameonekana kwenye kumbukumbu ya ukaguzi.`,
         priority: suspiciousPerms >= 3 ? "critical" : "warning",
         action_url: "/portal?module=usalama",
       });
@@ -503,10 +558,21 @@ export function Dashboard({
       out.push({
         type: "auto_rule.church.inactive_branches",
         module: "muundo",
-        title: "Inactive branches warning",
-        message: "Matawi yapo lakini hakuna waumini active; hakiki submissions za mwezi.",
+        title: "Onyo: matawi bila waumini wanaohudhuria",
+        message: "Matawi yapo lakini hakuna waumini hai; hakiki taarifa za mwezi.",
         priority: "warning",
         action_url: "/portal?module=muundo",
+      });
+    }
+    if (canPortalViewModule("muundo") && kpiLive.matawiRegistryPendingReviewCount > 0) {
+      out.push({
+        type: "auto_rule.church.tawi_registry_pending_review",
+        module: "muundo",
+        title: "Sajili za tawi zinasubiri uhakiki",
+        message: `Matawi ${kpiLive.matawiRegistryPendingReviewCount} yanasubiri uhakiki wa sajili kwenye mfumo.`,
+        priority: kpiLive.matawiRegistryPendingReviewCount >= 5 ? "critical" : "warning",
+        action_url: `/portal?module=dashboard&submodule=${encodeURIComponent(DASHBOARD_PENDING_APPROVALS_SUBMODULE)}`,
+        metadata: { count: kpiLive.matawiRegistryPendingReviewCount },
       });
     }
     return out;
@@ -521,6 +587,8 @@ export function Dashboard({
     liveNotifications,
     recentAudit,
     wauminiCounts.activeMembers,
+    canPortalViewModule,
+    kpiLive.matawiRegistryPendingReviewCount,
   ]);
 
   useEffect(() => {
@@ -537,11 +605,23 @@ export function Dashboard({
     return (
       <div className="space-y-4">
         <DashboardSubnav active={submodule} />
+        {(role === "super_admin" || role === "chief_admin") && kpiLive.publicDashboardCountsAttendanceColumnsMissing ? (
+          <p
+            className="rounded-xl border border-sky-400/25 bg-sky-950/40 px-3 py-2 text-xs leading-relaxed text-sky-100/95"
+            role="status"
+          >
+            {PUBLIC_RPC_ATTENDANCE_SCHEMA_BANNER_SW}
+          </p>
+        ) : null}
         <PendingApprovalsDashboard
           incomeManagement={incomeManagement}
           fedha={fedha}
           majimbo={majimbo}
           matawi={matawi}
+          tawiRegistryPendingReviewKpi={kpiLive.matawiRegistryPendingReviewCount}
+          tawiRegistryPendingReviewKpiFailed={Boolean(
+            (kpiLive.failedKpis ?? {})["kpi.church_tawi.count_registry_pending_review"]
+          )}
         />
       </div>
     );
@@ -550,6 +630,75 @@ export function Dashboard({
   return (
     <div className="space-y-4">
       <DashboardSubnav active={submodule} />
+
+      {(role === "super_admin" || role === "chief_admin") && kpiLive.publicDashboardCountsAttendanceColumnsMissing ? (
+        <p
+          className="rounded-xl border border-sky-400/25 bg-sky-950/40 px-3 py-2 text-xs leading-relaxed text-sky-100/95"
+          role="status"
+        >
+          {PUBLIC_RPC_ATTENDANCE_SCHEMA_BANNER_SW}
+        </p>
+      ) : null}
+
+      {showEnterpriseCommand ? (
+        <>
+          <EnterpriseCommandPanel
+            canViewModule={canPortalViewModule}
+            kpiLive={kpiLive}
+            wauminiCounts={wauminiCounts}
+            onNavigateModule={(moduleKey, submodule) => {
+              window.dispatchEvent(
+                new CustomEvent("kmt-portal-navigate", {
+                  detail: { moduleKey, submodule },
+                })
+              );
+            }}
+          />
+          <section
+            className="overflow-hidden rounded-[28px] border-2 border-amber-400/35 bg-gradient-to-br from-[#0B1F3A] via-[#123C69] to-emerald-950 p-4 text-white shadow-[0_20px_50px_rgba(15,23,42,.18)] sm:p-5"
+            aria-label="Matawi — msingi wa mradi"
+          >
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl border border-amber-400/40 bg-amber-400/15 text-amber-100 shadow-inner">
+                  <Building2 className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200/95">Matawi ndiyo mama wa mradi</p>
+                  <h2 className="mt-1 font-kmkt-display text-lg font-black tracking-tight sm:text-xl">Kituo cha uhai wa huduma na ripoti</h2>
+                  <p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate-100/90 sm:text-sm">
+                    Kila tawi na kituo ndicho kiini cha waumini, mahudhurio na mapato ya misingi. Vipimo hivi vinahesabiwa moja kwa moja kutoka Supabase (kulingana na ruhusa zako).
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-2.5 text-center backdrop-blur-sm">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-200">Wastani wa waumini / tawi</p>
+                  <p
+                    className={`mt-0.5 font-kmkt-display text-xl font-black tabular-nums sm:text-2xl ${matawiKpiFailed ? "text-xs font-semibold text-amber-100" : ""}`}
+                  >
+                    {matawiKpiFailed ? HAIJAPATIKANA_DATA_SW : wauminiPerTawiLabel}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-2xl border border-amber-300/50 bg-gradient-to-r from-amber-200/95 to-amber-400/90 px-4 py-2.5 text-center text-xs font-bold text-[#0B1F3A] shadow-md transition hover:brightness-105"
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent("kmt-portal-navigate", {
+                        detail: { moduleKey: "muundo", submodule: "Injini ya Ngazi — Executive" },
+                      })
+                    )
+                  }
+                >
+                  Injini ya Ngazi — Executive
+                </button>
+              </div>
+            </div>
+          </section>
+        </>
+      ) : null}
+
       {showWaumini ? (
       <section
         className="grid grid-cols-2 gap-2.5 rounded-2xl border border-slate-200/80 bg-gradient-to-r from-[#0B1F3A]/95 via-[#123C69]/95 to-[#0B1F3A]/95 p-3 text-white shadow-lg sm:gap-3 sm:p-4 sm:grid-cols-2 lg:grid-cols-4"
@@ -626,7 +775,7 @@ export function Dashboard({
               onClick={() =>
                 window.dispatchEvent(
                   new CustomEvent("kmt-portal-navigate", {
-                    detail: { moduleKey: m.key, submodule: m.submodules[0] ?? "Overview" },
+                    detail: { moduleKey: m.key, submodule: getFirstSubmoduleForModule(m.key) },
                   })
                 )
               }
@@ -885,7 +1034,17 @@ export function Dashboard({
       <section className="relative overflow-hidden rounded-2xl border border-[#123C69]/50 bg-gradient-to-br from-[#0B1F3A] via-[#0f2744] to-[#123C69] p-5 text-white shadow-2xl">
         {heroImageUrl ? (
           <div className="pointer-events-none absolute inset-0 opacity-40">
-            <img src={heroImageUrl} alt="" className="h-full w-full object-cover" />
+            <ResponsiveLazyImage
+              src={heroImageUrl}
+              alt=""
+
+              className="absolute inset-0 h-full w-full"
+              loading="eager"
+              decoding="async"
+              width={1600}
+              height={900}
+
+            />
           </div>
         ) : null}
         <div className="relative flex flex-wrap items-start justify-between gap-4">
@@ -901,7 +1060,17 @@ export function Dashboard({
           </div>
           {heroLogoUrl ? (
             <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border-2 border-amber-400/50 bg-white/10 p-1 shadow-lg backdrop-blur">
-              <img src={heroLogoUrl} alt="Nembo ya kanisa" className="h-full w-full object-contain" loading="lazy" decoding="async" />
+              <ResponsiveLazyImage
+                src={heroLogoUrl}
+                alt="Nembo ya kanisa"
+
+                className="h-full w-full"
+                loading="eager"
+                decoding="async"
+                width={256}
+                height={256}
+
+              />
             </div>
           ) : null}
         </div>
@@ -966,9 +1135,19 @@ export function Dashboard({
       ) : null}
       {showKpiGrid ? (
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(([title, value, gradient]) => (
-          <GradientKpiCard key={title} title={title} value={value} gradient={gradient} />
-        ))}
+        {cards.map(([title, value, gradient]) => {
+          const matawiKpi = title.includes("Matawi");
+          const openEngine = matawiKpi && canPortalViewModule("muundo");
+          return (
+            <GradientKpiCard
+              key={title}
+              title={title}
+              value={value}
+              gradient={gradient}
+              onClick={openEngine ? () => navigateToMasterBranchEngine("executive") : undefined}
+            />
+          );
+        })}
       </section>
       ) : null}
       {showKpiGrid && !kpiError && !kpiRefreshing && kpiCoreStructurallyEmpty ? (

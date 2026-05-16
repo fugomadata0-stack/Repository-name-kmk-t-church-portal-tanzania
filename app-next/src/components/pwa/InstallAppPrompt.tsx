@@ -159,6 +159,7 @@ export function InstallAppPrompt() {
             alt="Nembo ya KMK(T) Tanzania Portal"
             className="h-[76px] w-[76px] shrink-0 rounded-[1.1rem] shadow-lg shadow-black/30 ring-2 ring-[#D4AF37]/40"
             decoding="async"
+            loading="eager"
           />
           <div className="min-w-0 flex-1">
             <h2 id="kmkt-pwa-install-title" className="text-lg font-bold tracking-tight text-white sm:text-xl">

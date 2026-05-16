@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { usePortal } from "../../context/PortalContext";
 import { downloadLeaderProfilePdf } from "../../lib/leadershipPdf";
 import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
@@ -438,6 +439,23 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
         (p?.signature_storage_path ? await signLeadershipCvPath(p.signature_storage_path) : null) || leader.signature_url || "";
       const photoDataUrl = photoUrl ? await toDataUrl(photoUrl) : null;
       const signatureDataUrl = sigUrl ? await toDataUrl(sigUrl) : null;
+      const rawAddr = ms.identity.address?.trim();
+      let supplementLines: string[] | undefined;
+      if (rawAddr) {
+        const parts = rawAddr
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .slice(0, 8);
+        if (parts.length) {
+          supplementLines = [
+            (ms.identity.official_name || "KANISA LA MENNONITE LA KIINJILI TANZANIA KMK(T)").toUpperCase(),
+            ...parts.map((p) => p.toUpperCase()),
+          ];
+          const c = ms.identity.country?.trim();
+          if (c) supplementLines.push(c.toUpperCase());
+        }
+      }
       await downloadLeaderProfilePdf(leader, {
         churchName: about.church_name?.trim() || undefined,
         portalBaseUrl: typeof window !== "undefined" ? window.location.origin : undefined,
@@ -445,6 +463,7 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
         logoDataUrl,
         photoDataUrl,
         signatureDataUrl,
+        institutionalLines: supplementLines,
       });
     } catch (e) {
       reportError(e, "CV PDF");
@@ -610,11 +629,37 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
                 <div className="space-y-2">
                   <h4 className="text-xs font-bold uppercase tracking-wide text-slate-500">Picha & saini</h4>
                   <div className="flex gap-3">
-                    <div className="h-24 w-24 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                      {previewPhoto ? <img src={previewPhoto} alt="" className="h-full w-full object-cover" /> : <span className="p-2 text-[10px] text-slate-400">Hakuna picha</span>}
+                    <div className="relative h-24 w-24 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                      {previewPhoto ? (
+                        <ResponsiveLazyImage
+                          src={previewPhoto}
+                          alt="Picha ya kiongozi"
+
+                          className="absolute inset-0 h-full w-full object-cover"
+                          width={96}
+                          height={96}
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="p-2 text-[10px] text-slate-400">Hakuna picha</span>
+                      )}
                     </div>
-                    <div className="h-20 w-36 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                      {previewSig ? <img src={previewSig} alt="" className="h-full w-full object-contain" /> : <span className="p-2 text-[10px] text-slate-400">Hakuna saini</span>}
+                    <div className="relative h-20 w-36 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                      {previewSig ? (
+                        <ResponsiveLazyImage
+                          src={previewSig}
+                          alt="Saini ya kiongozi"
+
+                          className="absolute inset-0 h-full w-full object-cover"
+
+                          width={144}
+                          height={80}
+
+                          loading="lazy"
+                        />
+                      ) : (
+                        <span className="p-2 text-[10px] text-slate-400">Hakuna saini</span>
+                      )}
                     </div>
                   </div>
                   {props.canEdit ? (

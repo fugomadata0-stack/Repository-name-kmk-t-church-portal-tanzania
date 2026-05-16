@@ -137,14 +137,14 @@ export function AttendancePanel() {
     { key: "service_name", label: "Huduma/Tukio", sortable: true },
     { key: "attendance_type", label: "Aina", sortable: true },
     { key: "total_attendance", label: "Jumla", sortable: true },
-    { key: "visitors", label: "Visitors", sortable: true },
-    { key: "recorded_by", label: "Recorded by", sortable: false },
+    { key: "visitors", label: "Wageni", sortable: true },
+    { key: "recorded_by", label: "Aliyeandika", sortable: false },
   ];
 
   return (
     <div className="space-y-4">
       <header className="rounded-2xl border border-[#D4AF37]/40 bg-gradient-to-r from-[#0B1F3A] to-[#123C69] p-5 text-white">
-        <h2 className="text-2xl font-bold">Attendance & Service Participation</h2>
+        <h2 className="text-2xl font-bold">Mahudhurio na ushiriki wa ibada</h2>
         <p className="mt-1 text-sm text-slate-200">Mahudhurio ya ibada, matukio, idara na historia ya washiriki.</p>
       </header>
       <PremiumTable
@@ -182,10 +182,10 @@ export function AttendancePanel() {
               void save(new FormData(e.currentTarget));
             }}
           >
-            <h3 className="text-lg font-bold text-[#0B1F3A]">{draft.id ? "Hariri Session" : "Session mpya ya mahudhurio"}</h3>
+            <h3 className="text-lg font-bold text-[#0B1F3A]">{draft.id ? "Hariri kikao cha mahudhurio" : "Kikao kipya cha mahudhurio"}</h3>
             <div className="mt-3 grid gap-2 md:grid-cols-3">
               <input name="attendance_date" type="date" defaultValue={draft.attendance_date} className="rounded-lg border px-3 py-2 text-sm" />
-              <input name="service_name" defaultValue={draft.service_name} placeholder="Service/Event name" className="rounded-lg border px-3 py-2 text-sm" />
+              <input name="service_name" defaultValue={draft.service_name} placeholder="Jina la ibada / tukio" className="rounded-lg border px-3 py-2 text-sm" />
               <select name="attendance_type" defaultValue={draft.attendance_type} className="rounded-lg border px-3 py-2 text-sm">
                 {ATTENDANCE_TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -220,17 +220,17 @@ export function AttendancePanel() {
               <input name="idara_name" defaultValue={draft.idara_name ?? ""} placeholder="Idara" className="rounded-lg border px-3 py-2 text-sm" />
               <input name="huduma_name" defaultValue={draft.huduma_name ?? ""} placeholder="Huduma" className="rounded-lg border px-3 py-2 text-sm" />
               <input name="jumuiya_name" defaultValue={draft.jumuiya_name ?? ""} placeholder="Jumuiya" className="rounded-lg border px-3 py-2 text-sm" />
-              <input name="total_men" type="number" min={0} defaultValue={draft.total_men} placeholder="Men" className="rounded-lg border px-3 py-2 text-sm" />
-              <input name="total_women" type="number" min={0} defaultValue={draft.total_women} placeholder="Women" className="rounded-lg border px-3 py-2 text-sm" />
-              <input name="total_youth" type="number" min={0} defaultValue={draft.total_youth} placeholder="Youth" className="rounded-lg border px-3 py-2 text-sm" />
-              <input name="total_children" type="number" min={0} defaultValue={draft.total_children} placeholder="Children" className="rounded-lg border px-3 py-2 text-sm" />
-              <input name="visitors" type="number" min={0} defaultValue={draft.visitors} placeholder="Visitors" className="rounded-lg border px-3 py-2 text-sm" />
-              <input name="recorded_by" defaultValue={draft.recorded_by ?? ""} placeholder="Recorded by" className="rounded-lg border px-3 py-2 text-sm" />
-              <textarea name="notes" defaultValue={draft.notes ?? ""} placeholder="Notes" className="rounded-lg border px-3 py-2 text-sm md:col-span-3" rows={2} />
+              <input name="total_men" type="number" min={0} defaultValue={draft.total_men} placeholder="Wanaume" className="rounded-lg border px-3 py-2 text-sm" />
+              <input name="total_women" type="number" min={0} defaultValue={draft.total_women} placeholder="Wanawake" className="rounded-lg border px-3 py-2 text-sm" />
+              <input name="total_youth" type="number" min={0} defaultValue={draft.total_youth} placeholder="Vijana" className="rounded-lg border px-3 py-2 text-sm" />
+              <input name="total_children" type="number" min={0} defaultValue={draft.total_children} placeholder="Watoto" className="rounded-lg border px-3 py-2 text-sm" />
+              <input name="visitors" type="number" min={0} defaultValue={draft.visitors} placeholder="Wageni" className="rounded-lg border px-3 py-2 text-sm" />
+              <input name="recorded_by" defaultValue={draft.recorded_by ?? ""} placeholder="Aliyeandika" className="rounded-lg border px-3 py-2 text-sm" />
+              <textarea name="notes" defaultValue={draft.notes ?? ""} placeholder="Maelezo" className="rounded-lg border px-3 py-2 text-sm md:col-span-3" rows={2} />
             </div>
             <div className="mt-4 rounded-xl border border-slate-200 p-3">
-              <h4 className="text-sm font-semibold text-[#0B1F3A]">Member-based attendance</h4>
-              <input value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} placeholder="Search member..." className="mt-2 w-full rounded-lg border px-3 py-2 text-sm" />
+              <h4 className="text-sm font-semibold text-[#0B1F3A]">Mahudhurio kwa kila mwanachama</h4>
+              <input value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} placeholder="Tafuta mwanachama…" className="mt-2 w-full rounded-lg border px-3 py-2 text-sm" />
               <div className="mt-2 max-h-56 overflow-auto space-y-1">
                 {filteredMembers.map((m) => {
                   const existing = memberRows.find((x) => x.member_id === m.id);
@@ -249,8 +249,8 @@ export function AttendancePanel() {
                         }}
                         className="rounded border px-2 py-1 text-xs"
                       >
-                        <option value="present">Present</option>
-                        <option value="absent">Absent</option>
+                        <option value="present">Amefika</option>
+                        <option value="absent">Hajafika</option>
                       </select>
                     </div>
                   );

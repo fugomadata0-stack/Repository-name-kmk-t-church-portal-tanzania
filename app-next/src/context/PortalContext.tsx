@@ -9,8 +9,9 @@ import {
   type ReactNode,
 } from "react";
 import type { AuthError, Session, User } from "@supabase/supabase-js";
+import { canonicalAboutKmktFields } from "../data/kmktCanonicalContent";
 import { captureClientException } from "../lib/clientExceptionReporting";
-import { formatCaughtError, formatPostgrestError } from "../lib/supabaseErrors";
+import { formatCaughtError, formatPostgrestError, isAbortLikeError } from "../lib/supabaseErrors";
 import { getSupabase, isSupabaseConfigured, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
 import { redactSensitiveText, safeStorage } from "../lib/security";
 import { clearPortalUiSnapshot } from "../lib/portalUiPersistence";
@@ -130,25 +131,26 @@ const defaultSite: SiteSettingsState = {
 };
 
 function emptyAbout(): AboutKmktState {
+  const c = canonicalAboutKmktFields();
   return {
     id: undefined,
-    church_name: "",
-    abbreviation: "",
-    motto: "",
-    mission: "",
-    vision: "",
-    core_values: "",
-    history: "",
-    objectives: "",
-    headquarters: "",
-    contacts: "",
-    leadership_message: "",
-    bible_verse: "",
+    church_name: c.church_name,
+    abbreviation: c.abbreviation,
+    motto: c.motto,
+    mission: c.mission,
+    vision: c.vision,
+    core_values: c.core_values,
+    history: c.history,
+    objectives: c.objectives,
+    headquarters: c.headquarters,
+    contacts: c.contacts,
+    leadership_message: c.leadership_message,
+    bible_verse: c.bible_verse,
     logo_url: "",
     hero_image_url: "",
     gallery: [],
-    status: "draft",
-    published: false,
+    status: c.status,
+    published: c.published,
   };
 }
 
@@ -314,8 +316,10 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 
   const reportError = useCallback(
     (err: unknown, context?: string) => {
-      captureClientException(err, context);
+      if (isAbortLikeError(err)) return;
       const safeErrText = redactSensitiveText(formatCaughtError(err));
+      if (isAbortLikeError(safeErrText)) return;
+      captureClientException(err, context);
       if (context) console.error(`[${context}]`, safeErrText);
       else console.error(safeErrText);
       const msg = context ? `${context}: ${safeErrText}` : safeErrText;
@@ -881,17 +885,17 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseRealtimeEnabled()) return;
     if (!client || !authInitialized || !authUser) return;
     const ch = client
-      .channel("site-settings-live")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "site_settings" },
-        () => void refreshSite()
-      )
+      .channel("site-about-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "site_settings" }, () => void refreshSite())
+      .on("postgres_changes", { event: "*", schema: "public", table: "about_kmkt" }, () => {
+        void refreshSite();
+        void refreshAbout();
+      })
       .subscribe();
     return () => {
       void client.removeChannel(ch);
     };
-  }, [refreshSite, authInitialized, authUser]);
+  }, [refreshSite, refreshAbout, authInitialized, authUser]);
 
   const saveSite = useCallback(
     async (patch: Partial<SiteSettingsState>) => {

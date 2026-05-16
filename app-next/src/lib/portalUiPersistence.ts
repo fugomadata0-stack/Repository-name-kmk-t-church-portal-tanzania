@@ -3,6 +3,8 @@
  * Hakuna tokeni wala siri — tu module, submodule, sidebar, scroll, na vipande vidogo vya moduli.
  */
 
+import { coerceSubmoduleForModule, getDashboardDefaultSubmodule } from "./dashboardSubmodules";
+
 export const PORTAL_UI_STORAGE_KEY = "kmkt_portal_ui_v1";
 
 /** Muda wa kuwezesha kurejesha kiotomatiki baada ya kutoka kwa muda mfupi (ms). */
@@ -51,12 +53,14 @@ export function writePortalUiSnapshot(patch: Partial<PortalUiSnapshotV1> & Pick<
   if (typeof sessionStorage === "undefined") return;
   try {
     const prev = safeParse(sessionStorage.getItem(PORTAL_UI_STORAGE_KEY));
+    const nextModule = patch.activeModule ?? prev?.activeModule ?? "dashboard";
+    const nextSubRaw = patch.activeSubmodule ?? prev?.activeSubmodule ?? undefined;
     const next: PortalUiSnapshotV1 = {
       v: 1,
       savedAt: Date.now(),
       userId: patch.userId,
-      activeModule: patch.activeModule ?? prev?.activeModule ?? "dashboard",
-      activeSubmodule: patch.activeSubmodule ?? prev?.activeSubmodule ?? "Overview",
+      activeModule: nextModule,
+      activeSubmodule: coerceSubmoduleForModule(nextModule, nextSubRaw),
       expanded: patch.expanded ?? prev?.expanded ?? {},
       scrollTop: typeof patch.scrollTop === "number" ? patch.scrollTop : (prev?.scrollTop ?? 0),
       moduleSlices: patch.moduleSlices !== undefined ? patch.moduleSlices : (prev?.moduleSlices ?? {}),
@@ -79,7 +83,7 @@ export function mergeModuleSlice(userId: string, sliceKey: string, slice: unknow
             savedAt: Date.now(),
             userId,
             activeModule: "dashboard",
-            activeSubmodule: "Overview",
+            activeSubmodule: getDashboardDefaultSubmodule(),
             expanded: {},
             scrollTop: 0,
             moduleSlices: {},

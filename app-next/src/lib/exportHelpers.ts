@@ -2,6 +2,10 @@
 import { drawKmktPdfWatermark, fitPdfLinesToWidth, normalizePdfReadableText } from "./pdfInstitutional";
 import { fetchMasterSettingsOptional, readMasterSettingsCache } from "../services/masterSettingsService";
 import { fetchChurchIdentityOptional } from "../services/settingsTablesService";
+import {
+  fetchNationalLeadershipProfilesOptional,
+  formatNationalLeadershipHeaderSummary,
+} from "../services/nationalLeadershipService";
 import type { ChurchStructureEntity, ChurchStructureLeader } from "../types";
 import { fetchLeadersForEntity } from "../services/churchStructureLeadersService";
 
@@ -164,11 +168,13 @@ export async function exportTableToPdf(
   rows: (string | number)[][],
   options?: ExportPdfOptions
 ) {
-  const [masterRaw, identity] = await Promise.all([
+  const [masterRaw, identity, nationalRows] = await Promise.all([
     fetchMasterSettingsOptional().catch(() => null),
     fetchChurchIdentityOptional().catch(() => null),
+    fetchNationalLeadershipProfilesOptional().catch(() => []),
   ]);
   const master = masterRaw ?? readMasterSettingsCache();
+  const leadershipHeader = formatNationalLeadershipHeaderSummary(nationalRows);
   const [{ jsPDF }, autoTableMod] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
   const autoTable = autoTableMod.default;
 
@@ -272,6 +278,18 @@ export async function exportTableToPdf(
     for (const ln of ct) {
       doc.text(ln, pageWidth / 2, oy, { align: "center" });
       oy += 3.85;
+    }
+  }
+  if (leadershipHeader) {
+    const leadNorm = normalizePdfReadableText(leadershipHeader);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.1);
+    doc.setTextColor(235, 240, 255);
+    const ld = doc.splitTextToSize(`Uongozi wa kitaifa / National: ${leadNorm}`, headerBandW) as string[];
+    oy += 1.2;
+    for (const ln of ld) {
+      doc.text(ln, pageWidth / 2, oy, { align: "center" });
+      oy += 3.35;
     }
   }
 

@@ -1,7 +1,8 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Building2,
+  Crown,
   FileStack,
   IdCard,
   ImageIcon,
@@ -14,8 +15,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
-import { LeadershipCvEnginePanel } from "./LeadershipCvEnginePanel";
-import { SettingsSupabaseBanner } from "./SettingsSupabaseBanner";
+import { dispatchPortalReloadMetrics, KMT_MASTER_SETTINGS_UPDATED_EVENT } from "../../lib/portalEvents";
+import { parseRequiredNumberInput } from "../../lib/parseInputNumber";
 import { uploadSitePublicAsset } from "../../lib/siteAssetsUpload";
 import {
   emptyMasterSettings,
@@ -28,7 +29,10 @@ import {
   validateHexColor,
   validatePhone,
 } from "../../services/masterSettingsService";
-import { dispatchPortalReloadMetrics, KMT_MASTER_SETTINGS_UPDATED_EVENT } from "../../lib/portalEvents";
+import { LeadershipCvEnginePanel } from "./LeadershipCvEnginePanel";
+import { NationalLeadershipEnginePanel } from "./NationalLeadershipEnginePanel";
+import { SettingsSupabaseBanner } from "./SettingsSupabaseBanner";
+import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 
 type TabKey =
   | "identity"
@@ -40,6 +44,7 @@ type TabKey =
   | "language"
   | "dashboard"
   | "footer"
+  | "national_leadership"
   | "leadership_cv";
 
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
@@ -47,12 +52,13 @@ const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: "branding", label: "Nembo na vitambulisho vya kuona", icon: ImageIcon },
   { key: "theme", label: "Rangi na mandhari", icon: Paintbrush },
   { key: "exports", label: "PDF · Excel · Chapishi", icon: FileStack },
+  { key: "leadership_cv", label: "Wasifu na CV — Viongozi", icon: IdCard },
   { key: "email_templates", label: "Mifano ya barua pepe", icon: Mail },
   { key: "sms_templates", label: "Mifano ya SMS", icon: MessageSquareText },
   { key: "language", label: "Mipangilio ya lugha", icon: Languages },
   { key: "dashboard", label: "Chaguo-msingi za dashibodi", icon: LayoutDashboard },
   { key: "footer", label: "Kijachini cha mfumo", icon: PanelBottom },
-  { key: "leadership_cv", label: "Wasifu na CV — Viongozi", icon: IdCard },
+  { key: "national_leadership", label: "Uongozi wa Kitaifa — Engine", icon: Crown },
 ];
 
 const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/svg+xml";
@@ -61,7 +67,10 @@ const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 export function MasterSettingsCenterPanel() {
   const { pushToast, reportError, canPortalEditModule, canPortalManageSettingsModule, canPortalViewModule, logAudit } = usePortal();
   const canEdit = canPortalManageSettingsModule("mipangilio") && canPortalEditModule("mipangilio");
-  const canCvTab = canPortalManageSettingsModule("mipangilio") && canPortalViewModule("viongozi");
+  /** Injini ya CV iko hapa (si lazima kuwa na moduli ya Viongozi kwenye menyu); hariri bado inahitaji ruhusa za Viongozi. */
+  const canCvTab =
+    canPortalViewModule("mipangilio") &&
+    (canPortalManageSettingsModule("mipangilio") || canPortalEditModule("mipangilio"));
   const canCvEdit = canCvTab && canPortalEditModule("mipangilio") && canPortalEditModule("viongozi");
 
   const [activeTab, setActiveTab] = useState<TabKey>("identity");
@@ -210,6 +219,11 @@ export function MasterSettingsCenterPanel() {
             <p className="max-w-2xl text-sm leading-relaxed text-blue-100/95">
               Chanzo kimoja cha ukweli: utambulisho wa jumla, nembo, rangi, vichwa vya hati, mifano ya barua na SMS, lugha, na chaguo-msingi za dashibodi. Mabadiliko haya yanaonekana katika PDF, dashibodi na hati rasmi.
             </p>
+            <p className="max-w-2xl text-xs font-medium leading-relaxed text-amber-100/95">
+              Wasifu wa viongozi, CV na PDF za wasifu: fungua tab{" "}
+              <span className="rounded bg-white/15 px-1.5 py-0.5 font-semibold text-white">Wasifu na CV — Viongozi</span>{" "}
+              (upo mara tu baada ya kitufe cha PDF · Excel · Chapishi).
+            </p>
           </div>
           <aside className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-xs text-amber-50 backdrop-blur-sm">
             <p className="font-semibold text-amber-200">Utaratibu wa kitaasisi</p>
@@ -271,9 +285,19 @@ export function MasterSettingsCenterPanel() {
           </nav>
 
           <div className="rounded-xl border border-[#0B1F3A]/10 bg-gradient-to-r from-[#0B1F3A]/5 via-white to-[#D4AF37]/10 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#0B1F3A]">Viwango vya uendeshaji (Pro)</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#0B1F3A]">
+              {activeTab === "national_leadership"
+                ? "Uongozi wa kitaifa (Enterprise)"
+                : activeTab === "leadership_cv"
+                  ? "Wasifu na CV — injini ya viongozi"
+                  : "Viwango vya uendeshaji (Pro)"}
+            </p>
             <p className="mt-1 text-xs leading-relaxed text-slate-600">
-              Mipangilio hii ni chanzo kimoja cha ukweli: taarifa za viongozi, nembo, PDF na CV zinasomwa moja kwa moja kutoka Supabase (data hai).
+              {activeTab === "national_leadership"
+                ? "Nafasi nne: data husajiliwa hapa pekee; PDF, dashibodi na mifumo mingine husoma jedwali la national_leadership_profiles (Supabase + Realtime)."
+                : activeTab === "leadership_cv"
+                  ? "Chagua kiongozi, jaza sehemu za CV, pakia picha/saini, kisha Pakua PDF — data inatoka jedwali la leadership_* na church_viongozi."
+                  : "Mipangilio hii ni chanzo kimoja cha ukweli: taarifa za viongozi, nembo, PDF na CV zinasomwa moja kwa moja kutoka Supabase (data hai)."}
             </p>
           </div>
 
@@ -435,17 +459,21 @@ export function MasterSettingsCenterPanel() {
             </div>
           ) : null}
 
+          {activeTab === "national_leadership" ? <NationalLeadershipEnginePanel canEdit={canEdit} /> : null}
+
           {activeTab === "leadership_cv" ? (
             canCvTab ? (
               <LeadershipCvEnginePanel canEdit={canCvEdit} />
             ) : (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                Huna ruhusa ya kuona taarifa za viongozi (moduli ya Viongozi) katika mipangilio hii.
+                Huna ruhusa ya kutosha kwenye <strong className="font-semibold">Mipangilio Mikuu</strong> (angalia / hariri
+                mipangilio). Ongeza <em>can_view</em> au <em>can_manage_settings</em> / <em>can_edit</em> kwa moduli ya
+                mipangilio kwenye matrix ya jukumu.
               </div>
             )
           ) : null}
 
-          {activeTab !== "leadership_cv" ? (
+          {activeTab !== "leadership_cv" && activeTab !== "national_leadership" ? (
             <div className="flex flex-col gap-2 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-[11px] leading-relaxed text-slate-500">
                 Mabadiliko yanayoathiri PDF, nembo au lugha yanapaswa kuhifadhiwa hapa ili yatumike katika mfumo mzima.
@@ -459,9 +487,13 @@ export function MasterSettingsCenterPanel() {
                 {saving ? "Inahifadhi…" : "Hifadhi mipangilio mikuu"}
               </button>
             </div>
-          ) : (
+          ) : activeTab === "leadership_cv" ? (
             <p className="border-t border-slate-200 pt-3 text-xs leading-relaxed text-slate-500">
               Wasifu wa CV huhifadhiwa kwa kitufe <strong className="font-semibold text-slate-700">Hifadhi wasifu</strong> ndani ya sehemu ya Viongozi — si kitufe cha hifadhi cha mipangilio hii.
+            </p>
+          ) : (
+            <p className="border-t border-slate-200 pt-3 text-xs leading-relaxed text-slate-500">
+              Uongozi wa kitaifa huhifadhiwa kwa kitufe <strong className="font-semibold text-slate-700">Hifadhi nafasi hii</strong> kwenye kila kadi — Realtime husasisha data popote portal inaposoma jedwali hilo.
             </p>
           )}
         </form>
@@ -518,7 +550,7 @@ function NumberField({
         max={max}
         className="rounded-xl border border-slate-200 px-3 py-2"
         value={Number.isFinite(value) ? value : 0}
-        onChange={(e) => onChange(Number(e.target.value || 0))}
+        onChange={(e) => onChange(parseRequiredNumberInput(e.target.value, 0, 0))}
         disabled={disabled}
       />
     </label>
@@ -607,8 +639,19 @@ function UploadField({
       <input value={value} onChange={(e) => onChangeValue(e.target.value)} disabled={disabled} className="rounded-xl border border-slate-200 px-3 py-2" />
       {busy ? <span className="text-xs text-slate-500">Inapakia…</span> : null}
       {value ? (
-        <div className="mt-1 overflow-hidden rounded border border-slate-200 bg-slate-50 p-1">
-          <img src={value} alt={label} className="max-h-20 w-auto object-contain" loading="lazy" />
+        <div className="relative mt-1 max-h-24 min-h-[5rem] overflow-hidden rounded border border-slate-200 bg-slate-50 p-1">
+          <ResponsiveLazyImage
+            src={value}
+            alt={label}
+
+            className="max-h-20 w-auto object-contain"
+
+            width={320}
+            height={160}
+
+            loading="lazy"
+
+          />
         </div>
       ) : null}
     </label>

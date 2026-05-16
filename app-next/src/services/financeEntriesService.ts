@@ -1,3 +1,4 @@
+import { dedupeInFlight } from "../lib/inFlightDedupe";
 import { formatPostgrestError } from "../lib/supabaseErrors";
 import { parseMoneyTz } from "../lib/money";
 import { getSupabase } from "../lib/supabaseClient";
@@ -15,6 +16,7 @@ function uiStatus(raw: string | null | undefined): Status {
   const s = String(raw ?? "active").toLowerCase().replace(/\s+/g, "_").replace(/[()/]/g, "");
   if (s === "pending") return "Pending";
   if (s === "inactive") return "Inactive";
+  if (s === "suspended") return "Suspended";
   if (s === "archived") return "Archived";
   if (s === "needs_review") return "Needs Review";
   if (s === "draft") return "Draft";
@@ -33,6 +35,7 @@ function dbStatus(ui: Status): string {
     Active: "active",
     Pending: "pending",
     Inactive: "inactive",
+    Suspended: "suspended",
     Archived: "archived",
     "Needs Review": "needs_review",
     Draft: "draft",
@@ -78,15 +81,17 @@ export function mapFinanceRow(row: Record<string, unknown>): FedhaRecord {
 }
 
 export async function fetchChurchFinanceEntries(limit = 800): Promise<FedhaRecord[]> {
-  const c = getSupabase();
-  if (!c) return [];
-  const res = await c
-    .from("church_finance_entries")
-    .select("*, dayosisi ( jina ), church_jimbo ( jina ), church_tawi ( jina )")
-    .order("entry_date", { ascending: false })
-    .limit(limit);
-  const rows = unwrapList(res, "church_finance_entries.list");
-  return rows.map((r) => mapFinanceRow(r as unknown as Record<string, unknown>));
+  return dedupeInFlight(`church_finance_entries.list:${limit}`, async () => {
+    const c = getSupabase();
+    if (!c) return [];
+    const res = await c
+      .from("church_finance_entries")
+      .select("*, dayosisi ( jina ), church_jimbo ( jina ), church_tawi ( jina )")
+      .order("entry_date", { ascending: false })
+      .limit(limit);
+    const rows = unwrapList(res, "church_finance_entries.list");
+    return rows.map((r) => mapFinanceRow(r as unknown as Record<string, unknown>));
+  });
 }
 
 export async function upsertFinanceEntry(row: Partial<FedhaRecord> & { kiasi: number | string }): Promise<FedhaRecord> {

@@ -23,6 +23,7 @@ import {
   type FinanceSettingsRow,
   type NotificationSettingsRow,
 } from "../../services/extendedSettingsService";
+import { IncomeDistributionSettingsPanel } from "./IncomeDistributionSettingsPanel";
 import { SettingsSupabaseBanner } from "./SettingsSupabaseBanner";
 
 const sections = [
@@ -71,6 +72,7 @@ export function AdvancedSettingsPanel() {
     receipt_prefix: "RCT-",
     finance_year_start: "",
     finance_year_end: "",
+    hierarchy_share_percent: 35,
   });
   const [attText, setAttText] = useState("");
   const [mediaText, setMediaText] = useState("");
@@ -120,6 +122,7 @@ export function AdvancedSettingsPanel() {
           receipt_prefix: f.receipt_prefix,
           finance_year_start: f.finance_year_start?.slice(0, 10) ?? "",
           finance_year_end: f.finance_year_end?.slice(0, 10) ?? "",
+          hierarchy_share_percent: f.hierarchy_share_percent ?? 35,
         });
       }
       setAttText(JSON.stringify(a?.payload ?? extendedDefaults.attendance(), null, 2));
@@ -356,6 +359,8 @@ export function AdvancedSettingsPanel() {
           {busy === "finance" ? "Inahifadhi…" : "Hifadhi fedha (portal)"}
         </button>
       </section>
+
+      <IncomeDistributionSettingsPanel />
 
       <JsonSection
         id="attendance"

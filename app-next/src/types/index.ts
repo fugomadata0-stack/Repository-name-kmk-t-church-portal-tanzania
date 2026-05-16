@@ -82,6 +82,7 @@ export type Status =
   | "Active"
   | "Pending"
   | "Inactive"
+  | "Suspended"
   | "Archived"
   | "Needs Review"
   | "Draft"
@@ -103,6 +104,11 @@ export interface DayosisiRecord {
   email: string;
   maelezo: string;
   status: Status;
+  /** Uongozi wa dayosisi (safu za ziada kwenye DB) */
+  makamu_mwenyekiti?: string;
+  katibu?: string;
+  naibu_katibu?: string;
+  mhasibu?: string;
 }
 
 export interface JimboRecord {
@@ -125,6 +131,19 @@ export interface TawiRecord {
   jimbo: string;
   /** Kutoka DB */
   jimbo_id?: string | null;
+  /** Msimbo wa tawi (kipekee ndani ya jimbo). */
+  branch_code?: string | null;
+  mkoa?: string | null;
+  wilaya?: string | null;
+  kata?: string | null;
+  mtaa?: string | null;
+  gps_lat?: number | null;
+  gps_lng?: number | null;
+  founded_date?: string | null;
+  /** unverified | pending_review | verified */
+  verification_status?: string | null;
+  verified_at?: string | null;
+  verified_by?: string | null;
   kiongozi: string;
   simu: string;
   status: Status;
@@ -246,6 +265,8 @@ export interface KiongoziRecord {
   appointment_document_type?: string | null;
   appointment_uploaded_at?: string | null;
   notes?: string | null;
+  /** Wasifu fupi kwenye `church_viongozi` (sio lazima kuwa na rekodi ya `leadership_profiles`). */
+  biography?: string | null;
   date_of_birth?: string | null;
   national_id?: string | null;
   passport_number?: string | null;
@@ -485,6 +506,8 @@ export interface FedhaRecord {
   tawi_id?: string | null;
 }
 
+export type IncomeDistributionMode = "hierarchy_share" | "full_remittance";
+
 export interface IncomeSourceRecord {
   id: string;
   chanzo: string;
@@ -495,6 +518,9 @@ export interface IncomeSourceRecord {
   frequency?: "Daily" | "Weekly" | "Monthly" | "Quarterly" | "Annual" | "One-time";
   restrictedFund?: "Yes" | "No";
   approvalRequired?: "Yes" | "No";
+  /** hierarchy_share = sehemu (kwa kawaida 35%) inapanda juu; full_remittance = 100% kamili */
+  distributionMode?: IncomeDistributionMode;
+  upwardSharePercent?: number;
   aina: "Mapato Halisi" | "Taarifa ya Msingi";
   maelezo: string;
   status: Status;
@@ -529,6 +555,10 @@ export interface IncomeManagementRecord {
   dayosisi_id?: string | null;
   jimbo_id?: string | null;
   tawi_id?: string | null;
+  distributionMode?: IncomeDistributionMode;
+  upwardSharePercent?: number;
+  amountLocal?: number;
+  amountUpward?: number;
 }
 
 export type MembershipStatusDb = "active" | "visitor" | "transferred" | "deceased" | "suspended";
@@ -632,6 +662,7 @@ export interface ChurchDocumentRecord {
   updated_at?: string;
   created_by?: string | null;
   updated_by?: string | null;
+  visibility_level?: string;
   status: Status;
 }
 
@@ -928,7 +959,12 @@ export interface SystemHealthSnapshot {
 }
 
 /** Buckets za Stage 3 — File Manager */
-export type ChurchFileStorageBucket = "church-files" | "church-images" | "church-media";
+export type ChurchFileStorageBucket =
+  | "church-files"
+  | "church-images"
+  | "church-media"
+  | "portal-uploads"
+  | "certificates";
 
 /** Jedwali: file_manager_items */
 export interface FileManagerItemRecord {

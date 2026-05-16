@@ -5,7 +5,12 @@ export const ENTERPRISE_VIONGOZI_SUBMODULE = "Enterprise — Nafasi, Makamati & 
 
 /** Orodha ya moduli na submoduli — chanzo cha ukweli wa mpangilio (sio data ya biashara). */
 export const modules: ModuleItem[] = [
-  { key: "dashboard", label: "Dashibodi Kuu", color: "from-blue-600 to-indigo-700", submodules: ["Overview", "KPI Cards", "Alerts", "Recent Activity", "Pending Approvals"] },
+  {
+    key: "dashboard",
+    label: "Dashibodi Kuu",
+    color: "from-blue-600 to-indigo-700",
+    submodules: ["Muhtasari", "Kadi za KPI", "Arifa", "Shughuli za hivi karibuni", "Vibali vinavyosubiri"],
+  },
   { key: "developer", label: "Developer", color: "from-slate-600 to-slate-900", submodules: ["Wasifu"] },
   { key: "documents", label: "Documents", color: "from-amber-600 to-orange-800", submodules: ["Nyaraka"] },
   { key: "mahubiri", label: "Mahubiri", color: "from-purple-600 to-violet-800", submodules: ["Orodha"] },
@@ -68,11 +73,14 @@ export const modules: ModuleItem[] = [
     label: "Muundo wa Kanisa",
     color: "from-cyan-600 to-blue-700",
     submodules: [
+      "Injini ya Ngazi — Executive",
       "Sajili Muundo",
       "KMK(T)",
       "Dayosisi",
       "Majimbo",
       "Matawi / Vituo",
+      "Orodha ya Matawi / Vituo",
+      "Dashboard ya Tawi",
       "Idara",
       "Huduma",
       "Taasisi",

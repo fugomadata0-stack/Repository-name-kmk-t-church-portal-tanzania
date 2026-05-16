@@ -1,5 +1,5 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { getSupabase } from "../lib/supabaseClient";
+import { getSupabase, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
 import { unwrapList, unwrapOrThrow } from "../lib/supabaseResult";
 import type { LeadershipCategoryRecord, LeadershipCommitteeRecord, LeadershipPositionRecord } from "../types";
 
@@ -160,7 +160,7 @@ export type LeadershipRealtimeHandlers = {
 
 export function subscribeLeadershipEnterprise(h: LeadershipRealtimeHandlers): RealtimeChannel | null {
   const c = getSupabase();
-  if (!c) return null;
+  if (!c || !isSupabaseRealtimeEnabled()) return null;
   const channel = c.channel("leadership-enterprise-live")
     .on(
       "postgres_changes",

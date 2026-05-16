@@ -17,6 +17,8 @@ import {
   validateEmail,
   validateHexColor,
 } from "../../services/masterSettingsService";
+import { fetchNationalLeadershipProfilesOptional, nationalLeadershipDisplayTitle } from "../../services/nationalLeadershipService";
+import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { SettingsSupabaseBanner } from "./SettingsSupabaseBanner";
 
 const empty = emptyChurchIdentity();
@@ -235,13 +237,20 @@ export function ChurchIdentitySettingsPanel() {
 
   async function exportIdentityPdf() {
     const [{ jsPDF }] = await Promise.all([import("jspdf")]);
+    const nationalRows = await fetchNationalLeadershipProfilesOptional();
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     const navy = form.primary_color || "#0B1F3A";
     const blue = form.secondary_color || "#123C69";
     const gold = form.accent_color || "#D4AF37";
-    const publicUrl = "https://v0-church-portal-tanzania.vercel.app";
+    const publicUrl =
+      typeof window !== "undefined" && window.location?.origin?.trim()
+        ? window.location.origin.trim()
+        : (() => {
+            const u = normalizeUrl(form.website_url, DEFAULT_CHURCH_WEBSITE_URL).replace(/^mailto:/i, "").replace(/\/$/, "");
+            return u && !u.includes("@") ? u : DEFAULT_CHURCH_WEBSITE_URL;
+          })();
     const margin = 15;
     let y = 14;
 
@@ -423,57 +432,52 @@ export function ChurchIdentitySettingsPanel() {
       y += 3;
     }
 
-    sectionTitle("Wasifu wa Uongozi wa Ngazi Kuu");
+    sectionTitle("Uongozi wa Kitaifa — National Leadership");
     doc.setTextColor(71, 85, 105);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
     addParagraph(
-      "Sehemu hii inaonyesha viongozi wakuu wa KMK(T), wajibu wao katika kusimamia dira ya kanisa, uwajibikaji wa taasisi, usimamizi wa rasilimali na huduma kwa waumini.",
+      "Nafasi nne rasmi za KMK(T): Askofu Mkuu, Katibu Mkuu, Naibu Katibu Mkuu, Mhasibu Mkuu. Data husomwa kwa hai kutoka jedwali la national_leadership_profiles (injini ya mipangilio mikuu).",
       margin + 2,
       pageWidth - margin * 2 - 4
     );
     y += 3;
 
-    const leaders = [
-      {
-        role: "Askofu Mkuu",
-        name: form.leader_askofu_mkuu,
-        photo: form.leader_askofu_mkuu_photo_url,
-        signature: form.leader_askofu_mkuu_signature_url,
-        purpose: "Uongozi wa kiroho, maono ya kitaifa na usimamizi wa huduma za kanisa.",
-      },
-      {
-        role: "Katibu Mkuu",
-        name: form.leader_katibu_mkuu,
-        photo: form.leader_katibu_mkuu_photo_url,
-        signature: form.leader_katibu_mkuu_signature_url,
-        purpose: "Uratibu wa utawala, kumbukumbu rasmi, mawasiliano na utekelezaji wa maamuzi.",
-      },
-      {
-        role: "Mwenyekiti",
-        name: form.leader_mwenyekiti,
-        photo: form.leader_mwenyekiti_photo_url,
-        signature: form.leader_mwenyekiti_signature_url,
-        purpose: "Usimamizi wa vikao, mwelekeo wa sera na uwakilishi wa taasisi.",
-      },
-      {
-        role: "Mweka Hazina",
-        name: form.leader_mweka_hazina,
-        photo: form.leader_mweka_hazina_photo_url,
-        signature: form.leader_mweka_hazina_signature_url,
-        purpose: "Uangalizi wa fedha, uwazi wa mapato/matumizi na nidhamu ya rasilimali.",
-      },
-    ];
+    const leadersPdf = nationalRows
+      .filter((p) => p.is_visible !== false)
+      .sort((a, b) => a.sort_order - b.sort_order || a.role_key.localeCompare(b.role_key))
+      .map((p) => ({
+        role: nationalLeadershipDisplayTitle(p, "sw"),
+        name: p.full_name,
+        phone: p.phone.trim(),
+        email: sanitizeEmail(p.email),
+        photo: p.profile_photo_url,
+        signature: p.signature_url,
+        purpose:
+          [p.leadership_quote.trim(), p.biography.trim()].filter(Boolean).join(" — ").slice(0, 320) ||
+          "Taasisi ya KMK(T) — taarifa kamili ziko katika Portal.",
+      }));
 
-    for (const [index, leader] of leaders.entries()) {
-      ensurePage(40);
+    if (!leadersPdf.length) {
+      ensurePage(14);
+      addParagraph(
+        "Hakuna rekodi za uongozi wa kitaifa zilizoonekana (au zote zimefichwa). Sanidi katika Mipangilio mikuu → Uongozi wa Kitaifa — Engine.",
+        margin + 2,
+        pageWidth - margin * 2 - 4
+      );
+      y += 4;
+    }
+
+    const cardH = 48;
+    for (const [index, leader] of leadersPdf.entries()) {
+      ensurePage(cardH + 8);
       const x = margin + (index % 2) * (cardW + colGap);
       if (index % 2 === 0 && index > 0) y += 4;
       const cardY = y;
       doc.setFillColor(index % 2 === 0 ? 248 : 255, 250, 252);
-      doc.roundedRect(x, cardY, cardW, 38, 3, 3, "F");
+      doc.roundedRect(x, cardY, cardW, cardH, 3, 3, "F");
       doc.setDrawColor(...goldRgb);
-      doc.roundedRect(x, cardY, cardW, 38, 3, 3, "S");
+      doc.roundedRect(x, cardY, cardW, cardH, 3, 3, "S");
       const photo = await imageDataUrl(leader.photo);
       if (photo) {
         try {
@@ -483,8 +487,12 @@ export function ChurchIdentitySettingsPanel() {
           doc.roundedRect(x + 4, cardY + 5, 18, 18, 2, 2, "F");
         }
       } else {
-        doc.setFillColor(226, 232, 240);
+        doc.setFillColor(241, 245, 249);
         doc.roundedRect(x + 4, cardY + 5, 18, 18, 2, 2, "F");
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(5.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text("Picha", x + 13, cardY + 14, { align: "center" });
       }
       doc.setTextColor(...navyRgb);
       doc.setFont("helvetica", "bold");
@@ -492,22 +500,30 @@ export function ChurchIdentitySettingsPanel() {
       doc.text(leader.role.toUpperCase(), x + 26, cardY + 7);
       doc.setTextColor(15, 23, 42);
       doc.setFontSize(9.5);
-      doc.text(leader.name || "-", x + 26, cardY + 13, { maxWidth: cardW - 30 });
+      doc.text(leader.name || "—", x + 26, cardY + 13, { maxWidth: cardW - 30 });
       doc.setFont("helvetica", "normal");
+      doc.setFontSize(7);
+      doc.setTextColor(30, 64, 175);
+      const contactLine = [leader.phone ? `Simu: ${leader.phone}` : "", leader.email ? `Barua: ${leader.email}` : ""]
+        .filter(Boolean)
+        .join("  ·  ");
+      if (contactLine) {
+        doc.text(contactLine, x + 26, cardY + 19, { maxWidth: cardW - 30 });
+      }
       doc.setFontSize(7.5);
       doc.setTextColor(71, 85, 105);
-      doc.text(leader.purpose, x + 26, cardY + 19, { maxWidth: cardW - 30 });
+      doc.text(leader.purpose, x + 26, cardY + (contactLine ? 24 : 19), { maxWidth: cardW - 30 });
       doc.setTextColor(...emeraldRgb);
-      doc.text("Muhula: Kama ilivyoidhinishwa na chombo husika", x + 4, cardY + 29, { maxWidth: cardW - 32 });
+      doc.text("Muhula: Kama ilivyoidhinishwa na chombo husika", x + 4, cardY + 38, { maxWidth: cardW - 32 });
       const signature = await imageDataUrl(leader.signature);
       if (signature) {
         try {
-          doc.addImage(signature, signature.includes("image/jpeg") ? "JPEG" : "PNG", x + cardW - 27, cardY + 25, 22, 8);
+          doc.addImage(signature, signature.includes("image/jpeg") ? "JPEG" : "PNG", x + cardW - 27, cardY + 32, 22, 8);
         } catch {
           // Signature is optional.
         }
       }
-      if (index % 2 === 1 || index === leaders.length - 1) y += 42;
+      if (index % 2 === 1 || index === leadersPdf.length - 1) y += cardH + 6;
     }
 
     addFooter();
@@ -519,11 +535,24 @@ export function ChurchIdentitySettingsPanel() {
       <SettingsSupabaseBanner />
       <header className="overflow-hidden rounded-3xl border border-[#D4AF37]/40 bg-gradient-to-r from-[#0B1F3A] via-[#123C69] to-[#0B1F3A] p-6 text-center text-white shadow-xl">
         <div className="mx-auto flex max-w-4xl flex-col items-center gap-3">
-          {form.logo_url ? <img src={form.logo_url} alt="" className="h-16 max-w-[180px] object-contain" /> : null}
+          {form.logo_url ? (
+            <div className="relative mx-auto h-16 w-[min(100%,180px)] max-w-[180px]">
+              <ResponsiveLazyImage
+                src={form.logo_url}
+                alt=""
+
+                className="absolute inset-0 h-full w-full object-cover"
+                width={180}
+                height={64}
+
+                loading="lazy"
+              />
+            </div>
+          ) : null}
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-200">Enterprise Master Organization Profile</p>
           <h2 className="text-2xl font-bold">{form.official_church_name || "Utambulisho wa Kanisa"}</h2>
           <p className="max-w-2xl text-sm leading-relaxed text-blue-100">
-            Chanzo kikuu cha taarifa za taasisi, branding, viongozi, mawasiliano, PDF/export na public display.
+            Chanzo kikuu cha taarifa za taasisi, branding, mawasiliano, PDF/export na public display. Uongozi wa kitaifa wa nafasi nne husimamiwa katika Mipangilio mikuu → Uongozi wa Kitaifa — Engine.
           </p>
           {contactSummary.length > 0 ? (
             <div className="flex flex-wrap justify-center gap-2 text-xs">
@@ -574,19 +603,12 @@ export function ChurchIdentitySettingsPanel() {
             <ColorField label="Accent" value={form.accent_color} onChange={(v) => update("accent_color", v)} disabled={!canEdit} />
           </Section>
 
-          <Section title="Viongozi Wakuu">
-            <TextField label="Askofu Mkuu" value={form.leader_askofu_mkuu} onChange={(v) => update("leader_askofu_mkuu", v)} disabled={!canEdit} />
-            <TextField label="Katibu Mkuu" value={form.leader_katibu_mkuu} onChange={(v) => update("leader_katibu_mkuu", v)} disabled={!canEdit} />
-            <TextField label="Mwenyekiti" value={form.leader_mwenyekiti} onChange={(v) => update("leader_mwenyekiti", v)} disabled={!canEdit} />
-            <TextField label="Mweka Hazina" value={form.leader_mweka_hazina} onChange={(v) => update("leader_mweka_hazina", v)} disabled={!canEdit} />
-            <UploadField label="Picha ya Askofu Mkuu" value={form.leader_askofu_mkuu_photo_url} busy={uploadingKey === "leader_askofu_mkuu_photo_url"} onChange={(v) => update("leader_askofu_mkuu_photo_url", v)} onUpload={(f) => void onUpload("leader_askofu_mkuu_photo_url", "identity/leaders/askofu-photo", f)} disabled={!canEdit} />
-            <UploadField label="Picha ya Katibu Mkuu" value={form.leader_katibu_mkuu_photo_url} busy={uploadingKey === "leader_katibu_mkuu_photo_url"} onChange={(v) => update("leader_katibu_mkuu_photo_url", v)} onUpload={(f) => void onUpload("leader_katibu_mkuu_photo_url", "identity/leaders/katibu-photo", f)} disabled={!canEdit} />
-            <UploadField label="Picha ya Mwenyekiti" value={form.leader_mwenyekiti_photo_url} busy={uploadingKey === "leader_mwenyekiti_photo_url"} onChange={(v) => update("leader_mwenyekiti_photo_url", v)} onUpload={(f) => void onUpload("leader_mwenyekiti_photo_url", "identity/leaders/mwenyekiti-photo", f)} disabled={!canEdit} />
-            <UploadField label="Picha ya Mweka Hazina" value={form.leader_mweka_hazina_photo_url} busy={uploadingKey === "leader_mweka_hazina_photo_url"} onChange={(v) => update("leader_mweka_hazina_photo_url", v)} onUpload={(f) => void onUpload("leader_mweka_hazina_photo_url", "identity/leaders/hazina-photo", f)} disabled={!canEdit} />
-            <UploadField label="Sahihi ya Askofu Mkuu" value={form.leader_askofu_mkuu_signature_url} busy={uploadingKey === "leader_askofu_mkuu_signature_url"} onChange={(v) => update("leader_askofu_mkuu_signature_url", v)} onUpload={(f) => void onUpload("leader_askofu_mkuu_signature_url", "identity/signatures/askofu", f)} disabled={!canEdit} />
-            <UploadField label="Sahihi ya Katibu Mkuu" value={form.leader_katibu_mkuu_signature_url} busy={uploadingKey === "leader_katibu_mkuu_signature_url"} onChange={(v) => update("leader_katibu_mkuu_signature_url", v)} onUpload={(f) => void onUpload("leader_katibu_mkuu_signature_url", "identity/signatures/katibu", f)} disabled={!canEdit} />
-            <UploadField label="Sahihi ya Mwenyekiti" value={form.leader_mwenyekiti_signature_url} busy={uploadingKey === "leader_mwenyekiti_signature_url"} onChange={(v) => update("leader_mwenyekiti_signature_url", v)} onUpload={(f) => void onUpload("leader_mwenyekiti_signature_url", "identity/signatures/mwenyekiti", f)} disabled={!canEdit} />
-            <UploadField label="Sahihi ya Mweka Hazina" value={form.leader_mweka_hazina_signature_url} busy={uploadingKey === "leader_mweka_hazina_signature_url"} onChange={(v) => update("leader_mweka_hazina_signature_url", v)} onUpload={(f) => void onUpload("leader_mweka_hazina_signature_url", "identity/signatures/hazina", f)} disabled={!canEdit} />
+          <Section title="Uongozi wa Kitaifa (sasa: Mipangilio mikuu)" full>
+            <p className="text-sm leading-relaxed text-slate-700 md:col-span-2 xl:col-span-3">
+              Viongozi wanne wa kitaifa (Askofu Mkuu, Katibu Mkuu, Naibu Katibu Mkuu, Mhasibu Mkuu) sasa wanaandikishwa katika moduli ya{" "}
+              <strong className="text-[#0B1F3A]">Mipangilio mikuu</strong> chini ya kichupo{" "}
+              <strong className="text-[#0B1F3A]">Uongozi wa Kitaifa — Engine</strong>. Hapana tena ubao wa viongozi hapa; data inasawazishwa kwa PDF, dashibodi na mifumo mingine kupitia Supabase.
+            </p>
           </Section>
 
           <Section title="Social Media & Geo">

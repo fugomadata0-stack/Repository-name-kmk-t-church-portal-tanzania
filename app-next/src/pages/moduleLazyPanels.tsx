@@ -84,6 +84,14 @@ export const NgaziKuuSummary = lazy(async () => {
   const m = await import("../components/muundo/NgaziKuuSummary");
   return { default: m.NgaziKuuSummary };
 });
+export const MasterBranchExecutiveDashboard = lazy(async () => {
+  const m = await import("../components/branch-engine/MasterBranchExecutiveDashboard");
+  return { default: m.MasterBranchExecutiveDashboard };
+});
+export const TawiBranchExecutiveDashboard = lazy(async () => {
+  const m = await import("../components/tawi/TawiBranchExecutiveDashboard");
+  return { default: m.TawiBranchExecutiveDashboard };
+});
 export const GenericModuleView = lazy(async () => {
   const m = await import("../components/modules/GenericModuleView");
   return { default: m.GenericModuleView };

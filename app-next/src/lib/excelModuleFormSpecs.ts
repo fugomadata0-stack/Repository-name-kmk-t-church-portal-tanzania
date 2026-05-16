@@ -90,7 +90,7 @@ export function getPortalExcelFormSpec(moduleKey: string, submodule: string): Po
     );
   }
 
-  if (moduleKey === "muundo" && sub.includes("Matawi")) {
+  if (moduleKey === "muundo" && sub.includes("Orodha ya Matawi")) {
     return bundle(
       "muundo_matawi",
       "Blanki la Matawi / Vituo",
@@ -98,9 +98,18 @@ export function getPortalExcelFormSpec(moduleKey: string, submodule: string): Po
       [
         ID,
         { key: "jina", label: "Jina la Tawi/Kituo" },
+        { key: "branch_code", label: "Branch code" },
         { key: "aina", label: "Aina" },
         { key: "jimbo", label: "Jimbo (jina au UUID)" },
         { key: "dayosisi", label: "Dayosisi (hiari — jina au UUID)" },
+        { key: "mkoa", label: "Mkoa" },
+        { key: "wilaya", label: "Wilaya" },
+        { key: "kata", label: "Kata" },
+        { key: "mtaa", label: "Kijiji / Mtaa" },
+        { key: "gps_lat", label: "GPS Lat" },
+        { key: "gps_lng", label: "GPS Lng" },
+        { key: "founded_date", label: "Tarehe ya kuanzishwa (yyyy-mm-dd)" },
+        { key: "verification_status", label: "Uhakiki (unverified/pending_review/verified)" },
         { key: "kiongozi", label: "Kiongozi" },
         { key: "simu", label: "Simu" },
         { key: "status", label: "Status" },
@@ -308,7 +317,7 @@ export function buildDomainEntityExcelBundle(
   submodule: string,
   contextKey?: string | null
 ): PortalExcelFormBundle {
-  const sk = (contextKey ?? (submodule && submodule !== "Overview" ? submodule : "")).trim();
+  const sk = (contextKey ?? (submodule && submodule !== "Overview" && submodule !== "Muhtasari" ? submodule : "")).trim();
   const slug = `${moduleKey}_${sk || "all"}`.replace(/[^\w]+/g, "_").slice(0, 72);
   return {
     templateBasename: `kikoa_${slug}`,

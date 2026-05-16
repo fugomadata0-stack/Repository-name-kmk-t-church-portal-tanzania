@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SupabaseEnvMissing } from "../components/auth/SupabaseEnvMissing";
 import { SignupDynamicFields } from "../components/registration/SignupDynamicFields";
 import { usePortal } from "../context/PortalContext";
 import { formatCaughtError } from "../lib/supabaseErrors";
@@ -357,10 +356,6 @@ export function SignupRequestPage() {
       setBusy(false);
     }
   };
-
-  if (!supabaseReady) {
-    return <SupabaseEnvMissing />;
-  }
 
   if (session) {
     return (

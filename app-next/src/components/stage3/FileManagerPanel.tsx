@@ -18,7 +18,7 @@ import { safeIncludes, safeLower } from "../../lib/safe";
 import { getSupabase } from "../../lib/supabaseClient";
 import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
 import { STAGE2_COLORS, stage2GradHeader } from "../../lib/stage2Theme";
-import { validateSelectedFile } from "../../lib/fileUploadGuard";
+import { mbToBytes, validateSelectedFile } from "../../lib/fileUploadGuard";
 import {
   deleteFileManagerItem,
   fetchFileManagerItems,
@@ -36,8 +36,16 @@ const BUCKETS: { id: ChurchFileStorageBucket; label: string; hint: string }[] = 
   { id: "church-files", label: "Nyaraka", hint: "PDF, Word, Excel…" },
   { id: "church-images", label: "Picha", hint: "JPG, PNG, WebP…" },
   { id: "church-media", label: "Media", hint: "Video / Sauti" },
+  { id: "portal-uploads", label: "Portal uploads", hint: "Faili za jumla (kikomo cha juu)" },
+  { id: "certificates", label: "Hati / vyeti", hint: "PDF, picha, DOC/DOCX" },
 ];
-const FILE_MAX_BYTES = 25 * 1024 * 1024;
+const FILE_MAX_BY_BUCKET: Record<ChurchFileStorageBucket, number> = {
+  "church-files": mbToBytes(200),
+  "church-images": mbToBytes(50),
+  "church-media": mbToBytes(800),
+  "portal-uploads": mbToBytes(250),
+  "certificates": mbToBytes(150),
+};
 
 function fileIcon(mime: string) {
   const m = safeLower(mime);
@@ -50,7 +58,7 @@ function fileIcon(mime: string) {
 
 export function FileManagerPanel() {
   const { reportError, pushToast, canPortalCreateModule, canPortalEditModule, canPortalDeleteModule } = usePortal();
-  const canAdd = canPortalCreateModule("file_manager");
+  const canAdd = canPortalCreateModule("file_manager") || canPortalEditModule("file_manager");
   const canEdit = canPortalEditModule("file_manager");
   const canDelete = canPortalDeleteModule("file_manager");
 
@@ -116,17 +124,39 @@ export function FileManagerPanel() {
     const file = fileList?.[0];
     if (!file || !getSupabase()) return;
     if (!canAdd) {
-      pushToast("Huna ruhusa ya kuongeza faili.", "error");
+      pushToast("Huna ruhusa ya kupakia faili (file manager).", "error");
       return;
     }
     const allowedByBucket: Record<ChurchFileStorageBucket, string[]> = {
-      "church-files": [".pdf", ".docx", ".xlsx", ".csv", ".txt"],
-      "church-images": [".jpg", ".jpeg", ".png", ".webp", ".gif"],
-      "church-media": [".mp3", ".wav", ".m4a", ".ogg", ".mp4", ".webm", ".mov"],
+      "church-files": [".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".csv", ".txt", ".zip", ".rar"],
+      "church-images": [".jpg", ".jpeg", ".jfif", ".png", ".webp", ".gif", ".heic", ".heif", ".avif", ".svg"],
+      "church-media": [".mp3", ".wav", ".m4a", ".ogg", ".aac", ".flac", ".mp4", ".webm", ".mov", ".mkv"],
+      "portal-uploads": [
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".xls",
+        ".xlsx",
+        ".ppt",
+        ".pptx",
+        ".csv",
+        ".txt",
+        ".zip",
+        ".rar",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp",
+        ".mp4",
+        ".webm",
+        ".mp3",
+        ".wav",
+      ],
+      "certificates": [".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".doc", ".docx"],
     };
     const err = validateSelectedFile(file, {
       allowedExtensions: allowedByBucket[bucket],
-      maxBytes: FILE_MAX_BYTES,
+      maxBytes: FILE_MAX_BY_BUCKET[bucket],
       labelSw: "faili",
     });
     if (err) {

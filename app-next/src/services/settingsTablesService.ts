@@ -47,18 +47,6 @@ export interface ChurchIdentityRow {
   primary_color: string;
   secondary_color: string;
   accent_color: string;
-  leader_askofu_mkuu: string;
-  leader_katibu_mkuu: string;
-  leader_mwenyekiti: string;
-  leader_mweka_hazina: string;
-  leader_askofu_mkuu_photo_url: string;
-  leader_katibu_mkuu_photo_url: string;
-  leader_mwenyekiti_photo_url: string;
-  leader_mweka_hazina_photo_url: string;
-  leader_askofu_mkuu_signature_url: string;
-  leader_katibu_mkuu_signature_url: string;
-  leader_mwenyekiti_signature_url: string;
-  leader_mweka_hazina_signature_url: string;
   facebook_url: string;
   youtube_url: string;
   instagram_url: string;
@@ -90,18 +78,6 @@ export function emptyChurchIdentity(): Omit<ChurchIdentityRow, "id"> {
     primary_color: "#0B1F3A",
     secondary_color: "#123C69",
     accent_color: "#D4AF37",
-    leader_askofu_mkuu: "",
-    leader_katibu_mkuu: "",
-    leader_mwenyekiti: "",
-    leader_mweka_hazina: "",
-    leader_askofu_mkuu_photo_url: "",
-    leader_katibu_mkuu_photo_url: "",
-    leader_mwenyekiti_photo_url: "",
-    leader_mweka_hazina_photo_url: "",
-    leader_askofu_mkuu_signature_url: "",
-    leader_katibu_mkuu_signature_url: "",
-    leader_mwenyekiti_signature_url: "",
-    leader_mweka_hazina_signature_url: "",
     facebook_url: "",
     youtube_url: "",
     instagram_url: "",

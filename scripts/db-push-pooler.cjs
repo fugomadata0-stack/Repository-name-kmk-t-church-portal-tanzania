@@ -8,6 +8,7 @@
  *
  * Amri:
  *   npm run db:push
+ *   npm run db:push:all
  *   npm run db:push:dry
  */
 
@@ -48,8 +49,11 @@ function printHelp() {
 KMT — db push kupitia pooler (IPv4)
 
   npm run db:push              Tumiza migrations kwenye Supabase
+  npm run db:push:all          Sawa na db:push + --include-all (migrations “nje ya mpangilio”)
   npm run db:push:dry          Hakikisha ni zipi zitatumika (dry-run)
   npm run db:push:safe         Uthibitisho kisha db push (hakuna siri zinachapishwa)
+
+  Pia: npm run db:push -- --include-all   (sawa na db:push:all)
 
   Mazingira / .env (moja ya seti hizi):
     SUPABASE_DATABASE_URL      Bora: URI kamili kutoka Dashboard → Database → Connection string

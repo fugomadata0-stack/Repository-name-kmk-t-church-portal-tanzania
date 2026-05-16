@@ -1,8 +1,11 @@
-import { formatPostgrestError } from "../lib/supabaseErrors";
+import { dedupeInFlight } from "../lib/inFlightDedupe";
+import { formatPostgrestError, isAbortLikeError } from "../lib/supabaseErrors";
 import { parseMoneyTz } from "../lib/money";
 import { getSupabase } from "../lib/supabaseClient";
 import { unwrapList, unwrapOrThrow } from "../lib/supabaseResult";
-import type { IncomeManagementRecord, IncomeSourceRecord, Status } from "../types";
+import { computeIncomeDistributionSplit } from "../lib/incomeDistribution";
+import { KMKT_DEFAULT_HIERARCHY_SHARE_PERCENT } from "../data/kmktIncomeContributionTypes";
+import type { IncomeDistributionMode, IncomeManagementRecord, IncomeSourceRecord, Status } from "../types";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -48,9 +51,20 @@ function dbStatus(ui: Status): string {
   return slug || "active";
 }
 
+function parseDistributionMode(raw: unknown): IncomeDistributionMode {
+  return String(raw ?? "") === "full_remittance" ? "full_remittance" : "hierarchy_share";
+}
+
+function parseUpwardPercent(raw: unknown, mode: IncomeDistributionMode): number {
+  const n = typeof raw === "number" ? raw : Number(raw);
+  if (Number.isFinite(n)) return mode === "full_remittance" ? 100 : Math.min(100, Math.max(0, n));
+  return mode === "full_remittance" ? 100 : KMKT_DEFAULT_HIERARCHY_SHARE_PERCENT;
+}
+
 export function mapIncomeSourceRow(row: Record<string, unknown>): IncomeSourceRecord {
   const aina = String(row.aina ?? "");
   const ok = aina === "Taarifa ya Msingi" ? "Taarifa ya Msingi" : "Mapato Halisi";
+  const distributionMode = parseDistributionMode(row.distribution_mode);
   return {
     id: String(row.id),
     chanzo: String(row.chanzo ?? ""),
@@ -63,6 +77,8 @@ export function mapIncomeSourceRow(row: Record<string, unknown>): IncomeSourceRe
       : "Monthly",
     restrictedFund: String(row.restricted_fund ?? "No") === "Yes" ? "Yes" : "No",
     approvalRequired: String(row.approval_required ?? "No") === "Yes" ? "Yes" : "No",
+    distributionMode,
+    upwardSharePercent: parseUpwardPercent(row.upward_share_percent, distributionMode),
     aina: ok,
     maelezo: String(row.maelezo ?? ""),
     status: uiStatus(row.status as string),
@@ -121,32 +137,54 @@ export function mapIncomeLineRow(row: Record<string, unknown>): IncomeManagement
     dayosisi_id: row.dayosisi_id != null ? String(row.dayosisi_id) : undefined,
     jimbo_id: row.jimbo_id != null ? String(row.jimbo_id) : undefined,
     tawi_id: row.tawi_id != null ? String(row.tawi_id) : undefined,
+    distributionMode: row.distribution_mode ? parseDistributionMode(row.distribution_mode) : undefined,
+    upwardSharePercent:
+      row.upward_share_percent != null
+        ? parseUpwardPercent(row.upward_share_percent, parseDistributionMode(row.distribution_mode))
+        : undefined,
+    amountLocal:
+      row.amount_local_tz != null
+        ? typeof row.amount_local_tz === "number"
+          ? row.amount_local_tz
+          : Number(row.amount_local_tz)
+        : undefined,
+    amountUpward:
+      row.amount_upward_tz != null
+        ? typeof row.amount_upward_tz === "number"
+          ? row.amount_upward_tz
+          : Number(row.amount_upward_tz)
+        : undefined,
   };
 }
 
 export async function fetchChurchIncomeSources(): Promise<IncomeSourceRecord[]> {
-  try {
-    const c = getSupabase();
-    if (!c) return [];
-    const res = await c.from("church_income_sources").select("*").order("chanzo", { ascending: true });
-    const rows = unwrapList(res, "church_income_sources.list");
-    return rows.map((r) => mapIncomeSourceRow(r as unknown as Record<string, unknown>));
-  } catch (err) {
-    console.error("[IncomeSources:fetch]", err);
-    throw new Error("Imeshindikana kupakua source za mapato.");
-  }
+  return dedupeInFlight("church_income_sources.list", async () => {
+    try {
+      const c = getSupabase();
+      if (!c) return [];
+      const res = await c.from("church_income_sources").select("*").order("chanzo", { ascending: true });
+      const rows = unwrapList(res, "church_income_sources.list");
+      return rows.map((r) => mapIncomeSourceRow(r as unknown as Record<string, unknown>));
+    } catch (err) {
+      if (isAbortLikeError(err)) throw err;
+      console.error("[IncomeSources:fetch]", err);
+      throw new Error("Imeshindikana kupakua source za mapato.");
+    }
+  });
 }
 
 export async function fetchChurchIncomeLines(limit = 1500): Promise<IncomeManagementRecord[]> {
-  const c = getSupabase();
-  if (!c) return [];
-  const res = await c
-    .from("church_income_lines")
-    .select("*")
-    .order("collection_date", { ascending: false, nullsFirst: false })
-    .limit(limit);
-  const rows = unwrapList(res, "church_income_lines.list");
-  return rows.map((r) => mapIncomeLineRow(r as unknown as Record<string, unknown>));
+  return dedupeInFlight(`church_income_lines.list:${limit}`, async () => {
+    const c = getSupabase();
+    if (!c) return [];
+    const res = await c
+      .from("church_income_lines")
+      .select("*")
+      .order("collection_date", { ascending: false, nullsFirst: false })
+      .limit(limit);
+    const rows = unwrapList(res, "church_income_lines.list");
+    return rows.map((r) => mapIncomeLineRow(r as unknown as Record<string, unknown>));
+  });
 }
 
 export async function upsertIncomeSource(row: Partial<IncomeSourceRecord> & { chanzo: string }): Promise<IncomeSourceRecord> {
@@ -154,6 +192,8 @@ export async function upsertIncomeSource(row: Partial<IncomeSourceRecord> & { ch
   if (!c) throw new Error("Supabase haijasanidiwa.");
   const aina =
     row.aina === "Taarifa ya Msingi" ? "Taarifa ya Msingi" : "Mapato Halisi";
+  const distributionMode = parseDistributionMode(row.distributionMode ?? "hierarchy_share");
+  const upwardSharePercent = parseUpwardPercent(row.upwardSharePercent, distributionMode);
   const payload = {
     chanzo: row.chanzo.trim(),
     source_type: row.source_type === "predefined" ? "predefined" : "custom",
@@ -163,6 +203,8 @@ export async function upsertIncomeSource(row: Partial<IncomeSourceRecord> & { ch
     frequency: row.frequency ?? "Monthly",
     restricted_fund: row.restrictedFund ?? "No",
     approval_required: row.approvalRequired ?? "No",
+    distribution_mode: distributionMode,
+    upward_share_percent: upwardSharePercent,
     aina,
     maelezo: row.maelezo?.trim() || null,
     status: dbStatus(row.status ?? "Active"),
@@ -201,6 +243,10 @@ export async function upsertIncomeLine(row: Partial<IncomeManagementRecord>): Pr
   const fqRaw = String(row.frequency ?? "One-time");
   const frequency = (fqOpts as readonly string[]).includes(fqRaw) ? fqRaw : "One-time";
 
+  const distributionMode = parseDistributionMode(row.distributionMode ?? "hierarchy_share");
+  const upwardSharePercent = parseUpwardPercent(row.upwardSharePercent, distributionMode);
+  const split = computeIncomeDistributionSplit(amount, distributionMode, upwardSharePercent);
+
   const payload = {
     source_id: row.sourceId?.trim() || null,
     income_code: String(row.incomeCode ?? "").trim(),
@@ -221,10 +267,17 @@ export async function upsertIncomeLine(row: Partial<IncomeManagementRecord>): Pr
     receipt_no: row.receiptNo?.trim() || null,
     transaction_reference: row.transactionReference?.trim() || null,
     amount_tz: amount,
+    distribution_mode: distributionMode,
+    upward_share_percent: upwardSharePercent,
+    amount_local_tz: split.amountLocal,
+    amount_upward_tz: split.amountUpward,
     currency: row.currency?.trim() || "TZS",
     status: dbStatus(row.status ?? "Active"),
     branch_center: row.branchCenter?.trim() || null,
     remarks: row.remarks?.trim() || null,
+    dayosisi_id: row.dayosisi_id?.trim() || null,
+    jimbo_id: row.jimbo_id?.trim() || null,
+    tawi_id: row.tawi_id?.trim() || null,
     updated_at: new Date().toISOString(),
   };
 

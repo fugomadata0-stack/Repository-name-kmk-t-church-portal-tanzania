@@ -1,7 +1,9 @@
-import { formatPostgrestError, formatStorageError } from "../lib/supabaseErrors";
-import { getSupabase } from "../lib/supabaseClient";
+import { enterpriseStorageUpload, PORTAL_DOCUMENT_FILE_GUARD } from "../lib/enterpriseStorageUpload";
+import { STORAGE_BUCKETS } from "../lib/storageBuckets";
+import { buildSafeStoragePath } from "../lib/storageUpload";
+import { getSupabase } from "../lib/supabase";
+import { formatPostgrestError } from "../lib/supabaseErrors";
 import { unwrapList } from "../lib/supabaseResult";
-import { publicObjectUploadOptions } from "../lib/storageUpload";
 
 export type AuditLogRecord = {
   id: string;
@@ -258,12 +260,14 @@ export async function insertChurchAuditEntry(payload: {
 }
 
 export async function uploadAuditAttachment(file: File): Promise<{ path: string; publicUrl: string }> {
-  const client = getSupabase();
-  if (!client) throw new Error("Hakuna muunganisho wa Supabase.");
-  const safeName = file.name.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9._-]/g, "");
-  const path = `audit-logs/${Date.now()}-${safeName || "faili"}`;
-  const { error } = await client.storage.from("site-assets").upload(path, file, publicObjectUploadOptions(file));
-  if (error) throw new Error(formatStorageError(error, "audit-attachment"));
-  const { data } = client.storage.from("site-assets").getPublicUrl(path);
-  return { path, publicUrl: data.publicUrl };
+  if (!getSupabase()) throw new Error("Hakuna muunganisho wa Supabase.");
+  const path = buildSafeStoragePath("audit-logs", file.name);
+  const uploaded = await enterpriseStorageUpload({
+    bucket: STORAGE_BUCKETS.portalUploads,
+    file,
+    path,
+    guard: PORTAL_DOCUMENT_FILE_GUARD,
+    upsert: true,
+  });
+  return { path: uploaded.path, publicUrl: uploaded.publicUrl };
 }

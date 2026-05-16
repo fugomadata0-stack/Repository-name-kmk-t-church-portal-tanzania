@@ -97,7 +97,7 @@ export function DomainEntitiesPanel({
   };
   const shared = roleBased;
 
-  const submoduleKeyResolved = (contextKey ?? (submodule && submodule !== "Overview" ? submodule : "")).trim();
+  const submoduleKeyResolved = (contextKey ?? (submodule && submodule !== "Overview" && submodule !== "Muhtasari" ? submodule : "")).trim();
 
   const excelBulk: PremiumTableExcelBulk | undefined = useMemo(() => {
     const spec = buildDomainEntityExcelBundle(moduleKey, submodule, contextKey);
@@ -141,7 +141,7 @@ export function DomainEntitiesPanel({
       pushToast("Huna ruhusa ya kuhariri muundo wa kanisa.", "error");
       return;
     }
-    const sk = contextKey ?? (submodule && submodule !== "Overview" ? submodule : "");
+    const sk = contextKey ?? (submodule && submodule !== "Overview" && submodule !== "Muhtasari" ? submodule : "");
     const incomingExtra = payload.extra as Record<string, unknown> | undefined;
     const parentName = String(incomingExtra?.parent_level ?? "").trim();
     const generatedCode = generateRegistrationCode({

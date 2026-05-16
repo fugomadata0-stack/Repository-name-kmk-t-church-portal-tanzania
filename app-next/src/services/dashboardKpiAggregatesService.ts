@@ -5,6 +5,8 @@
  * Jumla ya Dayosisi → dayosisi → count exact
  * Jumla ya Majimbo → church_jimbo → count exact
  * Jumla ya Matawi / Vituo → church_tawi → count exact
+ * Sajili pending_review → church_tawi → count (verification_status = pending_review)
+ * Jumla ya rekodi zinazosubiri (ngazi) → pendingRecordsCrossModule: jumla ya pending kwa jedwali mbalimbali; kwa church_tawi inatumia muunganiko wa (status=pending) ∪ (verification_status=pending_review) bila kuhesabu mistari inayolingana mara mbili
  * Jumla ya Viongozi → church_viongozi → count exact (haihesabi archived)
  * Jumla ya Waumini → church_members → count exact
  * Jumla ya Jumuiya → portal_domain_entities → count (module_key=jumuiya, submodule_key≠Idara)
@@ -72,6 +74,14 @@ export type DashboardKpiSnapshot = {
   dayosisiCount: number;
   majimboCount: number;
   matawiCount: number;
+  /** Matawi yenye status active (RLS inatumika). */
+  matawiActiveCount: number;
+  /** Matawi zenye status pending (usajili unaosubiri). */
+  matawiPendingStatusCount: number;
+  /** Matawi zilizothibitishwa kwenye sajili (verification_status). */
+  matawiRegistryVerifiedCount: number;
+  /** Matawi yenye sajili inayosubiri uhakiki (verification_status = pending_review). */
+  matawiRegistryPendingReviewCount: number;
   viongoziCount: number;
   viongoziNgaziKuuCount: number;
   viongoziDayosisiCount: number;
@@ -128,6 +138,11 @@ export type DashboardKpiSnapshot = {
   attendanceWeekCount: number;
   attendanceMonthCount: number;
   attendanceVisitorsMonth: number;
+  /**
+   * Set when `alignCoreCountsWithPublicRpc` ran, RPC succeeded, but `portal_public_dashboard_counts`
+   * response omitted attendance columns (DB migration not applied). Other aligned counts still match public RPC.
+   */
+  publicDashboardCountsAttendanceColumnsMissing: boolean;
 };
 
 export function emptyDashboardKpiSnapshot(): DashboardKpiSnapshot {
@@ -135,6 +150,10 @@ export function emptyDashboardKpiSnapshot(): DashboardKpiSnapshot {
     dayosisiCount: 0,
     majimboCount: 0,
     matawiCount: 0,
+    matawiActiveCount: 0,
+    matawiPendingStatusCount: 0,
+    matawiRegistryVerifiedCount: 0,
+    matawiRegistryPendingReviewCount: 0,
     viongoziCount: 0,
     viongoziNgaziKuuCount: 0,
     viongoziDayosisiCount: 0,
@@ -186,6 +205,7 @@ export function emptyDashboardKpiSnapshot(): DashboardKpiSnapshot {
     attendanceWeekCount: 0,
     attendanceMonthCount: 0,
     attendanceVisitorsMonth: 0,
+    publicDashboardCountsAttendanceColumnsMissing: false,
   };
 }
 
@@ -387,6 +407,10 @@ export async function fetchDashboardKpiAggregates(opts?: DashboardKpiAggregatesO
       attWeekCnt,
       attMonthCnt,
       attVisitorsMonthSum,
+      tawActiveCnt,
+      tawRegistryVerifiedCnt,
+      tawRegistryPendingReviewCnt,
+      tawPendingRegistryReviewOverlap,
     ] = await Promise.all([
       c.from("dayosisi").select("*", { count: "exact", head: true }),
       c.from("church_jimbo").select("*", { count: "exact", head: true }),
@@ -657,6 +681,15 @@ export async function fetchDashboardKpiAggregates(opts?: DashboardKpiAggregatesO
         .select("visitors")
         .gte("attendance_date", monthStart)
         .lte("attendance_date", monthEnd),
+      c.from("church_tawi").select("*", { count: "exact", head: true }).eq("status", "active"),
+      c.from("church_tawi").select("*", { count: "exact", head: true }).eq("verification_status", "verified"),
+      c.from("church_tawi").select("*", { count: "exact", head: true }).eq("verification_status", "pending_review"),
+      // Mistari ambazo ziko kwenye foleni ya status=pending na pia sajili inayosubiri uhakiki (epuka double-count kwenye pendingRecordsCrossModule)
+      c
+        .from("church_tawi")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "pending")
+        .eq("verification_status", "pending_review"),
     ]);
 
     const mapatoLeoTotal =
@@ -701,10 +734,25 @@ export async function fetchDashboardKpiAggregates(opts?: DashboardKpiAggregatesO
       budgetedVsActualLabel = `Hakuna bajeti (DB) · halisi TZS ${formatMoneyTz(actualIncomeMonth)}`;
     }
 
+    const churchTawiPendingStatus = readCountFrom(pTaw, ctx("kpi.pending_count.church_tawi", "church_tawi", "kpi.pending_count.church_tawi"));
+    const churchTawiRegistryPendingReview = readCountFrom(
+      tawRegistryPendingReviewCnt,
+      ctx("kpi.church_tawi.count_registry_pending_review", "church_tawi", "kpi.church_tawi.count_registry_pending_review")
+    );
+    const churchTawiPendingOverlap = readCountFrom(
+      tawPendingRegistryReviewOverlap,
+      ctx(
+        "kpi.church_tawi.count_pending_status_and_registry_pending_review",
+        "church_tawi",
+        "kpi.church_tawi.count_pending_status_and_registry_pending_review"
+      )
+    );
+    const churchTawiPendingUnion = Math.max(0, churchTawiPendingStatus + churchTawiRegistryPendingReview - churchTawiPendingOverlap);
+
     const pendingRecordsCrossModule =
       readCountFrom(pDay, ctx("kpi.pending_count.dayosisi", "dayosisi", "kpi.pending_count.dayosisi")) +
       readCountFrom(pJim, ctx("kpi.pending_count.church_jimbo", "church_jimbo", "kpi.pending_count.church_jimbo")) +
-      readCountFrom(pTaw, ctx("kpi.pending_count.church_tawi", "church_tawi", "kpi.pending_count.church_tawi")) +
+      churchTawiPendingUnion +
       readCountFrom(pVio, ctx("kpi.pending_count.church_viongozi", "church_viongozi", "kpi.pending_count.church_viongozi")) +
       readCountFrom(
         pFin,
@@ -733,6 +781,13 @@ export async function fetchDashboardKpiAggregates(opts?: DashboardKpiAggregatesO
       dayosisiCount: readCountFrom(dCount, ctx("kpi.dayosisi.count", "dayosisi", "kpi.dayosisi.count")),
       majimboCount: readCountFrom(jCount, ctx("kpi.church_jimbo.count", "church_jimbo", "kpi.church_jimbo.count")),
       matawiCount: readCountFrom(tCount, ctx("kpi.church_tawi.count", "church_tawi", "kpi.church_tawi.count")),
+      matawiActiveCount: readCountFrom(tawActiveCnt, ctx("kpi.church_tawi.count_active", "church_tawi", "kpi.church_tawi.count_active")),
+      matawiPendingStatusCount: readCountFrom(pTaw, ctx("kpi.church_tawi.count_pending_status", "church_tawi", "kpi.church_tawi.count_pending_status")),
+      matawiRegistryVerifiedCount: readCountFrom(
+        tawRegistryVerifiedCnt,
+        ctx("kpi.church_tawi.count_registry_verified", "church_tawi", "kpi.church_tawi.count_registry_verified")
+      ),
+      matawiRegistryPendingReviewCount: churchTawiRegistryPendingReview,
       viongoziCount: readCountFrom(vCount, ctx("kpi.church_viongozi.count", "church_viongozi", "kpi.church_viongozi.count")),
       viongoziNgaziKuuCount: readCountFrom(vNkuuCount, ctx("kpi.church_viongozi.count_national", "church_viongozi", "kpi.church_viongozi.count_national")),
       viongoziDayosisiCount: readCountFrom(vDayCount, ctx("kpi.church_viongozi.count_dayosisi", "church_viongozi", "kpi.church_viongozi.count_dayosisi")),
@@ -796,22 +851,43 @@ export async function fetchDashboardKpiAggregates(opts?: DashboardKpiAggregatesO
         ctx("kpi.attendance_sessions.sum_visitors_month", "attendance_sessions", "kpi.attendance_sessions.sum_visitors_month"),
         "visitors"
       ),
+      publicDashboardCountsAttendanceColumnsMissing: false,
     };
 
     if (opts?.alignCoreCountsWithPublicRpc) {
-      const { counts: pub, error: pubErr } = await fetchPortalPublicDashboardCounts();
+      const { counts: pub, error: pubErr, attendanceColumnsFromRpc } = await fetchPortalPublicDashboardCounts();
       if (pub && !pubErr) {
+        snapshot.publicDashboardCountsAttendanceColumnsMissing = !attendanceColumnsFromRpc;
         snapshot.dayosisiCount = pub.dayosisi;
         snapshot.majimboCount = pub.majimbo;
         snapshot.matawiCount = pub.matawi;
+        snapshot.matawiActiveCount = pub.matawiActive;
+        snapshot.matawiPendingStatusCount = pub.matawiPending;
+        snapshot.matawiRegistryVerifiedCount = pub.matawiRegistryVerified;
+        snapshot.matawiRegistryPendingReviewCount = pub.matawiRegistryPendingReview;
         snapshot.viongoziCount = pub.viongozi;
         snapshot.documentsCount = pub.nyaraka;
+        if (attendanceColumnsFromRpc) {
+          snapshot.attendanceTodayCount = pub.attendanceSessionsToday;
+          snapshot.attendanceMonthCount = pub.attendanceSessionsMonth;
+          snapshot.attendanceVisitorsMonth = pub.attendanceVisitorsMonth;
+        }
         const fk = { ...(snapshot.failedKpis ?? {}) };
         delete fk["kpi.dayosisi.count"];
         delete fk["kpi.church_jimbo.count"];
         delete fk["kpi.church_tawi.count"];
+        delete fk["kpi.church_tawi.count_active"];
+        delete fk["kpi.church_tawi.count_pending_status"];
+        delete fk["kpi.church_tawi.count_registry_verified"];
+        delete fk["kpi.church_tawi.count_registry_pending_review"];
+        delete fk["kpi.church_tawi.count_pending_status_and_registry_pending_review"];
         delete fk["kpi.church_viongozi.count"];
         delete fk["kpi.documents.count"];
+        if (attendanceColumnsFromRpc) {
+          delete fk["kpi.attendance_sessions.count_today"];
+          delete fk["kpi.attendance_sessions.count_month"];
+          delete fk["kpi.attendance_sessions.sum_visitors_month"];
+        }
         snapshot.failedKpis = fk;
       }
     }

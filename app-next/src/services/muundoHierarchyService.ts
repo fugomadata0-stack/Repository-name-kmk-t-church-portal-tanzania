@@ -4,9 +4,11 @@ import {
   mirrorLegacyJimboToStructure,
   mirrorLegacyTawiToStructure,
 } from "../lib/legacyStructureMirror";
+import { dedupeInFlight } from "../lib/inFlightDedupe";
 import { formatPostgrestError } from "../lib/supabaseErrors";
 import { getSupabase } from "../lib/supabaseClient";
 import { unwrapList, unwrapOrThrow } from "../lib/supabaseResult";
+import { logAuditAction } from "./auditLogService";
 import type { DayosisiRecord, JimboRecord, Status, TawiRecord } from "../types";
 
 const UUID_RE =
@@ -20,6 +22,7 @@ function uiStatus(raw: string | null | undefined): Status {
   const s = String(raw ?? "active").toLowerCase().replace(/\s+/g, "_");
   if (s === "pending") return "Pending";
   if (s === "inactive") return "Inactive";
+  if (s === "suspended") return "Suspended";
   if (s === "archived") return "Archived";
   if (s === "needs_review") return "Needs Review";
   return "Active";
@@ -30,9 +33,22 @@ function dbStatus(ui: Status): string {
   if (x === "active") return "active";
   if (x === "pending") return "pending";
   if (x === "inactive") return "inactive";
+  if (x === "suspended") return "suspended";
   if (x === "archived") return "archived";
   if (x === "needs_review") return "needs_review";
   return "active";
+}
+
+function optNum(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeTawiVerification(raw: string | null | undefined): string {
+  const t = String(raw ?? "unverified").trim().toLowerCase();
+  if (t === "pending_review" || t === "verified" || t === "unverified") return t;
+  return "unverified";
 }
 
 export function resolveDayosisiId(label: string, dayosisiList: DayosisiRecord[]): string | null {
@@ -85,6 +101,17 @@ export function mapTawiRow(row: Record<string, unknown>): TawiRecord {
     dayosisi: dayosisiName,
     jimbo: jimboName,
     jimbo_id: row.jimbo_id ? String(row.jimbo_id) : undefined,
+    branch_code: row.branch_code != null ? String(row.branch_code) : null,
+    mkoa: row.mkoa != null ? String(row.mkoa) : null,
+    wilaya: row.wilaya != null ? String(row.wilaya) : null,
+    kata: row.kata != null ? String(row.kata) : null,
+    mtaa: row.mtaa != null ? String(row.mtaa) : null,
+    gps_lat: optNum(row.gps_lat),
+    gps_lng: optNum(row.gps_lng),
+    founded_date: row.founded_date != null ? String(row.founded_date).slice(0, 10) : null,
+    verification_status: row.verification_status != null ? String(row.verification_status) : "unverified",
+    verified_at: row.verified_at != null ? String(row.verified_at) : null,
+    verified_by: row.verified_by != null ? String(row.verified_by) : null,
     kiongozi: String(row.kiongozi ?? ""),
     simu: String(row.simu ?? ""),
     status: uiStatus(row.status as string),
@@ -92,25 +119,29 @@ export function mapTawiRow(row: Record<string, unknown>): TawiRecord {
 }
 
 export async function fetchChurchJimbo(): Promise<JimboRecord[]> {
-  const c = getSupabase();
-  if (!c) return [];
-  const res = await c
-    .from("church_jimbo")
-    .select("*, dayosisi ( jina )")
-    .order("jina", { ascending: true });
-  const rows = unwrapList(res, "church_jimbo.list");
-  return rows.map((r) => mapJimboRow(r as unknown as Record<string, unknown>));
+  return dedupeInFlight("church_jimbo.list", async () => {
+    const c = getSupabase();
+    if (!c) return [];
+    const res = await c
+      .from("church_jimbo")
+      .select("*, dayosisi ( jina )")
+      .order("jina", { ascending: true });
+    const rows = unwrapList(res, "church_jimbo.list");
+    return rows.map((r) => mapJimboRow(r as unknown as Record<string, unknown>));
+  });
 }
 
 export async function fetchChurchTawi(): Promise<TawiRecord[]> {
-  const c = getSupabase();
-  if (!c) return [];
-  const res = await c
-    .from("church_tawi")
-    .select("*, church_jimbo ( jina, dayosisi ( jina ) )")
-    .order("jina", { ascending: true });
-  const rows = unwrapList(res, "church_tawi.list");
-  return rows.map((r) => mapTawiRow(r as unknown as Record<string, unknown>));
+  return dedupeInFlight("church_tawi.list", async () => {
+    const c = getSupabase();
+    if (!c) return [];
+    const res = await c
+      .from("church_tawi")
+      .select("*, church_jimbo ( jina, dayosisi ( jina ) )")
+      .order("jina", { ascending: true });
+    const rows = unwrapList(res, "church_tawi.list");
+    return rows.map((r) => mapTawiRow(r as unknown as Record<string, unknown>));
+  });
 }
 
 export async function upsertChurchJimbo(
@@ -180,15 +211,27 @@ export async function upsertChurchTawi(
   }
   if (!jimboId) throw new Error("Andika jina la jimbo lililo kwenye orodha (sambamba na dayosisi).");
 
-  const payload = {
+  const ver = normalizeTawiVerification(row.verification_status as string);
+  const basePayload = {
     jimbo_id: jimboId,
     jina: row.jina.trim(),
     aina: (row.aina?.trim() || "Tawi").trim(),
+    branch_code: row.branch_code?.trim() || null,
+    mkoa: row.mkoa?.trim() || null,
+    wilaya: row.wilaya?.trim() || null,
+    kata: row.kata?.trim() || null,
+    mtaa: row.mtaa?.trim() || null,
+    gps_lat: optNum(row.gps_lat as unknown),
+    gps_lng: optNum(row.gps_lng as unknown),
+    founded_date: row.founded_date?.trim() ? row.founded_date.trim().slice(0, 10) : null,
+    verification_status: ver,
     kiongozi: row.kiongozi?.trim() || null,
     simu: row.simu?.trim() || null,
     status: dbStatus(row.status ?? "Active"),
     updated_at: new Date().toISOString(),
   };
+  const payload =
+    ver !== "verified" ? { ...basePayload, verified_at: null as string | null, verified_by: null as string | null } : basePayload;
 
   if (row.id && isPersistedUuid(row.id)) {
     const res = await c
@@ -216,4 +259,71 @@ export async function deleteChurchTawi(id: string): Promise<void> {
   await mirrorDeleteStructureById(id);
   const { error } = await c.from("church_tawi").delete().eq("id", id);
   if (error) throw new Error(formatPostgrestError(error, "church_tawi.delete"));
+}
+
+export type ChurchTawiVerificationUi = "unverified" | "pending_review" | "verified";
+
+/** Sasisha hali ya sajili ya tawi; `verified` huweka verified_at / verified_by (mtumiaji aliyeingia). */
+export async function patchChurchTawiVerificationStatus(tawiId: string, next: ChurchTawiVerificationUi): Promise<TawiRecord> {
+  const c = getSupabase();
+  if (!c || !isPersistedUuid(tawiId)) throw new Error("Kitambulisho cha tawi si halali.");
+  const normalized = normalizeTawiVerification(next);
+  const { data: auth } = await c.auth.getUser();
+  const performerId = auth.user?.id ?? null;
+  const performerName =
+    (typeof auth.user?.email === "string" && auth.user.email.trim()) ||
+    (typeof auth.user?.user_metadata?.full_name === "string" && String(auth.user.user_metadata.full_name).trim()) ||
+    null;
+
+  const patch: Record<string, unknown> = {
+    verification_status: normalized,
+    updated_at: new Date().toISOString(),
+  };
+  if (normalized === "verified") {
+    if (!performerId) throw new Error("Ingia ili kuthibitisha sajili ya tawi.");
+    patch.verified_at = new Date().toISOString();
+    patch.verified_by = performerId;
+  } else {
+    patch.verified_at = null;
+    patch.verified_by = null;
+  }
+  const res = await c.from("church_tawi").update(patch).eq("id", tawiId).select("*, church_jimbo ( jina, dayosisi ( jina ) )").single();
+  const data = unwrapOrThrow(res, "church_tawi.patch_verification");
+  const mapped = mapTawiRow(data as unknown as Record<string, unknown>);
+  void mirrorLegacyTawiToStructure(mapped);
+  void logAuditAction({
+    module: "muundo",
+    action: "tawi_registry_verification",
+    entity_type: "church_tawi",
+    entity_id: tawiId,
+    entity_name: mapped.jina,
+    performed_by_user_id: performerId,
+    performed_by_name: performerName,
+    new_values: {
+      verification_status: normalized,
+      verified_at: mapped.verified_at ?? null,
+      verified_by: mapped.verified_by ?? null,
+    },
+    message: `Uhakiki wa sajili ya tawi: ${normalized}`,
+  });
+  if (typeof window !== "undefined") {
+    void (async () => {
+      try {
+        const { createNotification } = await import("./notificationsService");
+        const qs = new URLSearchParams({ module: "muundo", submodule: "Orodha ya Matawi / Vituo" });
+        await createNotification({
+          module: "muundo",
+          title: "Uhakiki wa sajili ya tawi",
+          message: `${mapped.jina}: hali ${normalized}.`,
+          type: "structure",
+          priority: normalized === "verified" ? "success" : "info",
+          is_global: true,
+          action_url: `/portal?${qs.toString()}`,
+        });
+      } catch {
+        /* RLS au mipangilio — arifa ni hiari */
+      }
+    })();
+  }
+  return mapped;
 }

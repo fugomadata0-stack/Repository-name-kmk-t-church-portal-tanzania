@@ -20,6 +20,7 @@ import { SupabaseListFeedback } from "../common/SupabaseListFeedback";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { ConfirmModal } from "../common/ConfirmModal";
 import { GlassPanel, MotionCard } from "./Stage2Motion";
+import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { exportRowsToExcel, exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
 import { checkSupabaseMediaLink } from "../../services/mediaHealthService";
 
@@ -330,7 +331,15 @@ export function EventsPanel(props: { submodule?: string; highlightRecordId?: str
               <GlassPanel className="overflow-hidden">
                 <div className="relative aspect-[16/10] bg-slate-200">
                   {ev.poster_url ? (
-                    <img src={ev.poster_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    <ResponsiveLazyImage
+                      src={ev.poster_url}
+                      alt={ev.title ? `Bango: ${ev.title}` : "Bango la tukio"}
+
+                      className="absolute inset-0 h-full w-full object-cover"
+                      width={1280}
+                      height={800}
+                      loading="lazy"
+                    />
                   ) : (
                     <div className="flex h-full items-center justify-center text-slate-400">
                       <CalendarDays className="h-14 w-14 opacity-40" />

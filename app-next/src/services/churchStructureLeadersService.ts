@@ -9,15 +9,17 @@ import {
   normalizeOptionalImageOrDocUrl,
   normalizePhoneStored,
 } from "../lib/structureFieldValidation";
-import { formatPostgrestError, formatStorageError, isMissingTableError } from "../lib/supabaseErrors";
-import { getSupabase } from "../lib/supabaseClient";
+import { formatPostgrestError, isMissingTableError } from "../lib/supabaseErrors";
+import { STORAGE_BUCKETS } from "../lib/storageBuckets";
+import { getSupabase } from "../lib/supabase";
+import { enterpriseStorageUpload, PORTAL_DOCUMENT_FILE_GUARD } from "../lib/enterpriseStorageUpload";
 import { buildSafeStoragePath } from "../lib/storageUpload";
 import type { ChurchStructureLeader } from "../types";
 
 let leadersTableMissing = false;
 
 /** Bucket ya faragha — inalingana na migration `storage_structure_leaders_bucket`. */
-export const STRUCTURE_LEADERS_STORAGE_BUCKET = "structure-leaders" as const;
+export const STRUCTURE_LEADERS_STORAGE_BUCKET = STORAGE_BUCKETS.structureLeaders;
 
 function mapLeader(row: Record<string, unknown>): ChurchStructureLeader {
   return {
@@ -76,18 +78,26 @@ export async function uploadStructureLeaderAppointmentDoc(entityId: string, file
   if (!c) throw new Error("Supabase haijasanidiwa.");
   const guard = validateSelectedFile(file, {
     allowedExtensions: [".pdf", ".png", ".jpg", ".jpeg", ".webp"],
-    maxBytes: mbToBytes(12),
+    maxBytes: mbToBytes(48),
     allowedMimePrefixes: ["image/", "application/pdf"],
     labelSw: "Hati ya uteuzi",
   });
   if (guard) throw new Error(guard);
   const path = buildSafeStoragePath(`${entityId}/uteuzi`, file.name);
-  const { error } = await c.storage.from(STRUCTURE_LEADERS_STORAGE_BUCKET).upload(path, file, {
+  await enterpriseStorageUpload({
+    bucket: STRUCTURE_LEADERS_STORAGE_BUCKET,
+    file,
+    path,
+    guard: {
+      ...PORTAL_DOCUMENT_FILE_GUARD,
+      allowedExtensions: [".pdf", ".png", ".jpg", ".jpeg", ".webp"],
+      allowedMimePrefixes: ["image/", "application/pdf"],
+      maxBytes: 48 * 1024 * 1024,
+      labelSw: "Hati ya uteuzi",
+    },
     upsert: true,
-    contentType: file.type || undefined,
-    cacheControl: "3600",
+    optimizeImage: true,
   });
-  if (error) throw new Error(formatStorageError(error, STRUCTURE_LEADERS_STORAGE_BUCKET));
   return path;
 }
 

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePortal } from "../../context/PortalContext";
+import { EnterpriseImageUpload } from "../common/EnterpriseImageUpload";
+import { StorageDiagnosticsPanel } from "../common/StorageDiagnosticsPanel";
 import { getSupabase } from "../../lib/supabaseClient";
 import {
   ensureDeveloperProfileSeed,
@@ -22,7 +24,6 @@ export function DeveloperProfilePanel() {
   const [address, setAddress] = useState("");
   const [poBox, setPoBox] = useState("");
   const [bio, setBio] = useState("");
-  const [photoBusy, setPhotoBusy] = useState(false);
 
   const load = useCallback(async () => {
     if (!getSupabase()) {
@@ -50,8 +51,6 @@ export function DeveloperProfilePanel() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  const displayPhoto = profile?.photo_url || null;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,56 +101,22 @@ export function DeveloperProfilePanel() {
         </div>
         <div className="grid gap-6 p-4 md:grid-cols-[220px_1fr]">
           <div className="flex flex-col items-center gap-3">
-            <div className="relative h-44 w-44 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-inner">
-              {displayPhoto ? (
-                <img
-                  src={displayPhoto}
-                  alt={`Picha ya ${fullName.trim() || "developer"}`}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-xs text-slate-500">Hakuna picha</div>
-              )}
-              {photoBusy ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/70">
-                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-900 border-t-transparent" aria-hidden />
-                </div>
-              ) : null}
-            </div>
-            {canSave ? (
-              <label
-                className={`w-full rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-center text-xs font-semibold text-blue-900 hover:bg-blue-100 ${photoBusy ? "pointer-events-none opacity-60" : "cursor-pointer"}`}
-              >
-                Chagua picha — huhifadhiwa mara moja kwenye Storage
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="hidden"
-                  disabled={photoBusy}
-                  onChange={(ev) => {
-                    const f = ev.target.files?.[0];
-                    const input = ev.target;
-                    if (!f || !profile || !canSave) return;
-                    setPhotoBusy(true);
-                    void replaceDeveloperPhoto(f, profile.id, profile.photo_url)
-                      .then((row) => {
-                        setProfile(row);
-                        pushToast("Picha imehifadhiwa kwenye developer-photos.", "success");
-                      })
-                      .catch((err) => reportError(err, "Developer — picha"))
-                      .finally(() => {
-                        setPhotoBusy(false);
-                        input.value = "";
-                      });
-                  }}
-                />
-              </label>
-            ) : null}
-            <p className="max-w-[220px] text-center text-[10px] text-slate-500">
-              Bucket: <code className="rounded bg-slate-100 px-1">developer-photos</code> — URL iko kwenye rekodi ya{" "}
-              <code className="rounded bg-slate-100 px-1">developer_profile.photo_url</code>.
-            </p>
+            <EnterpriseImageUpload
+              label="Chagua picha — huhifadhiwa mara moja"
+              hint="Bucket: developer-photos · inahitaji kuingia na ruhusa ya moduli ya Developer."
+              currentUrl={profile.photo_url}
+              alt={`Picha ya ${fullName.trim() || "developer"}`}
+              disabled={!canSave}
+              onUpload={(file, onProgress, signal) =>
+                replaceDeveloperPhoto(file, profile.id, profile.photo_url, { onProgress, signal }).then((row) => {
+                  setProfile(row);
+                  return row.photo_url ?? "";
+                })
+              }
+              onSuccess={() => pushToast("Picha imehifadhiwa kwenye developer-photos.", "success")}
+              onError={(msg) => reportError(new Error(msg), "Developer — picha")}
+            />
+            <StorageDiagnosticsPanel compact />
           </div>
           <div className="grid gap-3">
             <label className="grid gap-1 text-xs font-medium text-slate-700">
@@ -224,7 +189,9 @@ export function DeveloperProfilePanel() {
             </button>
           </div>
         ) : (
-          <p className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">Unaweza kutazama tu — uhariri ni kwa super_admin.</p>
+          <p className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">
+            Unaweza kutazama tu — uhariri ni kwa super_admin.
+          </p>
         )}
       </article>
     </form>

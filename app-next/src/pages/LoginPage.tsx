@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   Bell,
@@ -21,6 +21,7 @@ import { HAIJAPATIKANA_DATA_SW } from "../lib/supabaseUiMessages";
 import { fetchPortalPublicDashboardCounts } from "../services/portalPublicDashboardService";
 import { fetchMasterSettingsOptional, readMasterSettingsCache } from "../services/masterSettingsService";
 import { fetchChurchIdentityOptional } from "../services/settingsTablesService";
+import { ResponsiveLazyImage } from "../components/common/ResponsiveLazyImage";
 
 const HERO_IMAGE_CANDIDATES = [
   [
@@ -69,10 +70,17 @@ type PublicCounts = {
   dayosisi: number | null;
   majimbo: number | null;
   matawi: number | null;
+  matawiActive: number | null;
+  matawiPending: number | null;
+  matawiRegistryVerified: number | null;
+  matawiRegistryPendingReview: number | null;
   waumini: number | null;
   viongozi: number | null;
   nyaraka: number | null;
   matukio: number | null;
+  attendanceSessionsToday: number | null;
+  attendanceSessionsMonth: number | null;
+  attendanceVisitorsMonth: number | null;
 };
 
 const MODULE_CARDS = [
@@ -196,20 +204,34 @@ export function LoginPage() {
     dayosisi: null,
     majimbo: null,
     matawi: null,
+    matawiActive: null,
+    matawiPending: null,
+    matawiRegistryVerified: null,
+    matawiRegistryPendingReview: null,
     waumini: null,
     viongozi: null,
     nyaraka: null,
     matukio: null,
+    attendanceSessionsToday: null,
+    attendanceSessionsMonth: null,
+    attendanceVisitorsMonth: null,
   });
 
   const [statQueryFailed, setStatQueryFailed] = useState<Record<keyof PublicCounts, boolean>>({
     dayosisi: false,
     majimbo: false,
     matawi: false,
+    matawiActive: false,
+    matawiPending: false,
+    matawiRegistryVerified: false,
+    matawiRegistryPendingReview: false,
     waumini: false,
     viongozi: false,
     nyaraka: false,
     matukio: false,
+    attendanceSessionsToday: false,
+    attendanceSessionsMonth: false,
+    attendanceVisitorsMonth: false,
   });
 
   const [moduleGateMsg, setModuleGateMsg] = useState("");
@@ -281,10 +303,17 @@ export function LoginPage() {
       dayosisi: false,
       majimbo: false,
       matawi: false,
+      matawiActive: false,
+      matawiPending: false,
+      matawiRegistryVerified: false,
+      matawiRegistryPendingReview: false,
       waumini: false,
       viongozi: false,
       nyaraka: false,
       matukio: false,
+      attendanceSessionsToday: false,
+      attendanceSessionsMonth: false,
+      attendanceVisitorsMonth: false,
     });
 
     void (async () => {
@@ -342,8 +371,13 @@ export function LoginPage() {
 
         const countsErr = publicCountsPack.error;
         const countsRow = publicCountsPack.counts;
+        const attendanceRpcOk = publicCountsPack.attendanceColumnsFromRpc;
         const countOrNull = (key: keyof PublicCounts) => {
           if (countsErr || !countsRow) return null;
+          const attendanceStale =
+            !attendanceRpcOk &&
+            (key === "attendanceSessionsToday" || key === "attendanceSessionsMonth" || key === "attendanceVisitorsMonth");
+          if (attendanceStale) return null;
           return parsePublicCount(countsRow[key]);
         };
 
@@ -351,19 +385,33 @@ export function LoginPage() {
           dayosisi: countOrNull("dayosisi"),
           majimbo: countOrNull("majimbo"),
           matawi: countOrNull("matawi"),
+          matawiActive: countOrNull("matawiActive"),
+          matawiPending: countOrNull("matawiPending"),
+          matawiRegistryVerified: countOrNull("matawiRegistryVerified"),
+          matawiRegistryPendingReview: countOrNull("matawiRegistryPendingReview"),
           waumini: countOrNull("waumini"),
           viongozi: countOrNull("viongozi"),
           nyaraka: countOrNull("nyaraka"),
           matukio: countOrNull("matukio"),
+          attendanceSessionsToday: countOrNull("attendanceSessionsToday"),
+          attendanceSessionsMonth: countOrNull("attendanceSessionsMonth"),
+          attendanceVisitorsMonth: countOrNull("attendanceVisitorsMonth"),
         });
         setStatQueryFailed({
           dayosisi: !!countsErr,
           majimbo: !!countsErr,
           matawi: !!countsErr,
+          matawiActive: !!countsErr,
+          matawiPending: !!countsErr,
+          matawiRegistryVerified: !!countsErr,
+          matawiRegistryPendingReview: !!countsErr,
           waumini: !!countsErr,
           viongozi: !!countsErr,
           nyaraka: !!countsErr,
           matukio: !!countsErr,
+          attendanceSessionsToday: !!countsErr || (!!countsRow && !attendanceRpcOk),
+          attendanceSessionsMonth: !!countsErr || (!!countsRow && !attendanceRpcOk),
+          attendanceVisitorsMonth: !!countsErr || (!!countsRow && !attendanceRpcOk),
         });
       } catch {
         if (!cancelled) {
@@ -372,19 +420,33 @@ export function LoginPage() {
             dayosisi: null,
             majimbo: null,
             matawi: null,
+            matawiActive: null,
+            matawiPending: null,
+            matawiRegistryVerified: null,
+            matawiRegistryPendingReview: null,
             waumini: null,
             viongozi: null,
             nyaraka: null,
             matukio: null,
+            attendanceSessionsToday: null,
+            attendanceSessionsMonth: null,
+            attendanceVisitorsMonth: null,
           });
           setStatQueryFailed({
             dayosisi: true,
             majimbo: true,
             matawi: true,
+            matawiActive: true,
+            matawiPending: true,
+            matawiRegistryVerified: true,
+            matawiRegistryPendingReview: true,
             waumini: true,
             viongozi: true,
             nyaraka: true,
             matukio: true,
+            attendanceSessionsToday: true,
+            attendanceSessionsMonth: true,
+            attendanceVisitorsMonth: true,
           });
         }
       } finally {
@@ -401,38 +463,60 @@ export function LoginPage() {
     const client = getSupabase();
     if (!client || !supabaseReady) return;
     try {
-      const { counts, error } = await fetchPortalPublicDashboardCounts();
+      const { counts, error, attendanceColumnsFromRpc } = await fetchPortalPublicDashboardCounts();
       if (error) {
         setStatQueryFailed({
           dayosisi: true,
           majimbo: true,
           matawi: true,
+          matawiActive: true,
+          matawiPending: true,
+          matawiRegistryVerified: true,
+          matawiRegistryPendingReview: true,
           waumini: true,
           viongozi: true,
           nyaraka: true,
           matukio: true,
+          attendanceSessionsToday: true,
+          attendanceSessionsMonth: true,
+          attendanceVisitorsMonth: true,
         });
         return;
       }
       if (!counts) return;
+      const attOk = attendanceColumnsFromRpc;
       setStatQueryFailed({
         dayosisi: false,
         majimbo: false,
         matawi: false,
+        matawiActive: false,
+        matawiPending: false,
+        matawiRegistryVerified: false,
+        matawiRegistryPendingReview: false,
         waumini: false,
         viongozi: false,
         nyaraka: false,
         matukio: false,
+        attendanceSessionsToday: !attOk,
+        attendanceSessionsMonth: !attOk,
+        attendanceVisitorsMonth: !attOk,
       });
       setStats((p) => ({
         ...p,
         dayosisi: counts.dayosisi,
         majimbo: counts.majimbo,
         matawi: counts.matawi,
+        matawiActive: counts.matawiActive,
+        matawiPending: counts.matawiPending,
+        matawiRegistryVerified: counts.matawiRegistryVerified,
+        matawiRegistryPendingReview: counts.matawiRegistryPendingReview,
         waumini: counts.waumini,
         viongozi: counts.viongozi,
         nyaraka: counts.nyaraka,
         matukio: counts.matukio,
+        attendanceSessionsToday: attOk ? counts.attendanceSessionsToday : null,
+        attendanceSessionsMonth: attOk ? counts.attendanceSessionsMonth : null,
+        attendanceVisitorsMonth: attOk ? counts.attendanceVisitorsMonth : null,
       }));
     } catch {
       /* polling / realtime — jaribu tena baadaye */
@@ -475,6 +559,7 @@ export function LoginPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "church_viongozi" }, schedule)
       .on("postgres_changes", { event: "*", schema: "public", table: "documents" }, schedule)
       .on("postgres_changes", { event: "*", schema: "public", table: "events" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_sessions" }, schedule)
       .subscribe();
     return () => {
       cancelled = true;
@@ -507,15 +592,37 @@ export function LoginPage() {
     accent: normalizeHexColor(branding.colors.accent, "#D4AF37"),
   };
 
-  const statRows: Array<{ key: keyof PublicCounts; label: string }> = [
+  const matawiHubMetrics: Array<{ key: keyof PublicCounts; label: string; hint: string }> = [
+    { key: "matawi", label: "Jumla matawi / vituo", hint: "Msingi wa mradi" },
+    { key: "matawiActive", label: "Zinazoendesha (active)", hint: "Operesheni hai" },
+    { key: "matawiPending", label: "Usajili pending (status)", hint: "Hali ya operesheni = pending" },
+    { key: "matawiRegistryPendingReview", label: "Sajili inasubiri uhakiki", hint: "verification_status = pending_review" },
+    { key: "matawiRegistryVerified", label: "Sajili imethibitishwa", hint: "Uhakiki wa sajili" },
+  ];
+
+  const structureStatRows: Array<{ key: keyof PublicCounts; label: string }> = [
     { key: "dayosisi", label: "Dayosisi" },
     { key: "majimbo", label: "Majimbo" },
-    { key: "matawi", label: "Matawi/Vituo" },
     { key: "waumini", label: "Waumini" },
     { key: "viongozi", label: "Viongozi" },
     { key: "nyaraka", label: "Nyaraka" },
     { key: "matukio", label: "Matukio" },
+    { key: "attendanceSessionsToday", label: "Mahudhurio — vikao leo" },
+    { key: "attendanceSessionsMonth", label: "Mahudhurio — vikao (mwezi)" },
+    { key: "attendanceVisitorsMonth", label: "Wageni (mwezi)" },
   ];
+
+  const wauminiPerTawi =
+    typeof stats.matawi === "number" &&
+    stats.matawi > 0 &&
+    typeof stats.waumini === "number" &&
+    Number.isFinite(stats.waumini)
+      ? (stats.waumini / stats.matawi).toLocaleString("sw-TZ", { maximumFractionDigits: 1 })
+      : null;
+
+  /** RPC ya umma ilirudi bila makosa lakini majibu hayana safu za mahudhurio — DB bado haijasasishwa. */
+  const showAttendanceMigrationHint =
+    !publicStatsLoading && statQueryFailed.attendanceSessionsToday && !statQueryFailed.dayosisi;
 
   return (
     <div className="login-premium font-kmkt-sans relative min-h-screen overflow-x-hidden bg-[#030712] text-slate-100">
@@ -528,7 +635,18 @@ export function LoginPage() {
         <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-3">
           <div className="flex min-w-0 items-center gap-3">
             {branding.logo ? (
-              <img src={branding.logo} alt={branding.shortName} className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-amber-400/30" loading="lazy" decoding="async" />
+              <ResponsiveLazyImage
+                src={branding.logo}
+                alt={branding.shortName}
+
+                className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-amber-400/30"
+                width={40}
+                height={40}
+                loading="eager"
+                fetchpriority="high"
+                decoding="async"
+
+              />
             ) : null}
             <div className="min-w-0">
               <p className="truncate text-sm font-bold tracking-wide text-amber-300/95">{branding.shortName}</p>
@@ -548,10 +666,18 @@ export function LoginPage() {
 
       <section className="relative z-10 overflow-hidden">
         {!heroMissing ? (
-          <img
+          <ResponsiveLazyImage
             src={hero.src}
             alt="Mwonekano wa imani na ibada"
-            loading="lazy"
+
+            className="block h-[clamp(220px,42vh,520px)] min-h-[200px] w-full object-cover transition-opacity duration-700 md:h-[520px]"
+
+            loading="eager"
+            fetchpriority="high"
+            decoding="async"
+            width={1920}
+            height={1080}
+
             onError={() => {
               setHero((p) => {
                 const variants = HERO_IMAGE_CANDIDATES[p.idx];
@@ -567,8 +693,6 @@ export function LoginPage() {
                 return { ...p, src: FALLBACK_HERO_CANDIDATES[0] };
               });
             }}
-            decoding="async"
-            className="h-[clamp(220px,42vh,520px)] min-h-[200px] w-full object-cover transition-opacity duration-700 md:h-[520px]"
           />
         ) : (
           <div className="grid h-[clamp(220px,42vh,520px)] min-h-[200px] w-full place-items-center bg-gradient-to-br from-[#050a14] via-[#0B1F3A] to-[#123C69] md:h-[520px]">
@@ -621,22 +745,30 @@ export function LoginPage() {
             className="animate-kmkt-fade-up max-h-[min(92dvh,calc(100dvh-8rem))] w-full overflow-y-auto rounded-2xl border border-amber-400/45 bg-white/[0.97] p-4 shadow-[0_24px_80px_-12px_rgba(0,0,0,0.55)] backdrop-blur-xl [animation-delay:120ms] sm:max-h-none sm:overflow-visible sm:p-6"
           >
             {branding.logo && !logoBroken ? (
-              <img
+              <ResponsiveLazyImage
                 src={branding.logo}
                 alt={branding.shortName}
+
                 className="mx-auto mb-3 h-16 w-16 rounded-full object-cover ring-2 ring-[#D4AF37]/35"
-                loading="lazy"
+                width={128}
+                height={128}
+                loading="eager"
+                fetchpriority="high"
                 decoding="async"
                 onError={() => setLogoBroken(true)}
               />
             ) : (
               <>
                 {!logoBroken ? (
-                  <img
+                  <ResponsiveLazyImage
                     src={LOCAL_LOGO_CANDIDATES[logoVariant]}
                     alt={branding.shortName}
+
                     className="mx-auto mb-3 h-16 w-16 rounded-full object-cover ring-2 ring-[#D4AF37]/35"
-                    loading="lazy"
+                    width={128}
+                    height={128}
+                    loading="eager"
+                    fetchpriority="high"
                     decoding="async"
                     onError={() => {
                       if (logoVariant < LOCAL_LOGO_CANDIDATES.length - 1) setLogoVariant((v) => v + 1);
@@ -702,17 +834,63 @@ export function LoginPage() {
       </section>
 
       <section className="relative z-10 mx-auto w-full max-w-7xl px-4 py-8">
-        <div className="animate-kmkt-fade-up mb-4 text-center [animation-delay:60ms] md:text-left">
+        <div className="animate-kmkt-fade-up mb-5 text-center [animation-delay:60ms] md:text-left">
           <p className="text-xs font-semibold uppercase tracking-wider text-amber-300/90">Takwimu za umma</p>
           <h3 className="font-kmkt-display mt-1 text-xl font-bold text-white md:text-2xl">Muhtasari wa taasisi (live)</h3>
           <p className="mt-1 text-sm text-slate-400">Nambari zinatoka Supabase pekee; hazijazuliwa.</p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-7">
-          {statRows.map(({ key, label }, i) => (
+
+        <div
+          className="animate-kmkt-fade-up mb-6 rounded-3xl border border-amber-400/40 bg-gradient-to-br from-[#0B1F3A]/95 via-[#123C69]/90 to-emerald-950/80 p-4 shadow-2xl shadow-black/40 backdrop-blur-md sm:p-5"
+          style={{ animationDelay: "72ms" }}
+        >
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-amber-400/45 bg-amber-400/15 text-amber-200 shadow-inner">
+                <Building2 className="h-6 w-6" aria-hidden />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-200/90">Matawi ndiyo mama wa mradi</p>
+                <h4 className="font-kmkt-display mt-1 text-lg font-bold text-white sm:text-xl">Kituo cha uhai wa kanisa</h4>
+                <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-200/95 sm:text-sm">
+                  Kila tawi na kituo ndicho kiini cha huduma, waumini na ripoti. Hapa chini kuna mgawanyo halisi wa hali za matawi — kisha muundo mzima wa KMK(T).
+                </p>
+              </div>
+            </div>
+            {wauminiPerTawi ? (
+              <div className="shrink-0 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center backdrop-blur-sm md:text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-300">Wastani wa waumini kwa tawi</p>
+                <p className="mt-0.5 font-kmkt-display text-2xl font-black tabular-nums text-amber-100">{wauminiPerTawi}</p>
+              </div>
+            ) : null}
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {matawiHubMetrics.map(({ key, label, hint }, i) => (
+              <article
+                key={key}
+                style={{ animationDelay: `${90 + i * 40}ms` }}
+                className={`animate-kmkt-fade-up rounded-2xl border border-amber-300/25 bg-gradient-to-br p-3 text-center shadow-lg backdrop-blur-md ${KPI_CARD_STYLES[i % KPI_CARD_STYLES.length]}`}
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-200/95">{label}</p>
+                <p
+                  className={`mt-1 font-bold text-white ${statQueryFailed[key] ? "text-[10px] leading-snug md:text-xs" : "text-xl md:text-2xl"}`}
+                  title={statQueryFailed[key] ? HAIJAPATIKANA_DATA_SW : undefined}
+                >
+                  {formatStatCount(stats[key], publicStatsLoading, statQueryFailed[key])}
+                </p>
+                <p className="mt-1 text-[10px] font-medium text-slate-300/90">{hint}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400 md:text-left">Muundo mzima</p>
+        <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+          {structureStatRows.map(({ key, label }, i) => (
             <article
               key={key}
-              style={{ animationDelay: `${80 + i * 45}ms` }}
-              className={`animate-kmkt-fade-up rounded-2xl border p-3 text-center shadow-lg backdrop-blur-md ${KPI_CARD_STYLES[i % KPI_CARD_STYLES.length]}`}
+              style={{ animationDelay: `${120 + i * 35}ms` }}
+              className={`animate-kmkt-fade-up rounded-2xl border p-3 text-center shadow-lg backdrop-blur-md ${KPI_CARD_STYLES[(i + 3) % KPI_CARD_STYLES.length]}`}
             >
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300/95">{label}</p>
               <p
@@ -724,6 +902,16 @@ export function LoginPage() {
             </article>
           ))}
         </div>
+        {showAttendanceMigrationHint ? (
+          <p
+            className="mt-4 rounded-xl border border-sky-400/25 bg-sky-950/35 px-3 py-2 text-xs leading-relaxed text-sky-100/95 backdrop-blur-sm md:text-left"
+            role="status"
+          >
+            Takwimu za mahudhurio (vikao na wageni) hazionyeshwi kwa sababu database bado inatumia toleo la zamani la
+            portal_public_dashboard_counts lisilo na hesabu hizo. Mipangilio mingine ya KPI bado halali; pakia migration
+            inayosasisha kazi hiyo kwenye Supabase.
+          </p>
+        ) : null}
         {publicLoadError ? (
           <p className="mt-4 rounded-xl border border-amber-400/35 bg-amber-500/10 px-3 py-2.5 text-sm text-amber-100 backdrop-blur-sm">{publicLoadError}</p>
         ) : null}

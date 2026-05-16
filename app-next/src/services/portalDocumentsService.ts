@@ -1,13 +1,20 @@
-import { buildSafeStoragePath, publicObjectUploadOptions } from "../lib/storageUpload";
-import { formatPostgrestError, formatStorageError } from "../lib/supabaseErrors";
+import {
+  enterpriseStorageUpload,
+  PORTAL_DOCUMENT_FILE_GUARD,
+  type StorageUploadProgress,
+} from "../lib/enterpriseStorageUpload";
+import { inferContentType } from "../lib/storageUpload";
+import { formatCaughtError, formatPostgrestError, formatStorageError } from "../lib/supabaseErrors";
 import { publicStorageObjectPath } from "../lib/storagePaths";
-import { getSupabase } from "../lib/supabaseClient";
+import { STORAGE_BUCKETS } from "../lib/storageBuckets";
+import { getSupabase, getSupabaseOrThrow } from "../lib/supabase";
 import { unwrapList } from "../lib/supabaseResult";
+import { getCurrentUserId } from "../lib/supabaseAuthSession";
 import type { ChurchDocumentRecord } from "../types";
 import { safeLower } from "../lib/safe";
 import { logAuditAction } from "./auditLogService";
 
-const BUCKET = "church-documents";
+export const CHURCH_DOCUMENTS_BUCKET = STORAGE_BUCKETS.churchDocuments;
 
 function classifyError(err: unknown, fallback: string): Error {
   const msg =
@@ -16,18 +23,28 @@ function classifyError(err: unknown, fallback: string): Error {
       : String(err ?? "");
   const low = safeLower(msg);
   if (low.includes("failed to fetch") || low.includes("network") || low.includes("networkerror")) {
-    return new Error("Imeshindikana kuwasiliana na seva.");
+    return new Error("Hitilafu ya mtandao. Jaribu tena au angalia intaneti.");
+  }
+  if (low.includes("no api key found")) {
+    return new Error("Funguo ya API haipo — sanidi VITE_SUPABASE_ANON_KEY na ujenzi upya.");
+  }
+  if (low.includes("mime") || low.includes("invalid mime") || low.includes("content-type")) {
+    return new Error("Aina ya faili hairuhusiwi kwenye hifadhi. Jaribu PDF/DOCX/XLSX au wasiliana na msimamizi.");
+  }
+  if (low.includes("payload too large") || low.includes("too large") || low.includes("entity too large")) {
+    return new Error("Faili ni kubwa mno. Jaribu faili ndogo au ongeza kikomo cha bucket (migrations).");
+  }
+  if (low.includes("policy") || low.includes("denied") || low.includes("forbidden") || low.includes("row-level security")) {
+    return new Error("Ruhusa imekataliwa. Hakikisha una haki ya moduli ya Nyaraka (documents) kwenye matrix.");
   }
   if (low.includes("does not exist") || low.includes("undefined table") || low.includes("42p01")) {
     return new Error("Jedwali husika halijapatikana kwenye Supabase.");
   }
-  return new Error(fallback);
+  return new Error(formatCaughtError(err) || fallback);
 }
 
 function clientOrThrow() {
-  const c = getSupabase();
-  if (!c) throw new Error("Supabase haijasanidiwa.");
-  return c;
+  return getSupabaseOrThrow();
 }
 
 function rowToRecord(r: Record<string, unknown>): ChurchDocumentRecord {
@@ -40,10 +57,28 @@ function rowToRecord(r: Record<string, unknown>): ChurchDocumentRecord {
     uploaded_by: String(r.uploaded_by ?? r.created_by ?? ""),
     branch: String(r.branch ?? r.dayosisi ?? ""),
     file_url: String(r.file_url ?? ""),
+    file_name: r.file_name == null ? null : String(r.file_name),
+    file_path: r.file_path == null ? null : String(r.file_path),
+    file_size: r.file_size == null ? null : Number(r.file_size),
+    mime_type: r.mime_type == null ? null : String(r.mime_type),
+    uploaded_at: r.uploaded_at == null ? null : String(r.uploaded_at),
     description: String(r.description ?? ""),
     created_at: String(r.created_at ?? ""),
+    updated_at: r.updated_at == null ? undefined : String(r.updated_at),
+    created_by: r.created_by == null ? null : String(r.created_by),
+    updated_by: r.updated_by == null ? null : String(r.updated_by),
     status: String(r.status ?? "Active") as ChurchDocumentRecord["status"],
+    visibility_level: String(r.visibility_level ?? "internal"),
   };
+}
+
+async function currentUploaderLabel(): Promise<string> {
+  const c = getSupabase();
+  if (!c) return "";
+  const { data } = await c.auth.getUser();
+  const u = data.user;
+  if (!u) return "";
+  return String(u.user_metadata?.full_name ?? u.email ?? "").trim();
 }
 
 export async function fetchChurchDocuments(): Promise<ChurchDocumentRecord[]> {
@@ -58,7 +93,7 @@ export async function fetchChurchDocuments(): Promise<ChurchDocumentRecord[]> {
   }
 }
 
-export async function insertChurchDocument(row: {
+export type ChurchDocumentInsertPayload = {
   title: string;
   category: string;
   type?: string;
@@ -66,10 +101,21 @@ export async function insertChurchDocument(row: {
   uploaded_by?: string;
   branch?: string;
   file_url: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  mime_type: string;
   description: string;
-}): Promise<ChurchDocumentRecord> {
+  visibility_level?: string;
+  status?: string;
+};
+
+export async function insertChurchDocument(row: ChurchDocumentInsertPayload): Promise<ChurchDocumentRecord> {
   try {
     const c = clientOrThrow();
+    const userId = await getCurrentUserId();
+    const uploader = row.uploaded_by?.trim() || (await currentUploaderLabel());
+    const now = new Date().toISOString();
     const { data, error } = await c
       .from("documents")
       .insert({
@@ -77,10 +123,19 @@ export async function insertChurchDocument(row: {
         category: row.category.trim(),
         type: row.type?.trim() || null,
         department: row.department?.trim() || null,
-        uploaded_by: row.uploaded_by?.trim() || null,
+        uploaded_by: uploader || null,
         branch: row.branch?.trim() || null,
         file_url: row.file_url.trim(),
+        file_name: row.file_name,
+        file_path: row.file_path,
+        file_size: row.file_size,
+        mime_type: row.mime_type,
+        uploaded_at: now,
         description: row.description.trim(),
+        visibility_level: row.visibility_level?.trim() || "internal",
+        status: row.status?.trim() || "Active",
+        created_by: userId,
+        updated_by: userId,
       })
       .select("*")
       .single();
@@ -104,11 +159,39 @@ export async function insertChurchDocument(row: {
 
 export async function updateChurchDocument(
   id: string,
-  patch: Partial<Pick<ChurchDocumentRecord, "title" | "category" | "type" | "department" | "uploaded_by" | "branch" | "description" | "file_url">>
+  patch: Partial<
+    Pick<
+      ChurchDocumentRecord,
+      | "title"
+      | "category"
+      | "type"
+      | "department"
+      | "uploaded_by"
+      | "branch"
+      | "description"
+      | "file_url"
+      | "file_name"
+      | "file_path"
+      | "file_size"
+      | "mime_type"
+      | "visibility_level"
+      | "status"
+    >
+  >
 ): Promise<ChurchDocumentRecord> {
   try {
     const c = clientOrThrow();
-    const { data, error } = await c.from("documents").update(patch).eq("id", id).select("*").single();
+    const userId = await getCurrentUserId();
+    const { data, error } = await c
+      .from("documents")
+      .update({
+        ...patch,
+        updated_by: userId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select("*")
+      .single();
     if (error) throw new Error(formatPostgrestError(error, "documents.update"));
     const saved = rowToRecord(data as Record<string, unknown>);
     await logAuditAction({
@@ -127,22 +210,21 @@ export async function updateChurchDocument(
   }
 }
 
-/** Ondoa faili kwenye storage pekee (baada ya kubadilisha URL). */
 export async function removeChurchDocumentFileFromStorage(fileUrl: string): Promise<void> {
-  const path = publicStorageObjectPath(fileUrl, BUCKET);
+  const path = publicStorageObjectPath(fileUrl, CHURCH_DOCUMENTS_BUCKET);
   if (!path) return;
   const c = clientOrThrow();
-  const { error } = await c.storage.from(BUCKET).remove([path]);
-  if (error) throw new Error(formatStorageError(error, BUCKET));
+  const { error } = await c.storage.from(CHURCH_DOCUMENTS_BUCKET).remove([path]);
+  if (error) throw new Error(formatStorageError(error, CHURCH_DOCUMENTS_BUCKET));
 }
 
 export async function deleteChurchDocument(id: string, fileUrl: string): Promise<void> {
   try {
     const c = clientOrThrow();
-    const path = publicStorageObjectPath(fileUrl, BUCKET);
+    const path = publicStorageObjectPath(fileUrl, CHURCH_DOCUMENTS_BUCKET);
     if (path) {
-      const { error: rmErr } = await c.storage.from(BUCKET).remove([path]);
-      if (rmErr) throw new Error(formatStorageError(rmErr, BUCKET));
+      const { error: rmErr } = await c.storage.from(CHURCH_DOCUMENTS_BUCKET).remove([path]);
+      if (rmErr) throw new Error(formatStorageError(rmErr, CHURCH_DOCUMENTS_BUCKET));
     }
     const { error } = await c.from("documents").delete().eq("id", id);
     if (error) throw new Error(formatPostgrestError(error, "documents.delete"));
@@ -160,11 +242,33 @@ export async function deleteChurchDocument(id: string, fileUrl: string): Promise
   }
 }
 
-export async function uploadChurchDocumentFile(file: File): Promise<{ path: string; publicUrl: string }> {
-  const c = clientOrThrow();
-  const path = buildSafeStoragePath("uploads", file.name);
-  const { error } = await c.storage.from(BUCKET).upload(path, file, publicObjectUploadOptions(file, { upsert: false }));
-  if (error) throw new Error(formatStorageError(error, BUCKET));
-  const { data } = c.storage.from(BUCKET).getPublicUrl(path);
-  return { path, publicUrl: data.publicUrl };
+/** Pakia faili kwenye church-documents — mteja mmoja, header za API, metadata kamili. */
+export async function uploadChurchDocumentFile(
+  file: File,
+  opts?: { onProgress?: (p: StorageUploadProgress) => void; signal?: AbortSignal }
+): Promise<{
+  path: string;
+  publicUrl: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+}> {
+  const uploaded = await enterpriseStorageUpload({
+    bucket: CHURCH_DOCUMENTS_BUCKET,
+    file,
+    pathPrefix: "uploads",
+    guard: PORTAL_DOCUMENT_FILE_GUARD,
+    upsert: true,
+    optimizeImage: true,
+    onProgress: opts?.onProgress,
+    signal: opts?.signal,
+  });
+  const mimeType = uploaded.contentType || inferContentType(file) || "application/octet-stream";
+  return {
+    path: uploaded.path,
+    publicUrl: uploaded.publicUrl,
+    fileName: file.name,
+    mimeType,
+    fileSize: uploaded.bytes,
+  };
 }

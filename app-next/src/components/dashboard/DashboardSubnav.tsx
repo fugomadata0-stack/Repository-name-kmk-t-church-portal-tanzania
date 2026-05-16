@@ -1,4 +1,5 @@
 import { modules } from "../../data/portalModules";
+import { normalizeDashboardSubmodule } from "../../lib/dashboardSubmodules";
 
 function navigateDashboard(submodule: string) {
   window.dispatchEvent(
@@ -11,7 +12,7 @@ function navigateDashboard(submodule: string) {
 /** Vipengele vya Dashibodi Kuu — kubofya haraka bila kutafuta menyu. */
 export function DashboardSubnav({ active }: { active?: string }) {
   const subs = modules.find((m) => m.key === "dashboard")?.submodules ?? [];
-  const current = (active ?? "Overview").trim();
+  const current = normalizeDashboardSubmodule(active);
 
   return (
     <nav
@@ -23,7 +24,7 @@ export function DashboardSubnav({ active }: { active?: string }) {
       </p>
       <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
         {subs.map((label) => {
-          const isActive = current === label || (label === "Overview" && (current === "" || current === "Overview"));
+          const isActive = current === label;
           return (
             <button
               key={label}

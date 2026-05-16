@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ClipboardList, Loader2, Eye } from "lucide-react";
+import { Building2, CheckCircle2, ClipboardList, Loader2, Eye } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
 import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
@@ -12,7 +12,7 @@ import type { AidRequestJoinedRow, FedhaRecord, IncomeManagementRecord, JimboRec
 import { safeLower } from "../../lib/safe";
 import { SupabaseListFeedback } from "../common/SupabaseListFeedback";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
-import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
+import { SUPABASE_QUERY_ERROR_SW, HAIJAPATIKANA_DATA_SW } from "../../lib/supabaseUiMessages";
 import { GradientKpiCard } from "../common/GradientKpiCard";
 import type { ScopeHierarchy } from "../../utils/scopeAccess";
 import { SCOPE_TOOLTIP_SW } from "../../utils/scopeAccess";
@@ -45,6 +45,10 @@ interface Props {
   fedha: FedhaRecord[];
   majimbo: JimboRecord[];
   matawi: TawiRecord[];
+  /** Hesabu ya KPI (RLS); jumla foleni na kadi ya sajili zinapendelea thamani hii. */
+  tawiRegistryPendingReviewKpi?: number | null;
+  /** KPI ya pending_review imeshindikana — tumia hesabu ya orodha ya matawi kwa jumla. */
+  tawiRegistryPendingReviewKpiFailed?: boolean;
 }
 
 function incomeScopeTriple(row: IncomeManagementRecord) {
@@ -78,6 +82,7 @@ export function PendingApprovalsDashboard(props: Props) {
     canPortalRejectModule,
     canScopeMutateRecord,
     notifyScopeDenied,
+    canPortalViewModule,
   } = usePortal();
 
   const scopeHierarchy: ScopeHierarchy = useMemo(
@@ -181,7 +186,33 @@ export function PendingApprovalsDashboard(props: Props) {
     [aidRows]
   );
 
-  const totalPending = incomePending.length + fedhaPending.length + aidPending.length;
+  const canMuundo = canPortalViewModule("muundo");
+  const tawiRegistryPending = useMemo(
+    () =>
+      [...props.matawi]
+        .filter((t) => String(t.verification_status ?? "").trim() === "pending_review")
+        .sort((a, b) => a.jina.localeCompare(b.jina, "sw")),
+    [props.matawi]
+  );
+
+  const tawiPendingForTotals = useMemo(() => {
+    if (!canMuundo) return 0;
+    if (props.tawiRegistryPendingReviewKpiFailed) return tawiRegistryPending.length;
+    if (typeof props.tawiRegistryPendingReviewKpi === "number") return props.tawiRegistryPendingReviewKpi;
+    return tawiRegistryPending.length;
+  }, [canMuundo, props.tawiRegistryPendingReviewKpi, props.tawiRegistryPendingReviewKpiFailed, tawiRegistryPending.length]);
+
+  const tawiPendingKpiDisplay = useMemo((): string | number => {
+    if (!canMuundo) return 0;
+    if (props.tawiRegistryPendingReviewKpiFailed) return HAIJAPATIKANA_DATA_SW;
+    if (typeof props.tawiRegistryPendingReviewKpi === "number") return props.tawiRegistryPendingReviewKpi;
+    return tawiRegistryPending.length;
+  }, [canMuundo, props.tawiRegistryPendingReviewKpi, props.tawiRegistryPendingReviewKpiFailed, tawiRegistryPending.length]);
+
+  const totalPending = useMemo(
+    () => incomePending.length + fedhaPending.length + aidPending.length + tawiPendingForTotals,
+    [incomePending.length, fedhaPending.length, aidPending.length, tawiPendingForTotals]
+  );
 
   const reloadParent = () => {
     dispatchPortalReloadMetrics();
@@ -331,16 +362,34 @@ export function PendingApprovalsDashboard(props: Props) {
     if (row) await runAidAction(row, noteModal.action, notes);
   };
 
-  const kpis = [
-    ["Jumla foleni", totalPending, "from-rose-600 to-rose-800"],
-    ["Mapato yanayosubiri", incomePending.length, "from-amber-500 to-orange-700"],
-    ["Misaada yanayosubiri", aidPending.length, "from-teal-600 to-emerald-800"],
-    ["Fedha inayosubiri", fedhaPending.length, "from-green-600 to-emerald-700"],
-    ["Idhinishwa mwezi huu (mapato)", incomeApprovedMonth, "from-emerald-600 to-teal-800"],
-    ["Kataliwa mwezi huu (mapato)", incomeRejectedMonth, "from-red-600 to-rose-800"],
-    ["Idhinishwa mwezi huu (misaada)", aidApprovedMonth, "from-cyan-600 to-blue-800"],
-    ["Kataliwa mwezi huu (misaada)", aidRejectedMonth, "from-orange-600 to-red-800"],
-  ] as const;
+  const kpis = useMemo(() => {
+    const rows: Array<[string, string | number, string]> = [];
+    rows.push(["Jumla foleni", totalPending, "from-rose-600 to-rose-800"]);
+    rows.push(["Mapato yanayosubiri", incomePending.length, "from-amber-500 to-orange-700"]);
+    rows.push(["Misaada yanayosubiri", aidPending.length, "from-teal-600 to-emerald-800"]);
+    rows.push(["Fedha inayosubiri", fedhaPending.length, "from-green-600 to-emerald-700"]);
+    if (canMuundo) {
+      rows.push(["Sajili za tawi (pending_review)", tawiPendingKpiDisplay, "from-indigo-600 to-violet-800"]);
+    }
+    rows.push(
+      ["Idhinishwa mwezi huu (mapato)", incomeApprovedMonth, "from-emerald-600 to-teal-800"],
+      ["Kataliwa mwezi huu (mapato)", incomeRejectedMonth, "from-red-600 to-rose-800"],
+      ["Idhinishwa mwezi huu (misaada)", aidApprovedMonth, "from-cyan-600 to-blue-800"],
+      ["Kataliwa mwezi huu (misaada)", aidRejectedMonth, "from-orange-600 to-red-800"]
+    );
+    return rows;
+  }, [
+    totalPending,
+    incomePending.length,
+    aidPending.length,
+    fedhaPending.length,
+    canMuundo,
+    tawiPendingKpiDisplay,
+    incomeApprovedMonth,
+    incomeRejectedMonth,
+    aidApprovedMonth,
+    aidRejectedMonth,
+  ]);
 
   return (
     <div className="space-y-6" role="region" aria-label="Dashibodi ya idhini">
@@ -349,7 +398,9 @@ export function PendingApprovalsDashboard(props: Props) {
           Vibali vinavyosubiri
         </h1>
         <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-slate-100">
-          Mapato, misaada, na miamala ya fedha — idhini kwa kiwango cha ruhusa yako (RBAC). Data halisi kutoka Supabase.
+          Mapato, misaada, na miamala ya fedha
+          {canMuundo ? ", pamoja na sajili za tawi (muundo) zinazosubiri uhakiki" : ""} — idhini kwa kiwango cha ruhusa yako
+          (RBAC). Data halisi kutoka Supabase.
         </p>
       </header>
 
@@ -623,6 +674,96 @@ export function PendingApprovalsDashboard(props: Props) {
           </table>
         </div>
       </section>
+
+      {canMuundo ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-md" aria-label="Sajili za tawi zinazosubiri uhakiki">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+              <Building2 className="h-4 w-4" aria-hidden />
+              Muundo — sajili za tawi zinazosubiri uhakiki
+            </h2>
+            <button
+              type="button"
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-[11px] font-bold text-[#0B1F3A] shadow-sm hover:bg-slate-50"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent("kmt-portal-navigate", {
+                    detail: { moduleKey: "muundo", submodule: "Injini ya Ngazi — Executive" },
+                  })
+                )
+              }
+            >
+              Fungua Matawi / Vituo
+            </button>
+          </div>
+          <p className="mt-1 text-xs text-slate-600">
+            Matawi katika hali <code className="rounded bg-slate-100 px-1 text-[11px]">pending_review</code> — thibitisha au
+            badilisha kwenye jedwali la Muundo.
+            {typeof props.tawiRegistryPendingReviewKpi === "number" &&
+            !props.tawiRegistryPendingReviewKpiFailed &&
+            props.tawiRegistryPendingReviewKpi > tawiRegistryPending.length ? (
+              <span className="mt-1 block text-[11px] text-amber-800">
+                KPI ina hesabu ya jumla ({props.tawiRegistryPendingReviewKpi}); jedwali hapa lina matawi yaliyopakiwa kwenye
+                dashibodi pekee — fungua Muundo kwa orodha kamili.
+              </span>
+            ) : null}
+          </p>
+          <div className="mt-3 overflow-auto rounded-lg border border-slate-200 bg-slate-50/40 shadow-inner">
+            <table className="w-full min-w-[560px] text-left text-[13px] text-slate-900">
+              <thead className="sticky top-0 z-10 border-b-2 border-slate-300 bg-slate-200 text-slate-950">
+                <tr>
+                  <th className="px-3 py-2.5 font-bold">Tawi</th>
+                  <th className="px-3 py-2.5 font-bold">Msimbo</th>
+                  <th className="px-3 py-2.5 font-bold">Jimbo</th>
+                  <th className="px-3 py-2.5 w-44 font-bold">Vitendo</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white">
+                {tawiRegistryPending.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-6 text-center text-slate-600">
+                      {typeof props.tawiRegistryPendingReviewKpi === "number" &&
+                      !props.tawiRegistryPendingReviewKpiFailed &&
+                      props.tawiRegistryPendingReviewKpi > 0 ? (
+                        <>
+                          Hakuna mistari ya matawi yaliyoalikwa hapa, lakini KPI ina{" "}
+                          <strong className="tabular-nums text-slate-900">{props.tawiRegistryPendingReviewKpi}</strong>{" "}
+                          yanayosubiri uhakiki wa sajili. Tumia &quot;Fungua Matawi / Vituo&quot; au tafuta kwenye Muundo.
+                        </>
+                      ) : (
+                        "Hakuna matawi yanayosubiri uhakiki wa sajili."
+                      )}
+                    </td>
+                  </tr>
+                ) : (
+                  tawiRegistryPending.map((r) => (
+                    <tr key={r.id} className="border-t border-slate-200 odd:bg-slate-50/90">
+                      <td className="px-3 py-2.5 font-semibold text-slate-900">{r.jina}</td>
+                      <td className="px-3 py-2.5 font-mono text-slate-700">{r.branch_code?.trim() || "—"}</td>
+                      <td className="px-3 py-2.5 text-slate-800">{r.jimbo?.trim() || "—"}</td>
+                      <td className="px-3 py-2.5">
+                        <button
+                          type="button"
+                          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-[#0B1F3A] shadow-sm hover:bg-slate-50"
+                          onClick={() =>
+                            window.dispatchEvent(
+                              new CustomEvent("kmt-portal-navigate", {
+                                detail: { moduleKey: "muundo", submodule: "Orodha ya Matawi / Vituo", recordId: r.id },
+                              })
+                            )
+                          }
+                        >
+                          Fungua kwenye jedwali
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
 
       {noteModal ? (
         <ModalScrollLayer onBackdropClick={() => !busyId && setNoteModal(null)}>

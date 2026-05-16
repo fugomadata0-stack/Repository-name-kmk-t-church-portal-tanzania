@@ -1,7 +1,8 @@
-import { publicObjectUploadOptions } from "../lib/storageUpload";
+import { enterpriseStorageUpload, PORTAL_DOCUMENT_FILE_GUARD } from "../lib/enterpriseStorageUpload";
+import { STORAGE_BUCKETS } from "../lib/storageBuckets";
 import { formatStorageError } from "../lib/supabaseErrors";
 import { publicStorageObjectPath } from "../lib/storagePaths";
-import { getSupabase } from "../lib/supabaseClient";
+import { getSupabase } from "../lib/supabase";
 import {
   deleteDomainEntity,
   fetchDomainEntities,
@@ -11,7 +12,7 @@ import type { DomainEntityRecord } from "../types";
 
 export const SCHOOL_LOG_SUBMODULE_KEY = "Log ya Shule";
 const MODULE_KEY = "taasisi";
-const BUCKET = "church-files" as const;
+const BUCKET = STORAGE_BUCKETS.churchFiles;
 const PREFIX = "school-logs";
 
 function clientOrThrow() {
@@ -35,13 +36,16 @@ export function schoolLogFileName(row: DomainEntityRecord): string {
 }
 
 export async function uploadSchoolLogFile(file: File): Promise<{ path: string; publicUrl: string }> {
-  const c = clientOrThrow();
   const safe = file.name.replace(/[^\w.-]+/g, "_").slice(0, 160) || "log";
   const path = `${PREFIX}/${crypto.randomUUID()}_${safe}`;
-  const { error } = await c.storage.from(BUCKET).upload(path, file, publicObjectUploadOptions(file, { upsert: false }));
-  if (error) throw new Error(formatStorageError(error, BUCKET));
-  const { data } = c.storage.from(BUCKET).getPublicUrl(path);
-  return { path, publicUrl: data.publicUrl };
+  const uploaded = await enterpriseStorageUpload({
+    bucket: BUCKET,
+    file,
+    path,
+    guard: PORTAL_DOCUMENT_FILE_GUARD,
+    upsert: false,
+  });
+  return { path: uploaded.path, publicUrl: uploaded.publicUrl };
 }
 
 export async function removeSchoolLogFileFromStorage(fileUrl: string): Promise<void> {

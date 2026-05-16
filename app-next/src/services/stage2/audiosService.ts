@@ -1,11 +1,12 @@
-import { buildSafeStoragePath, publicObjectUploadOptions } from "../../lib/storageUpload";
+import { enterpriseStorageUpload, PORTAL_AUDIO_FILE_GUARD } from "../../lib/enterpriseStorageUpload";
 import { formatPostgrestError, formatStorageError } from "../../lib/supabaseErrors";
 import { publicStorageObjectPath } from "../../lib/storagePaths";
-import { getSupabase } from "../../lib/supabaseClient";
+import { getSupabase } from "../../lib/supabase";
 import { unwrapList } from "../../lib/supabaseResult";
+import { STORAGE_BUCKETS } from "../../lib/storageBuckets";
 import type { ChurchAudioRecord } from "../../types";
 
-const BUCKET = "church-audio";
+const BUCKET = STORAGE_BUCKETS.churchAudio;
 
 function clientOrThrow() {
   const c = getSupabase();
@@ -52,12 +53,14 @@ export async function deleteAudio(id: string): Promise<void> {
 }
 
 export async function uploadAudioFile(file: File): Promise<string> {
-  const c = clientOrThrow();
-  const path = buildSafeStoragePath("tracks", file.name);
-  const { error } = await c.storage.from(BUCKET).upload(path, file, publicObjectUploadOptions(file, { upsert: false }));
-  if (error) throw new Error(formatStorageError(error, BUCKET));
-  const { data } = c.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  const { publicUrl } = await enterpriseStorageUpload({
+    bucket: BUCKET,
+    file,
+    pathPrefix: "tracks",
+    guard: PORTAL_AUDIO_FILE_GUARD,
+    upsert: false,
+  });
+  return publicUrl;
 }
 
 export async function removeAudioFileFromStorage(url: string | null | undefined): Promise<void> {

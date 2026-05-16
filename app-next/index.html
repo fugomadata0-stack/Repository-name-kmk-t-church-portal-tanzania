@@ -37,6 +37,38 @@
       (function () {
         var host = window.location.hostname;
         var isDevHost = host === "localhost" || host === "127.0.0.1";
+        var noise = [
+          /Download the React DevTools/i,
+          /react-devtools/i,
+          /fetchPriority[`'] prop on a DOM element/i,
+          /spell it as lowercase [`']fetchpriority[`']/i,
+          /AbortError/i,
+          /signal is aborted/i,
+          /aborted without reason/i,
+          /\[IncomeSources:fetch\]/i,
+          /\[church_(income_sources|finance_entries|jimbo)\.list\]/i,
+        ];
+        function isAbortConsoleNoise(args) {
+          var text = "";
+          for (var i = 0; i < args.length; i++) {
+            var a = args[i];
+            if (typeof a === "string") text += " " + a;
+            else if (a && typeof a.message === "string") text += " " + a.message;
+            else if (a && typeof a === "object") {
+              try { text += " " + JSON.stringify(a); } catch (e) { /* ignore */ }
+            }
+          }
+          return /AbortError|signal is aborted|aborted without reason|Ombi limesitishwa/i.test(text);
+        }
+        ["log", "info", "warn", "error"].forEach(function (method) {
+          var original = console[method].bind(console);
+          console[method] = function () {
+            if (isAbortConsoleNoise(arguments)) return;
+            var first = arguments[0];
+            if (typeof first === "string" && noise.some(function (p) { return p.test(first); })) return;
+            return original.apply(console, arguments);
+          };
+        });
         if (!isDevHost || !("serviceWorker" in navigator)) return;
         navigator.serviceWorker.getRegistrations().then(function (regs) {
           regs.forEach(function (reg) {

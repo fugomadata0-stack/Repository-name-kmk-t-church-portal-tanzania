@@ -1,7 +1,8 @@
-import { publicObjectUploadOptions } from "../../lib/storageUpload";
+import { enterpriseStorageUpload, PORTAL_DOCUMENT_FILE_GUARD } from "../../lib/enterpriseStorageUpload";
+import { inferContentType } from "../../lib/storageUpload";
 import { formatPostgrestError, formatStorageError } from "../../lib/supabaseErrors";
 import { publicStorageObjectPath } from "../../lib/storagePaths";
-import { getSupabase } from "../../lib/supabaseClient";
+import { getSupabase } from "../../lib/supabase";
 import { unwrapList } from "../../lib/supabaseResult";
 import { safeLower } from "../../lib/safe";
 import type { ChurchFileStorageBucket, FileManagerItemRecord } from "../../types";
@@ -44,7 +45,6 @@ export async function uploadChurchFile(
   category: string,
   onProgress?: (pct: number) => void
 ): Promise<{ filePath: string; publicUrl: string; mime: string }> {
-  const c = clientOrThrow();
   const folder = slugCategory(category);
   const safeBase = file.name.replace(/[^\w.-]+/g, "_").slice(0, 120) || "faili";
   const filePath = `${folder}/${crypto.randomUUID()}-${safeBase}`;
@@ -61,13 +61,20 @@ export async function uploadChurchFile(
   }
 
   try {
-    const { error } = await c.storage.from(bucket).upload(filePath, file, publicObjectUploadOptions(file, { upsert: false }));
-    if (error) throw new Error(formatStorageError(error, bucket));
-    const { data } = c.storage.from(bucket).getPublicUrl(filePath);
+    const uploaded = await enterpriseStorageUpload({
+      bucket,
+      file,
+      path: filePath,
+      guard: PORTAL_DOCUMENT_FILE_GUARD,
+      upsert: false,
+      onProgress: onProgress
+        ? (p) => onProgress(p.percent)
+        : undefined,
+    });
     return {
-      filePath,
-      publicUrl: data.publicUrl,
-      mime: file.type || "application/octet-stream",
+      filePath: uploaded.path,
+      publicUrl: uploaded.publicUrl,
+      mime: uploaded.contentType || inferContentType(file) || file.type || "application/octet-stream",
     };
   } finally {
     if (t) clearInterval(t);

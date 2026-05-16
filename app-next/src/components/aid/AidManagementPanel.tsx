@@ -23,8 +23,9 @@ import {
 } from "lucide-react";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { usePortal } from "../../context/PortalContext";
-import { getSupabase } from "../../lib/supabaseClient";
+import { parseOptionalNumberInput, parseRequiredNumberInput } from "../../lib/parseInputNumber";
 import { safeArray, safeLower } from "../../lib/safe";
+import { getSupabase } from "../../lib/supabaseClient";
 import { STAGE2_COLORS, stage2GradHeader } from "../../lib/stage2Theme";
 import {
   deleteAidBeneficiary,
@@ -1209,7 +1210,7 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
                         step={1}
                         className="mt-1 w-full rounded-xl border px-3 py-2"
                         value={req.amount ?? 0}
-                        onChange={(e) => setReq({ ...req, amount: Number(e.target.value) })}
+                        onChange={(e) => setReq({ ...req, amount: parseRequiredNumberInput(e.target.value, 0, 0) })}
                       />
                     </label>
                     <label className="text-sm">
@@ -1372,7 +1373,7 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
                       type="number"
                       className="mt-1 w-full rounded-xl border px-3 py-2"
                       value={dis.amount_delivered ?? ""}
-                      onChange={(e) => setDis({ ...dis, amount_delivered: e.target.value === "" ? null : Number(e.target.value) })}
+                      onChange={(e) => setDis({ ...dis, amount_delivered: parseOptionalNumberInput(e.target.value) })}
                     />
                   </label>
                   <label className="text-sm">

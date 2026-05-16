@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
+import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { PremiumTable, type PremiumTableExcelBulk } from "../common/PremiumTable";
 import { SettingsSupabaseBanner } from "../settings/SettingsSupabaseBanner";
 import { usePortal } from "../../context/PortalContext";
@@ -700,11 +701,20 @@ export function ChurchMembersPanel({
               <div className="mt-1 text-xs">Jimbo: {cardRow.jimbo_name || "—"} | Tawi: {cardRow.tawi_name || "—"}</div>
               <div className="mt-1 text-xs">Status: {MS_SW[cardRow.membership_status]}</div>
               <div className="mt-3 flex items-center justify-between">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`${window.location.origin}/verify/member/${cardRow.id}`)}`}
-                  alt="QR code"
-                  className="h-24 w-24 rounded bg-white p-1"
-                />
+                <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded bg-white p-1">
+                  <ResponsiveLazyImage
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(`${window.location.origin}/verify/member/${cardRow.id}`)}`}
+                    alt="QR code"
+
+                    className="absolute inset-0 h-full w-full object-cover"
+
+                    width={120}
+                    height={120}
+
+                    loading="lazy"
+
+                  />
+                </div>
                 <div className="text-right text-[11px] text-slate-200">
                   Issue date
                   <br />

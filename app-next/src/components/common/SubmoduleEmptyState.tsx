@@ -1,5 +1,6 @@
 import { ArrowLeft, Layers, Settings } from "lucide-react";
 import { modules } from "../../data/portalModules";
+import { getDashboardDefaultSubmodule } from "../../lib/dashboardSubmodules";
 import { usePortal } from "../../context/PortalContext";
 
 interface Props {
@@ -43,7 +44,7 @@ export function SubmoduleEmptyState(props: Props) {
             onClick={() =>
               window.dispatchEvent(
                 new CustomEvent("kmt-portal-navigate", {
-                  detail: { moduleKey: "dashboard", submodule: "Overview" },
+                  detail: { moduleKey: "dashboard", submodule: getDashboardDefaultSubmodule() },
                 })
               )
             }

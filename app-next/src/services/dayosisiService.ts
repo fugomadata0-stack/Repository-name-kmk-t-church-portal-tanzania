@@ -43,6 +43,10 @@ export function mapRowToDayosisi(row: Record<string, unknown>): DayosisiRecord {
     email: String(row.email ?? ""),
     maelezo: String(row.maelezo ?? ""),
     status: uiStatus(row.status as string),
+    makamu_mwenyekiti: String(row.makamu_mwenyekiti ?? ""),
+    katibu: String(row.katibu ?? ""),
+    naibu_katibu: String(row.naibu_katibu ?? ""),
+    mhasibu: String(row.mhasibu ?? ""),
   };
 }
 
@@ -57,6 +61,10 @@ function toInsertPayload(r: DayosisiRecord) {
     email: r.email.trim() || null,
     maelezo: r.maelezo.trim() || null,
     status: dbStatus(r.status),
+    makamu_mwenyekiti: (r.makamu_mwenyekiti ?? "").trim() || null,
+    katibu: (r.katibu ?? "").trim() || null,
+    naibu_katibu: (r.naibu_katibu ?? "").trim() || null,
+    mhasibu: (r.mhasibu ?? "").trim() || null,
   };
 }
 

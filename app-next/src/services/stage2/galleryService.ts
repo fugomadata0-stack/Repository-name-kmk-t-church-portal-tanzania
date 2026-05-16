@@ -1,11 +1,12 @@
-import { buildSafeStoragePath, publicObjectUploadOptions } from "../../lib/storageUpload";
+import { enterpriseStorageUpload, PORTAL_IMAGE_FILE_GUARD } from "../../lib/enterpriseStorageUpload";
 import { formatPostgrestError, formatStorageError } from "../../lib/supabaseErrors";
 import { publicStorageObjectPath } from "../../lib/storagePaths";
-import { getSupabase } from "../../lib/supabaseClient";
+import { getSupabase } from "../../lib/supabase";
 import { unwrapList } from "../../lib/supabaseResult";
+import { STORAGE_BUCKETS } from "../../lib/storageBuckets";
 import type { GalleryImageRecord } from "../../types";
 
-const BUCKET = "church-gallery";
+const BUCKET = STORAGE_BUCKETS.churchGallery;
 
 function clientOrThrow() {
   const c = getSupabase();
@@ -56,12 +57,14 @@ export async function deleteGalleryImage(id: string): Promise<void> {
 }
 
 export async function uploadGalleryImage(file: File, prefix = "items"): Promise<{ path: string; publicUrl: string }> {
-  const c = clientOrThrow();
-  const path = buildSafeStoragePath(prefix, file.name);
-  const { error } = await c.storage.from(BUCKET).upload(path, file, publicObjectUploadOptions(file, { upsert: false }));
-  if (error) throw new Error(formatStorageError(error, BUCKET));
-  const { data } = c.storage.from(BUCKET).getPublicUrl(path);
-  return { path, publicUrl: data.publicUrl };
+  const { path, publicUrl } = await enterpriseStorageUpload({
+    bucket: BUCKET,
+    file,
+    pathPrefix: prefix,
+    guard: PORTAL_IMAGE_FILE_GUARD,
+    upsert: false,
+  });
+  return { path, publicUrl };
 }
 
 export async function removeGalleryFileFromStorage(fileUrl: string): Promise<void> {

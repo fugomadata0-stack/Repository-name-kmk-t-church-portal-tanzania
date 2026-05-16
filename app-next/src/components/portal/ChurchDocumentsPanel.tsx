@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { SupabaseListFeedback } from "../common/SupabaseListFeedback";
 import { PremiumTable } from "../common/PremiumTable";
+import { EnterpriseDocumentUpload } from "../common/EnterpriseDocumentUpload";
+import { DocumentPreviewModal } from "../common/DocumentPreviewModal";
+import { StorageDiagnosticsPanel } from "../common/StorageDiagnosticsPanel";
 import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
 import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
-import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
-import { mbToBytes, UPLOAD_LIMITS_MB, validateSelectedFile } from "../../lib/fileUploadGuard";
+import { formatCaughtError } from "../../lib/supabaseErrors";
+import type { StorageUploadProgress } from "../../lib/enterpriseStorageUpload";
 import {
   deleteChurchDocument,
   fetchChurchDocuments,
@@ -22,22 +25,39 @@ import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis, Line, LineChart } from "recharts";
 
-const ACCEPT =
-  ".pdf,.doc,.docx,.xlsx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const DOC_MAX_BYTES = mbToBytes(UPLOAD_LIMITS_MB.documents);
+const VISIBILITY_OPTIONS = ["ALL", "internal", "public", "restricted"] as const;
 /** Urefu wa px kwa Recharts — epuka width/height(-1) wakati parent haina ukanda halisi. */
 const DOC_CHART_PX = 224;
 
 function extOk(name: string) {
   const low = safeLower(name);
-  return low.endsWith(".pdf") || low.endsWith(".doc") || low.endsWith(".docx") || low.endsWith(".xlsx");
+  return (
+    low.endsWith(".pdf") ||
+    low.endsWith(".doc") ||
+    low.endsWith(".docx") ||
+    low.endsWith(".xls") ||
+    low.endsWith(".xlsx") ||
+    low.endsWith(".ppt") ||
+    low.endsWith(".pptx") ||
+    low.endsWith(".txt") ||
+    low.endsWith(".zip") ||
+    low.endsWith(".rar") ||
+    low.endsWith(".jpg") ||
+    low.endsWith(".jpeg") ||
+    low.endsWith(".png") ||
+    low.endsWith(".webp")
+  );
 }
 
 function fileTypeLabel(url: string) {
   const low = safeLower(url);
   if (low.endsWith(".pdf")) return "PDF";
   if (low.endsWith(".doc") || low.endsWith(".docx")) return "DOC/DOCX";
-  if (low.endsWith(".xlsx")) return "XLSX";
+  if (low.endsWith(".xls") || low.endsWith(".xlsx")) return "XLS/XLSX";
+  if (low.endsWith(".ppt") || low.endsWith(".pptx")) return "PPT/PPTX";
+  if (low.endsWith(".txt")) return "TXT";
+  if (low.endsWith(".zip") || low.endsWith(".rar")) return "ZIP/RAR";
+  if ([ ".jpg", ".jpeg", ".png", ".webp", ".gif" ].some((ext) => low.endsWith(ext))) return "JPG/PNG/WEBP";
   return "Nyingine";
 }
 
@@ -97,8 +117,12 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState<StorageUploadProgress | null>(null);
   const [lastFailedFile, setLastFailedFile] = useState<File | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [visibilityLevel, setVisibilityLevel] = useState("internal");
+  const [visibilityFilter, setVisibilityFilter] = useState("ALL");
+  const [previewDoc, setPreviewDoc] = useState<ChurchDocumentRecord | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const dispatchMetricsReload = useCallback(() => {
@@ -120,8 +144,8 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
     } catch (err) {
       console.error("[Documents:load]", err);
       setRows([]);
-      setLoadError(SUPABASE_QUERY_ERROR_SW);
-      pushToast("Imeshindikana kupakua nyaraka.", "error");
+      setLoadError(err instanceof Error ? err.message : formatCaughtError(err));
+      pushToast(formatCaughtError(err), "error");
     } finally {
       setLoading(false);
     }
@@ -178,6 +202,7 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
       if (uploaderFilter !== "ALL" && uploader !== uploaderFilter) return false;
       if (departmentFilter !== "ALL" && String(r.department ?? "").trim() !== departmentFilter) return false;
       if (branchFilter !== "ALL" && String(r.branch ?? "").trim() !== branchFilter) return false;
+      if (visibilityFilter !== "ALL" && String(r.visibility_level ?? "internal") !== visibilityFilter) return false;
       const date10 = String(r.created_at ?? "").slice(0, 10);
       if (startDateFilter && (!date10 || date10 < startDateFilter)) return false;
       if (endDateFilter && (!date10 || date10 > endDateFilter)) return false;
@@ -195,6 +220,7 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
     startDateFilter,
     endDateFilter,
     debouncedSearchFilter,
+    visibilityFilter,
   ]);
 
   const clearAllFilters = useCallback(() => {
@@ -207,6 +233,7 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
     setBranchFilter("ALL");
     setStartDateFilter("");
     setEndDateFilter("");
+    setVisibilityFilter("ALL");
     pushToast("Vichujio vimesafishwa.", "success");
   }, [pushToast]);
 
@@ -349,7 +376,9 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
     setBranch("");
     setDescription("");
     setFile(null);
-    setUploadProgress(0);
+    setUploadProgress(null);
+    setUploadError(null);
+    setVisibilityLevel("internal");
     setLastFailedFile(null);
     setModalOpen(true);
   };
@@ -363,35 +392,13 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
     setUploadedBy(String(r.uploaded_by ?? ""));
     setBranch(String(r.branch ?? ""));
     setDescription(String(r.description ?? ""));
+    setVisibilityLevel(String(r.visibility_level ?? "internal"));
     setFile(null);
-    setUploadProgress(0);
+    setUploadProgress(null);
+    setUploadError(null);
     setLastFailedFile(null);
     setModalOpen(true);
   };
-
-  const selectDocumentFile = useCallback(
-    (picked: File | null) => {
-      if (!picked) {
-        setFile(null);
-        return;
-      }
-      const err = validateSelectedFile(picked, {
-        allowedExtensions: [".pdf", ".doc", ".docx", ".xlsx"],
-        maxBytes: DOC_MAX_BYTES,
-        allowedMimePrefixes: ["application/pdf", "application/msword", "application/vnd.openxmlformats", "application/octet-stream"],
-        labelSw: "faili la nyaraka",
-      });
-      if (err) {
-        pushToast(err, "error");
-        setFile(null);
-        return;
-      }
-      setFile(picked);
-      setLastFailedFile(null);
-      setUploadProgress(0);
-    },
-    [pushToast]
-  );
 
   const saveModal = async () => {
     if (!getSupabase() || saving) return;
@@ -406,34 +413,37 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
         let nextUrl = editing.file_url;
         if (file) {
           if (!extOk(file.name)) {
-            pushToast("Chagua faili la PDF, DOC, DOCX, au XLSX.", "error");
+            pushToast("Chagua faili la PDF, Word, Excel, PowerPoint, TXT, ZIP au RAR.", "error");
             setSaving(false);
             return;
           }
           setUploading(true);
-          setUploadProgress(25);
-          const { publicUrl } = await uploadChurchDocumentFile(file);
-          setUploadProgress(75);
+          setUploadError(null);
+          const uploaded = await uploadChurchDocumentFile(file, { onProgress: setUploadProgress });
           const prevUrl = editing.file_url;
-          nextUrl = publicUrl;
+          nextUrl = uploaded.publicUrl;
           try {
             const saved = await updateChurchDocument(editing.id, {
               title: t,
               category: category.trim(),
-              type: docType.trim(),
+              type: docType.trim() || fileTypeLabel(uploaded.publicUrl),
               department: department.trim(),
               uploaded_by: uploadedBy.trim(),
               branch: branch.trim(),
               description: description.trim(),
               file_url: nextUrl,
+              file_name: uploaded.fileName,
+              file_path: uploaded.path,
+              file_size: uploaded.fileSize,
+              mime_type: uploaded.mimeType,
+              visibility_level: visibilityLevel,
             });
             if (prevUrl && prevUrl !== nextUrl) {
               await removeChurchDocumentFileFromStorage(prevUrl).catch(() => {});
             }
             setRows((prev) => prev.map((x) => (x.id === editing.id ? saved : x)));
-            setUploadProgress(100);
           } catch (updErr) {
-            await removeChurchDocumentFileFromStorage(publicUrl).catch(() => {});
+            await removeChurchDocumentFileFromStorage(uploaded.publicUrl).catch(() => {});
             throw updErr;
           } finally {
             setUploading(false);
@@ -447,6 +457,7 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
             uploaded_by: uploadedBy.trim(),
             branch: branch.trim(),
             description: description.trim(),
+            visibility_level: visibilityLevel,
           });
           setRows((prev) => prev.map((x) => (x.id === editing.id ? saved : x)));
         }
@@ -454,31 +465,34 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
         dispatchMetricsReload();
       } else {
         if (!file || !extOk(file.name)) {
-          pushToast("Chagua faili la PDF, DOC, DOCX, au XLSX.", "error");
+          pushToast("Chagua faili la PDF, Word, Excel, PowerPoint, TXT, ZIP au RAR.", "error");
           setSaving(false);
           return;
         }
         setUploading(true);
-        setUploadProgress(25);
-        const { publicUrl } = await uploadChurchDocumentFile(file);
-        setUploadProgress(75);
+        setUploadError(null);
+        const uploaded = await uploadChurchDocumentFile(file, { onProgress: setUploadProgress });
         try {
           const saved = await insertChurchDocument({
             title: t,
             category: category.trim(),
-            type: docType.trim(),
+            type: docType.trim() || fileTypeLabel(uploaded.publicUrl),
             department: department.trim(),
             uploaded_by: uploadedBy.trim(),
             branch: branch.trim(),
-            file_url: publicUrl,
+            file_url: uploaded.publicUrl,
+            file_name: uploaded.fileName,
+            file_path: uploaded.path,
+            file_size: uploaded.fileSize,
+            mime_type: uploaded.mimeType,
             description: description.trim(),
+            visibility_level: visibilityLevel,
           });
           setRows((prev) => [saved, ...prev]);
-          setUploadProgress(100);
           pushToast("Nyaraka imeongezwa.", "success");
           dispatchMetricsReload();
         } catch (insertErr) {
-          await removeChurchDocumentFileFromStorage(publicUrl).catch(() => {});
+          await removeChurchDocumentFileFromStorage(uploaded.publicUrl).catch(() => {});
           throw insertErr;
         } finally {
           setUploading(false);
@@ -491,16 +505,18 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
       const msg = err instanceof Error ? err.message : "Imeshindikana kuhifadhi nyaraka.";
       pushToast(msg || "Imeshindikana kuhifadhi nyaraka.", "error");
       console.error("[Documents:saveModal]", err);
+      setUploadError(msg);
       if (file) setLastFailedFile(file);
     } finally {
       setSaving(false);
       setUploading(false);
-      setUploadProgress(0);
+      setUploadProgress(null);
     }
   };
 
   return (
     <div className="space-y-3">
+      <StorageDiagnosticsPanel compact />
       <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
       <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -521,7 +537,7 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
           <label className="grid gap-1 text-xs font-medium text-slate-700">
             Aina ya faili
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm">
-              {["ALL", "PDF", "DOC/DOCX", "XLSX", "Nyingine"].map((t) => (
+              {["ALL", "PDF", "DOC/DOCX", "XLS/XLSX", "PPT/PPTX", "JPG/PNG/WEBP", "TXT", "ZIP/RAR", "Nyingine"].map((t) => (
                 <option key={t} value={t}>
                   {t === "ALL" ? "Zote" : t}
                 </option>
@@ -531,9 +547,19 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
           <label className="grid gap-1 text-xs font-medium text-slate-700">
             Status
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm">
-              {["ALL", "Active"].map((s) => (
+              {["ALL", "Active", "Pending", "Archived"].map((s) => (
                 <option key={s} value={s}>
                   {s === "ALL" ? "Zote" : s}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-medium text-slate-700">
+            Ufikiaji (visibility)
+            <select value={visibilityFilter} onChange={(e) => setVisibilityFilter(e.target.value)} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm">
+              {VISIBILITY_OPTIONS.map((v) => (
+                <option key={v} value={v}>
+                  {v === "ALL" ? "Zote" : v}
                 </option>
               ))}
             </select>
@@ -700,9 +726,25 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
             key: "file_url",
             label: "Faili",
             render: (r) => (
-              <a href={r.file_url} target="_blank" rel="noreferrer" className="font-medium text-blue-700 underline break-all">
-                {fileTypeLabel(r.file_url) === "PDF" ? "📄" : fileTypeLabel(r.file_url) === "XLSX" ? "📊" : "🗂️"} Fungua / pakua
-              </a>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPreviewDoc(r)}
+                  className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-900 hover:bg-blue-100"
+                >
+                  Angalia
+                </button>
+                <a href={r.file_url} target="_blank" rel="noreferrer" download className="text-xs font-medium text-blue-700 underline">
+                  Pakua
+                </a>
+              </div>
+            ),
+          },
+          {
+            key: "visibility_level",
+            label: "Ufikiaji",
+            render: (r) => (
+              <span className="text-xs text-slate-700">{r.visibility_level ?? "internal"}</span>
             ),
           },
           { key: "description", label: "Maelezo", render: (r) => <span className="block max-w-[520px] whitespace-normal break-words text-slate-700">{r.description || "—"}</span> },
@@ -780,43 +822,31 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
                 Maelezo
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="rounded-lg border px-3 py-2 text-sm" />
               </label>
-              <label className="grid gap-1 text-xs">
-                Faili {editing ? "(badili — hiari)" : "(lazima)"}
-                <div
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (saving || uploading) return;
-                    const dropped = e.dataTransfer.files?.[0] ?? null;
-                    selectDocumentFile(dropped);
-                  }}
-                  className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-3 text-xs text-slate-600"
-                >
-                  Buruta faili hapa au tumia browse.
-                </div>
-                <input
-                  type="file"
-                  accept={ACCEPT}
-                  disabled={saving || uploading}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0] ?? null;
-                    selectDocumentFile(f);
-                    e.currentTarget.value = "";
-                  }}
-                  className="text-sm"
-                />
-                {file ? <p className="text-xs text-slate-700">Umechagua: {file.name}</p> : null}
-                {uploading ? (
-                  <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-200">
-                    <div className="h-full bg-[#0B1F3A] transition-all" style={{ width: `${uploadProgress}%` }} />
-                  </div>
-                ) : null}
-                {lastFailedFile ? (
-                  <button type="button" className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-[#0B1F3A]" onClick={() => selectDocumentFile(lastFailedFile)} disabled={saving || uploading}>
-                    Retry faili iliyoshindikana
-                  </button>
-                ) : null}
-              </label>
+              <EnterpriseDocumentUpload
+                label={editing ? "Faili (badili — hiari)" : "Faili (lazima)"}
+                required={!editing}
+                disabled={saving}
+                selectedFile={file}
+                onFileChange={(f) => {
+                  setFile(f);
+                  if (f) setUploadError(null);
+                }}
+                onValidationError={(msg) => {
+                  setUploadError(msg);
+                  pushToast(msg, "error");
+                }}
+                uploading={uploading}
+                progress={uploadProgress}
+                lastError={uploadError}
+                onRetry={
+                  lastFailedFile
+                    ? () => {
+                        setFile(lastFailedFile);
+                        setUploadError(null);
+                      }
+                    : undefined
+                }
+              />
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" className="rounded-lg border px-3 py-2 text-sm" onClick={() => setModalOpen(false)} disabled={saving || uploading}>
@@ -829,6 +859,14 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
           </div>
         </ModalScrollLayer>
       ) : null}
+
+      <DocumentPreviewModal
+        open={Boolean(previewDoc)}
+        title={previewDoc?.title ?? ""}
+        fileUrl={previewDoc?.file_url ?? ""}
+        mimeType={previewDoc?.mime_type}
+        onClose={() => setPreviewDoc(null)}
+      />
     </div>
   );
 }

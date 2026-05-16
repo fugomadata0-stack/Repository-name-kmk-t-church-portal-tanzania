@@ -1,11 +1,12 @@
-import { buildSafeStoragePath, publicObjectUploadOptions } from "../../lib/storageUpload";
+import { enterpriseStorageUpload, PORTAL_IMAGE_FILE_GUARD } from "../../lib/enterpriseStorageUpload";
 import { formatPostgrestError, formatStorageError } from "../../lib/supabaseErrors";
 import { publicStorageObjectPath } from "../../lib/storagePaths";
-import { getSupabase } from "../../lib/supabaseClient";
+import { getSupabase } from "../../lib/supabase";
 import { unwrapList } from "../../lib/supabaseResult";
+import { STORAGE_BUCKETS } from "../../lib/storageBuckets";
 import type { ChurchVideoRecord } from "../../types";
 
-const BUCKET = "church-videos";
+const BUCKET = STORAGE_BUCKETS.churchVideos;
 
 function clientOrThrow() {
   const c = getSupabase();
@@ -54,12 +55,13 @@ export async function deleteVideo(id: string): Promise<void> {
 }
 
 export async function uploadVideoThumbnail(file: File, videoId: string): Promise<string> {
-  const c = clientOrThrow();
-  const path = buildSafeStoragePath(`thumbs/${videoId}`, file.name);
-  const { error } = await c.storage.from(BUCKET).upload(path, file, publicObjectUploadOptions(file));
-  if (error) throw new Error(formatStorageError(error, BUCKET));
-  const { data } = c.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
+  const { publicUrl } = await enterpriseStorageUpload({
+    bucket: BUCKET,
+    file,
+    pathPrefix: `thumbs/${videoId}`,
+    guard: PORTAL_IMAGE_FILE_GUARD,
+  });
+  return publicUrl;
 }
 
 export async function removeVideoThumbnailIfStored(url: string | null | undefined): Promise<void> {

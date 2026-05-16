@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
-import { getSupabase } from "../../lib/supabaseClient";
+import { getSupabase, isSupabaseRealtimeEnabled } from "../../lib/supabaseClient";
 import { stage2GradHeader } from "../../lib/stage2Theme";
 import { fetchPortalAnalyticsDashboard } from "../../services/stage3/analyticsService";
 import type { AnalyticsDashboardPayload, DayosisiRecord, JimboRecord, TawiRecord } from "../../types";
@@ -144,7 +144,7 @@ export function AnalyticsDashboardPanel(props: { variant?: "dashibodi" | "ripoti
 
   useEffect(() => {
     const c = getSupabase();
-    if (!c) return;
+    if (!c || !isSupabaseRealtimeEnabled()) return;
     const scheduleLoad = () => {
       if (reloadDebounceRef.current) clearTimeout(reloadDebounceRef.current);
       reloadDebounceRef.current = setTimeout(() => {

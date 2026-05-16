@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { SajiliMuundoPanel } from "../components/muundo/SajiliMuundoPanel";
+import { MatawiRecordFields, MATAWI_FORM_FIELD_KEYS } from "../components/muundo/MatawiRecordFields";
 import { ModalScrollLayer } from "../components/common/ModalScrollLayer";
 import { ModuleHeader } from "../components/common/ModuleHeader";
 import { PremiumTable } from "../components/common/PremiumTable";
@@ -32,7 +33,7 @@ import {
   InvitePromotePermissionsPanel,
   LiveStreamPanel,
   MasterSettingsCenterPanel,
-  NgaziKuuSummary,
+  MasterBranchExecutiveDashboard,
   NotificationsCenterPanel,
   EnterpriseLeadershipHub,
   PortalDirectoryPanel,
@@ -49,12 +50,16 @@ import {
   VideoLibraryPanel,
   VisibilityRulesPanel,
 } from "./moduleLazyPanels";
-import type { PremiumTableExcelBulk } from "../components/common/PremiumTable";
+import { ViongoziWaMatawiHubPanel } from "../components/viongozi/ViongoziWaMatawiHubPanel";
+import type { PremiumTableExcelBulk, Column } from "../components/common/PremiumTable";
 import { SubmoduleEmptyState } from "../components/common/SubmoduleEmptyState";
 import { ENTERPRISE_VIONGOZI_SUBMODULE, modules } from "../data/portalModules";
 import { usePortal } from "../context/PortalContext";
 import { getSupabase } from "../lib/supabaseClient";
 import { dispatchPortalReloadMetrics } from "../lib/portalEvents";
+import { downloadTawiBranchCertificatePdf } from "../lib/tawiBranchCertificatePdf";
+import { buildTawiCertificateVerificationUrl } from "../lib/kmktExecutiveInstitution";
+import { matchesMatawiTierLeader } from "../lib/viongoziMatawiTier";
 import { exportRowsToExcel, exportTableToPdf, openPrintableTable } from "../lib/exportHelpers";
 import { deleteDayosisi, upsertDayosisi } from "../services/dayosisiService";
 import { FedhaRecordModal } from "../components/fedha/FedhaRecordModal";
@@ -77,6 +82,7 @@ import {
   deleteChurchJimbo,
   deleteChurchTawi,
   isPersistedUuid,
+  patchChurchTawiVerificationStatus,
   upsertChurchJimbo,
   upsertChurchTawi,
 } from "../services/muundoHierarchyService";
@@ -161,6 +167,9 @@ interface Props {
   setIncomeSources: Dispatch<SetStateAction<IncomeSourceRecord[]>>;
   incomeManagement: IncomeManagementRecord[];
   setIncomeManagement: Dispatch<SetStateAction<IncomeManagementRecord[]>>;
+  /** Kutoka AppLayout — hesabu ya matawi yenye sajili pending_review (KPI / RLS). */
+  matawiRegistryPendingReviewKpi?: number | null;
+  matawiRegistryPendingReviewKpiFailed?: boolean;
   /** Baada ya CRUD mafaniko (scroll, sidebar, angazo la safu) */
   onCrudSuccess?: (
     action: "create" | "update" | "delete",
@@ -228,10 +237,7 @@ function filterViongoziBySubmodule(
       );
       break;
     case "Viongozi wa Matawi/Vituo":
-      filteredList = list.filter((r) => {
-        const tw = (r.tawi || "").trim();
-        return tw.length > 0 && tw !== "—";
-      });
+      filteredList = list.filter(matchesMatawiTierLeader);
       break;
     case "Viongozi wa Dayosisi":
       filteredList = list.filter((r) => /\bdayosisi\b/i.test(safeString(`${r.ngazi} ${r.assigned_entity ?? ""}`)) || Boolean((r.dayosisi || "").trim()));
@@ -266,7 +272,7 @@ function filterFedhaRowsBySubmodule(rows: FedhaRecord[], submodule: string): Fed
   const list = safeArray(rows);
   const t = submodule.trim();
   const s = safeLower(t);
-  if (!t || t === "Overview") return list;
+  if (!t || t === "Overview" || t === "Muhtasari") return list;
   if (s.includes("matumizi") || s.includes("expenses")) return list.filter((r) => r.aina === "Matumizi");
   if (s.includes("michango")) return list.filter((r) => r.aina === "Michango");
   if (s.includes("zaka")) return list.filter((r) => safeIncludes(r.kategoria, "zaka"));
@@ -603,7 +609,7 @@ export function ModulePage(props: Props) {
       }
       return;
     }
-    if (props.moduleKey === "muundo" && props.submodule.includes("Matawi")) {
+    if (props.moduleKey === "muundo" && props.submodule.includes("Orodha ya Matawi")) {
       const updatingTEarly = typeof editing?.id === "string" && isPersistedUuid(editing.id);
       if (updatingTEarly && !canEditMuundoRows) {
         pushToast("Huna ruhusa ya kuhariri muundo wa kanisa.", "error");
@@ -627,6 +633,19 @@ export function ModulePage(props: Props) {
       if (duplicateName) {
         pushToast("Jina hili tayari lipo chini ya jimbo hilo.", "error");
         return;
+      }
+      const bc = String(merged.branch_code ?? "").trim().toLowerCase();
+      if (bc) {
+        const dupCode = props.matawi.some(
+          (x) =>
+            x.id !== editing?.id &&
+            String(x.jimbo_id ?? "").trim() === String(merged.jimbo_id ?? "").trim() &&
+            String(x.branch_code ?? "").trim().toLowerCase() === bc
+        );
+        if (dupCode) {
+          pushToast("Branch code hii tayari imetumika kwenye jimbo hilo.", "error");
+          return;
+        }
       }
       if (merged.simu?.trim() && !/^[0-9+\-\s()]{7,20}$/.test(merged.simu.trim())) {
         pushToast("Namba ya simu si sahihi.", "error");
@@ -1177,8 +1196,26 @@ export function ModulePage(props: Props) {
         />
       );
     }
-    if (props.moduleKey === "muundo" && (props.submodule === "Ngazi Kuu" || props.submodule === "KMK(T)")) {
-      return <NgaziKuuSummary dayosisi={props.dayosisi} majimbo={props.majimbo} matawi={props.matawi} />;
+    if (
+      props.moduleKey === "muundo" &&
+      (props.submodule === "Injini ya Ngazi — Executive" ||
+        props.submodule === "Ngazi Kuu" ||
+        props.submodule === "KMK(T)" ||
+        props.submodule === "Matawi / Vituo" ||
+        props.submodule === "Dashboard ya Tawi")
+    ) {
+      const initialScope =
+        props.submodule === "Dashboard ya Tawi" ? ("tawi" as const) : ("kitaifa" as const);
+      return (
+        <ErrorBoundary>
+          <MasterBranchExecutiveDashboard
+            dayosisi={props.dayosisi}
+            majimbo={props.majimbo}
+            matawi={props.matawi}
+            initialScope={initialScope}
+          />
+        </ErrorBoundary>
+      );
     }
     if (props.moduleKey === "muundo" && props.submodule.includes("Hierarchy")) {
       return <HierarchyTreeView dayosisi={props.dayosisi} majimbo={props.majimbo} matawi={props.matawi} />;
@@ -1353,7 +1390,7 @@ export function ModulePage(props: Props) {
         </div>
       );
     }
-    if (props.moduleKey === "muundo" && props.submodule.includes("Matawi")) {
+    if (props.moduleKey === "muundo" && props.submodule.includes("Orodha ya Matawi")) {
       const matawiSpec = getPortalExcelFormSpec("muundo", props.submodule);
       const matawiExcel: PremiumTableExcelBulk | undefined = matawiSpec
         ? {
@@ -1385,10 +1422,142 @@ export function ModulePage(props: Props) {
           ) : null}
           <PremiumTable
             title="Orodha ya Matawi / Vituo"
-            subtitle="Matawi na vituo vya huduma"
+            subtitle="Usajili wa kina: msimbo, eneo, GPS, uhakiki — PDF/Excel/utafutaji hapa chini"
             persistenceScope={portalPremiumTableScope([props.moduleKey, props.submodule, "matawi"])}
             rows={props.matawi}
-            columns={[{ key: "jina", label: "Jina la Tawi/Kituo" }, { key: "aina", label: "Aina" }, { key: "dayosisi", label: "Dayosisi" }, { key: "jimbo", label: "Jimbo" }, { key: "kiongozi", label: "Kiongozi" }, { key: "simu", label: "Simu" }, { key: "status", label: "Status" }]}
+            columns={[
+              { key: "jina", label: "Jina la Tawi/Kituo" },
+              { key: "branch_code", label: "Branch code" },
+              { key: "aina", label: "Aina" },
+              { key: "dayosisi", label: "Dayosisi" },
+              { key: "jimbo", label: "Jimbo" },
+              { key: "mkoa", label: "Mkoa" },
+              { key: "wilaya", label: "Wilaya" },
+              { key: "verification_status", label: "Uhakiki" },
+              {
+                key: "_registryActions",
+                label: "Sajili",
+                render: (r) => {
+                  const canEditRow = canScopeMutateRecord(
+                    "edit",
+                    { dayosisi_id: null, jimbo_id: r.jimbo_id ?? null, tawi_id: r.id },
+                    scopeHierarchy
+                  );
+                  const vs = String(r.verification_status ?? "unverified");
+                  if (!canEditRow) {
+                    return vs === "verified" ? (
+                      <span className="text-[10px] font-semibold text-emerald-800">Imethibitishwa</span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    );
+                  }
+                  if (vs === "verified") {
+                    return (
+                      <div className="text-[10px] leading-tight text-slate-700">
+                        <span className="font-semibold text-emerald-800">Imethibitishwa</span>
+                        {r.verified_at ? (
+                          <span className="mt-0.5 block max-w-[9rem] truncate tabular-nums text-slate-500" title={r.verified_at}>
+                            {new Date(r.verified_at).toLocaleString("sw-TZ")}
+                          </span>
+                        ) : null}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="flex flex-col gap-1">
+                      <button
+                        type="button"
+                        className="rounded-lg bg-emerald-700 px-2 py-1 text-[10px] font-bold text-white hover:bg-emerald-800"
+                        onClick={() =>
+                          void (async () => {
+                            try {
+                              const saved = await patchChurchTawiVerificationStatus(r.id, "verified");
+                              props.setMatawi((p) => p.map((x) => (x.id === saved.id ? saved : x)));
+                              pushToast("Sajili ya tawi imethibitishwa.", "success");
+                              emitCrud("update", r.id);
+                            } catch (e) {
+                              reportError(e, "Uhakiki wa tawi");
+                            }
+                          })()
+                        }
+                      >
+                        Thibitisha
+                      </button>
+                      {vs !== "pending_review" ? (
+                        <button
+                          type="button"
+                          className="rounded-lg border border-amber-500 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-950 hover:bg-amber-100"
+                          onClick={() =>
+                            void (async () => {
+                              try {
+                                const saved = await patchChurchTawiVerificationStatus(r.id, "pending_review");
+                                props.setMatawi((p) => p.map((x) => (x.id === saved.id ? saved : x)));
+                                pushToast("Hali ya uhakiki: pending_review.", "success");
+                                emitCrud("update", r.id);
+                              } catch (e) {
+                                reportError(e, "Uhakiki wa tawi");
+                              }
+                            })()
+                          }
+                        >
+                          Pending
+                        </button>
+                      ) : null}
+                      {vs !== "unverified" ? (
+                        <button
+                          type="button"
+                          className="text-[10px] font-semibold text-slate-600 underline hover:text-slate-900"
+                          onClick={() =>
+                            void (async () => {
+                              try {
+                                const saved = await patchChurchTawiVerificationStatus(r.id, "unverified");
+                                props.setMatawi((p) => p.map((x) => (x.id === saved.id ? saved : x)));
+                                pushToast("Uhakiki umerudishwa (unverified).", "success");
+                                emitCrud("update", r.id);
+                              } catch (e) {
+                                reportError(e, "Uhakiki wa tawi");
+                              }
+                            })()
+                          }
+                        >
+                          Rudisha
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                },
+              },
+              { key: "kiongozi", label: "Kiongozi" },
+              { key: "simu", label: "Simu" },
+              {
+                key: "status",
+                label: "Status",
+                filterValues: ["Active", "Inactive", "Suspended", "Pending", "Needs Review", "Archived"],
+              },
+              {
+                key: "_cert",
+                label: "Cheti",
+                render: (r) => (
+                  <button
+                    type="button"
+                    className="rounded-lg border border-amber-600 bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-950 hover:bg-amber-100"
+                    onClick={() =>
+                      void (async () => {
+                        try {
+                          await downloadTawiBranchCertificatePdf(r);
+                          pushToast("Cheti cha tawi limepakuliwa (PDF).", "success");
+                        } catch (e) {
+                          console.error(e);
+                          pushToast(e instanceof Error ? e.message : "Imeshindikana kutengeneza cheti.", "error");
+                        }
+                      })()
+                    }
+                  >
+                    PDF
+                  </button>
+                ),
+              },
+            ]}
             onAdd={canCreateMuundo ? () => setEditing({}) : undefined}
             onEdit={canEditMuundoRows ? (r) => setEditing(r) : undefined}
             onDelete={canDeleteMuundoRows ? async (id) => {
@@ -1447,6 +1616,54 @@ export function ModulePage(props: Props) {
     }
     if (props.moduleKey === "viongozi") {
       const { displayRows, emptyHint, filtered } = filterViongoziBySubmodule(props.viongozi, props.submodule);
+      const isMatawiViongoziSubmodule = props.submodule.trim() === "Viongozi wa Matawi/Vituo";
+      const portalOrigin = typeof window !== "undefined" ? window.location.origin : "";
+
+      const viongoziTableColumns: Column<KiongoziRecord>[] = [
+        { key: "jina", label: "Jina Kamili" },
+        { key: "cheo", label: "Cheo" },
+        { key: "leadership_level", label: "Level" },
+        { key: "assigned_entity", label: "Assigned Entity" },
+        { key: "dayosisi", label: "Dayosisi" },
+        { key: "jimbo", label: "Jimbo" },
+        { key: "tawi", label: "Tawi" },
+        { key: "term_status", label: "Term" },
+        { key: "simu", label: "Simu" },
+        { key: "status", label: "Status" },
+      ];
+      if (isMatawiViongoziSubmodule) {
+        viongoziTableColumns.push({
+          key: "_verify",
+          label: "Uhakiki tawi",
+          exportValue: (r) => {
+            const id = String(r.tawi_id ?? "").trim();
+            return id ? buildTawiCertificateVerificationUrl(portalOrigin, id) : "";
+          },
+          render: (r) => {
+            const id = String(r.tawi_id ?? "").trim();
+            if (!id) {
+              return (
+                <span className="text-[11px] font-semibold text-amber-800" title="Chagua tawi kwenye fomu ya Hariri ili kuunganisha tawi_id">
+                  Weka tawi_id
+                </span>
+              );
+            }
+            const href = buildTawiCertificateVerificationUrl(portalOrigin, id);
+            if (!href) return "—";
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-[#123C69] underline underline-offset-2 decoration-[#D4AF37]/60 hover:text-[#0B1F3A]"
+              >
+                Umma
+              </a>
+            );
+          },
+        });
+      }
+
       const viongoziSpec = getPortalExcelFormSpec("viongozi", props.submodule);
       const viongoziExcel: PremiumTableExcelBulk | undefined = viongoziSpec
         ? {
@@ -1476,6 +1693,14 @@ export function ModulePage(props: Props) {
         : undefined;
       return (
         <div className="space-y-3">
+          {isMatawiViongoziSubmodule ? (
+            <ViongoziWaMatawiHubPanel
+              allLeaders={props.viongozi}
+              matawi={props.matawi}
+              registryPendingReviewKpi={props.matawiRegistryPendingReviewKpi ?? null}
+              registryPendingReviewKpiFailed={props.matawiRegistryPendingReviewKpiFailed ?? false}
+            />
+          ) : null}
           {!emptyHint && displayRows.length === 0 ? (
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-700">Hakuna viongozi bado</div>
           ) : null}
@@ -1493,18 +1718,7 @@ export function ModulePage(props: Props) {
           subtitle={`${props.submodule}${filtered ? " · kichujio kimewekwa" : ""} · Leadership registry ya KMK(T)`}
           persistenceScope={portalPremiumTableScope([props.moduleKey, props.submodule, "viongozi"])}
           rows={displayRows}
-          columns={[
-            { key: "jina", label: "Jina Kamili" },
-            { key: "cheo", label: "Cheo" },
-            { key: "leadership_level", label: "Level" },
-            { key: "assigned_entity", label: "Assigned Entity" },
-            { key: "dayosisi", label: "Dayosisi" },
-            { key: "jimbo", label: "Jimbo" },
-            { key: "tawi", label: "Tawi" },
-            { key: "term_status", label: "Term" },
-            { key: "simu", label: "Simu" },
-            { key: "status", label: "Status" },
-          ]}
+          columns={viongoziTableColumns}
           onAdd={() => setEditing({})}
           onEdit={(r) => setEditing(r)}
           onDelete={async (id) => {
@@ -3255,6 +3469,10 @@ function RecordModal({
             ]) {
               payload[k] = fd.get(k);
             }
+          } else if (moduleKey === "muundo" && submodule.includes("Orodha ya Matawi")) {
+            for (const k of MATAWI_FORM_FIELD_KEYS) {
+              payload[k] = fd.get(k);
+            }
           } else {
             fields.forEach(([, key]) => (payload[key as string] = fd.get(key as string)));
           }
@@ -3269,7 +3487,7 @@ function RecordModal({
             setFormError("Jina la jimbo na uchague dayosisi.");
             return;
           }
-          if (moduleKey === "muundo" && submodule.includes("Matawi") && (need("jina") || need("jimbo_id"))) {
+          if (moduleKey === "muundo" && submodule.includes("Orodha ya Matawi") && (need("jina") || need("jimbo_id"))) {
             setFormError("Jina la tawi na uchague jimbo.");
             return;
           }
@@ -3277,7 +3495,7 @@ function RecordModal({
             moduleKey === "muundo" &&
             submodule !== "Dayosisi" &&
             submodule !== "Majimbo" &&
-            !submodule.includes("Matawi") &&
+            !submodule.includes("Orodha ya Matawi") &&
             need("jina")
           ) {
             setFormError("Jina linahitajika.");
@@ -3342,6 +3560,14 @@ function RecordModal({
               initial={initial}
               incomeSources={incomeSources ?? []}
               canCreateIncomeSource={Boolean(canCreateIncomeSource)}
+            />
+          ) : moduleKey === "muundo" && submodule.includes("Orodha ya Matawi") ? (
+            <MatawiRecordFields
+              initial={initial}
+              hierarchy={{
+                dayosisi: hierarchy?.dayosisi ?? [],
+                majimbo: hierarchy?.majimbo ?? [],
+              }}
             />
           ) : (
           fields.map(([label, key]) =>

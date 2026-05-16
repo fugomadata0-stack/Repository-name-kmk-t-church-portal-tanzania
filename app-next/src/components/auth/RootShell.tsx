@@ -1,9 +1,16 @@
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "../common/ErrorBoundary";
-import { isAcceptInvitePath, isSignupRequestPath, isVerifyMemberPath, usePublicPath } from "../../hooks/usePublicPath";
+import {
+  isAcceptInvitePath,
+  isSignupRequestPath,
+  isVerifyLeadershipPath,
+  isVerifyMemberPath,
+  usePublicPath,
+} from "../../hooks/usePublicPath";
 import { AcceptInvitePage } from "../../pages/auth/AcceptInvitePage";
 import { LoginPage } from "../../pages/LoginPage";
 import { SignupRequestPage } from "../../pages/SignupRequestPage";
+import { VerifyLeadershipPage } from "../../pages/VerifyLeadershipPage";
 import { VerifyMemberPage } from "../../pages/VerifyMemberPage";
 import { PortalDirectoryLoadError } from "./PortalDirectoryLoadError";
 import { ProfileGateBlocked } from "./ProfileGateBlocked";
@@ -39,6 +46,10 @@ export function RootShell() {
     return <AuthSpinner />;
   }
 
+  if (!supabaseReady) {
+    return <SupabaseEnvMissing />;
+  }
+
   if (isSignupRequestPath(pathname)) {
     return <SignupRequestPage />;
   }
@@ -50,9 +61,8 @@ export function RootShell() {
     const memberId = pathname.split("/").filter(Boolean).pop() ?? "";
     return <VerifyMemberPage memberId={memberId} />;
   }
-
-  if (!supabaseReady) {
-    return <SupabaseEnvMissing />;
+  if (isVerifyLeadershipPath(pathname)) {
+    return <VerifyLeadershipPage />;
   }
 
   if (!session) {

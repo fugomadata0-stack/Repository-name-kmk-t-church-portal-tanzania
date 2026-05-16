@@ -1,7 +1,10 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { runSupabaseFetchQueued } from "./supabaseFetchQueue";
 
 let _client: SupabaseClient | null = null;
-const SUPABASE_FETCH_TIMEOUT_MS = 15000;
+/** Funguo na asili zilizofungwa wakati mteja unapotengenezwa — hutumika na fetch guard (hakuna ombi bila apikey). */
+let _boundSupabaseOrigin = "";
+let _boundSupabaseAnonKey = "";
 const SUPABASE_FETCH_RETRIES = 2;
 const REALTIME_ENABLED_RAW = String(import.meta.env.VITE_SUPABASE_REALTIME_ENABLED ?? "true").trim().toLowerCase();
 
@@ -9,9 +12,38 @@ function normalizeEnvUrl(raw: string): string {
   return raw.trim().replace(/\/+$/, "");
 }
 
+/** Vitu vilivyowekwa kwa mfano (.env.example / Vercel) — visiruhusu build/runtime ya uwongo */
+function looksLikePlaceholderSupabaseUrl(raw: string): boolean {
+  const u = normalizeEnvUrl(raw).toLowerCase();
+  if (!u) return false;
+  return (
+    u.includes("your_project_ref") ||
+    u.includes("placeholder") ||
+    /\/your[-_]/.test(u) ||
+    u.includes("example.supabase.co")
+  );
+}
+
+function looksLikePlaceholderSupabaseKey(raw: string): boolean {
+  const k = raw.trim().toLowerCase();
+  if (!k) return false;
+  return (
+    k.includes("your_publishable") ||
+    k.includes("your_anon") ||
+    k.includes("your_") ||
+    k.includes("changeme") ||
+    k.includes("placeholder") ||
+    k.includes("dummy") ||
+    k === "your_publishable_or_anon_key"
+  );
+}
+
 function validateSupabaseUrl(url: string): string | null {
   const u = normalizeEnvUrl(url);
   if (!u) return "VITE_SUPABASE_URL ni tupu.";
+  if (looksLikePlaceholderSupabaseUrl(u)) {
+    return "VITE_SUPABASE_URL bado ni mfano — weka URL halisi ya mradi wako wa Supabase.";
+  }
   try {
     const parsed = new URL(u);
     if (parsed.protocol !== "https:") return "VITE_SUPABASE_URL lazima ianze na https://";
@@ -24,21 +56,96 @@ function validateSupabaseUrl(url: string): string | null {
 function validateAnonKey(key: string): string | null {
   const k = key.trim();
   if (!k) return "VITE_SUPABASE_ANON_KEY ni tupu.";
+  if (looksLikePlaceholderSupabaseKey(k)) {
+    return "VITE_SUPABASE_ANON_KEY bado ni mfano — weka funguo halisi (anon / publishable) kutoka Supabase.";
+  }
   if (k.length < 20) return "VITE_SUPABASE_ANON_KEY inaonekana fupi sana.";
   if (k.toLowerCase().includes("service_role")) {
     return "Usitumie service role key kwenye frontend.";
   }
+  if (k.startsWith("eyJ")) {
+    const parts = k.split(".");
+    if (parts.length !== 3) return "VITE_SUPABASE_ANON_KEY si JWT sahihi (angalia mkato wa funguo).";
+  }
   return null;
 }
 
+function resolveRequestUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
+function resolvedSupabaseCredentials(): { origin: string; key: string } | null {
+  const origin = _boundSupabaseOrigin || normalizeEnvUrl(String(import.meta.env.VITE_SUPABASE_URL ?? ""));
+  const key = (_boundSupabaseAnonKey || String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? "")).trim();
+  if (!origin || !key || validateSupabaseUrl(origin) || validateAnonKey(key)) return null;
+  return { origin, key };
+}
+
+/** Ombi la REST/Auth/Storage kwa mradi huu (pamoja na custom domain inayolingana). */
+function isSupabaseProjectRequest(urlStr: string, projectOrigin: string): boolean {
+  try {
+    const u = new URL(urlStr);
+    const base = new URL(projectOrigin);
+    if (u.origin === base.origin) return true;
+    const ref = base.hostname.split(".")[0];
+    return u.hostname.endsWith(".supabase.co") && u.hostname.startsWith(`${ref}.`);
+  } catch {
+    return urlStr.startsWith(projectOrigin);
+  }
+}
+
+/**
+ * Rudisha URL + init iliyounganishwa — epuka kupoteza header/body wakati `fetch(Request, init)`.
+ * Huongeza `apikey` kwa kila ombi la Supabase (sababu kuu ya "No API key found").
+ */
+function normalizeSupabaseFetch(input: RequestInfo | URL, init?: RequestInit): { url: string; init: RequestInit } {
+  const creds = resolvedSupabaseCredentials();
+  const url = resolveRequestUrl(input);
+  let method =
+    init?.method ??
+    (typeof Request !== "undefined" && input instanceof Request ? input.method : "GET");
+  const headers = new Headers(init?.headers);
+  let body: BodyInit | null | undefined = init?.body;
+
+  if (typeof Request !== "undefined" && input instanceof Request) {
+    input.headers.forEach((value, key) => {
+      if (!headers.has(key)) headers.set(key, value);
+    });
+    if (body === undefined) body = input.body;
+    if (!init?.method) method = input.method;
+  }
+
+  if (creds && isSupabaseProjectRequest(url, creds.origin)) {
+    if (!headers.has("apikey")) headers.set("apikey", creds.key);
+    if (!headers.has("Authorization")) headers.set("Authorization", `Bearer ${creds.key}`);
+  }
+
+  return {
+    url,
+    init: {
+      ...init,
+      method,
+      headers,
+      body,
+    },
+  };
+}
+
 function shouldRetryNetworkError(err: unknown): boolean {
+  const name = err instanceof Error ? err.name : "";
   const msg = String((err as { message?: unknown } | null)?.message ?? err ?? "").toLowerCase();
   return (
+    name === "AbortError" ||
+    name === "TimeoutError" ||
     msg.includes("failed to fetch") ||
     msg.includes("networkerror") ||
     msg.includes("network request failed") ||
     msg.includes("timed out") ||
     msg.includes("timeout") ||
+    msg.includes("aborted") ||
+    msg.includes("signal is aborted") ||
     msg.includes("connection reset") ||
     msg.includes("err_connection_reset") ||
     msg.includes("err_quic_protocol_error")
@@ -46,14 +153,17 @@ function shouldRetryNetworkError(err: unknown): boolean {
 }
 
 function canRetryRequest(input: RequestInfo | URL, init: RequestInit | undefined): boolean {
-  const method = String(init?.method ?? "GET").toUpperCase();
+  const method = String(
+    init?.method ??
+      (typeof Request !== "undefined" && input instanceof Request ? input.method : "GET")
+  ).toUpperCase();
   if (method === "GET" || method === "HEAD") return true;
-  const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+  const url = resolveRequestUrl(input);
   // Auth token refresh POST is safe to retry and helps unstable connections.
   return method === "POST" && url.includes("/auth/v1/token");
 }
 
-async function fetchWithTimeoutAndRetry(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+async function fetchWithRetry(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     throw new Error("Hakuna intaneti kwa sasa.");
   }
@@ -61,28 +171,25 @@ async function fetchWithTimeoutAndRetry(input: RequestInfo | URL, init?: Request
   const retryable = canRetryRequest(input, init);
   const maxAttempts = retryable ? SUPABASE_FETCH_RETRIES + 1 : 1;
   let lastErr: unknown = null;
+  const normalized = normalizeSupabaseFetch(input, init);
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), SUPABASE_FETCH_TIMEOUT_MS);
-    try {
-      const merged: RequestInit = { ...init, signal: controller.signal };
-      const res = await fetch(input, merged);
-      window.clearTimeout(timer);
-      if (res.ok || !retryable || attempt >= maxAttempts) return res;
-      if (res.status < 500 && res.status !== 408 && res.status !== 429) return res;
-      await new Promise((r) => window.setTimeout(r, 250 * attempt));
-    } catch (err) {
-      window.clearTimeout(timer);
-      lastErr = err;
-      if (!retryable || attempt >= maxAttempts || !shouldRetryNetworkError(err)) {
-        throw err;
+  return runSupabaseFetchQueued(async () => {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        const res = await fetch(normalized.url, normalized.init);
+        if (res.ok || !retryable || attempt >= maxAttempts) return res;
+        if (res.status < 500 && res.status !== 408 && res.status !== 429) return res;
+        await new Promise((r) => window.setTimeout(r, 250 * attempt));
+      } catch (err) {
+        lastErr = err;
+        if (!retryable || attempt >= maxAttempts || !shouldRetryNetworkError(err)) {
+          throw err;
+        }
+        await new Promise((r) => window.setTimeout(r, 300 * attempt));
       }
-      await new Promise((r) => window.setTimeout(r, 300 * attempt));
     }
-  }
-
-  throw lastErr ?? new Error("Mtandao haupatikani kwa sasa.");
+    throw lastErr ?? new Error("Mtandao haupatikani kwa sasa.");
+  });
 }
 
 /**
@@ -111,19 +218,26 @@ export function getSupabase(): SupabaseClient | null {
   if (!url || !key) return null;
   if (validateSupabaseUrl(url) || validateAnonKey(key)) return null;
 
+  _boundSupabaseOrigin = url;
+  _boundSupabaseAnonKey = key;
+
   _client = createClient(url, key, {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true,
+      flowType: "pkce",
     },
     global: {
-      headers: { "X-Client-Info": "kmkt-portal-app-next" },
-      fetch: fetchWithTimeoutAndRetry,
+      headers: {
+        apikey: key,
+        "X-Client-Info": "kmkt-portal-app-next",
+      },
+      fetch: fetchWithRetry,
     },
     db: { schema: "public" },
     realtime: {
-      params: { eventsPerSecond: 5 },
+      params: { eventsPerSecond: 12 },
     },
   });
   return _client;
@@ -156,7 +270,14 @@ export function isSupabaseRealtimeEnabled(): boolean {
   );
 }
 
+/** Asili ya mradi (kwa diagnostics / upload guards). */
+export function getSupabaseProjectOrigin(): string {
+  return _boundSupabaseOrigin || normalizeEnvUrl(String(import.meta.env.VITE_SUPABASE_URL ?? ""));
+}
+
 /** Safisha singleton (hasa kwa majaribio / hot reload) */
 export function resetSupabaseClientForTests(): void {
   _client = null;
+  _boundSupabaseOrigin = "";
+  _boundSupabaseAnonKey = "";
 }

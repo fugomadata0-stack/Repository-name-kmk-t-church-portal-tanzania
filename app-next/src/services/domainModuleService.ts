@@ -76,7 +76,7 @@ export async function fetchDomainEntities(
 
   if (opts?.contextKey) {
     q = q.eq("submodule_key", opts.contextKey);
-  } else if (opts?.submoduleKey && opts.submoduleKey.trim() !== "" && opts.submoduleKey !== "Overview") {
+  } else if (opts?.submoduleKey && opts.submoduleKey.trim() !== "" && opts.submoduleKey !== "Overview" && opts.submoduleKey !== "Muhtasari") {
     q = q.eq("submodule_key", opts.submoduleKey);
   }
 

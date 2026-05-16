@@ -19,6 +19,25 @@ export type PdfWatermarkOpts = {
   line2?: string;
 };
 
+/** Pakua picha kutoka URL (CORS inapohitajika) kwa matumizi ya `addImage` kwenye PDF. */
+export async function fetchUrlAsPdfImageDataUrl(url: string): Promise<string | null> {
+  const u = String(url ?? "").trim();
+  if (!u) return null;
+  try {
+    const res = await fetch(u, { mode: "cors" });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
+      reader.onerror = () => reject(new Error("read"));
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Watermark ya kiinstitutional — huchorwa kabla ya maudhui kwenye ukurasa (willDrawPage / mwanzo wa ukurasa).
  */

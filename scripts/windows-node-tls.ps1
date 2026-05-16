@@ -67,7 +67,8 @@ Write-Host ""
 Write-Host "Jaribu tena katika sesheni hii:" -ForegroundColor Cyan
 Write-Host "  cd app-next; npm run build; npm run validate" -ForegroundColor White
 Write-Host "  npm audit" -ForegroundColor White
-Write-Host '  cd (Split-Path $PSScriptRoot -Parent); npx vercel --prod' -ForegroundColor White
+Write-Host "  npm run deploy:vercel:prod              (mzizi — Node 22+ hujaza --use-system-ca kiotomatiki)" -ForegroundColor White
+Write-Host "  npm run deploy:vercel:prod:win          (mzizi — skripti hii + deploy)" -ForegroundColor White
 Write-Host ""
 Write-Host 'Kuweka kwa USER (kudumu):' -ForegroundColor DarkGray
 Write-Host '  - Node 22+: Ongeza NODE_OPTIONS = --use-system-ca (User) kupitia:' -ForegroundColor DarkGray

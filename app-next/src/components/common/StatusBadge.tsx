@@ -4,6 +4,7 @@ const map: Record<Status, string> = {
   Active: "bg-emerald-100 text-emerald-700",
   Pending: "bg-amber-100 text-amber-700",
   Inactive: "bg-slate-200 text-slate-700",
+  Suspended: "bg-orange-100 text-orange-800",
   Archived: "bg-zinc-200 text-zinc-700",
   "Needs Review": "bg-rose-100 text-rose-700",
   Draft: "bg-slate-100 text-slate-700",

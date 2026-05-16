@@ -20,6 +20,8 @@ export type FinanceSettingsRow = {
   receipt_prefix: string;
   finance_year_start: string;
   finance_year_end: string;
+  /** Asilimia chaguo-msingi ya usambazaji wa ngazi (tawi → jimbo → dayosisi → kmkt) */
+  hierarchy_share_percent?: number;
   created_at?: string;
 };
 export type AttendanceSettingsRow = { id?: string | number; payload: Record<string, unknown>; created_at?: string };
@@ -60,6 +62,7 @@ function emptyFinance(): Omit<FinanceSettingsRow, "id" | "created_at"> {
     receipt_prefix: "RCT-",
     finance_year_start: "",
     finance_year_end: "",
+    hierarchy_share_percent: 35,
   };
 }
 
@@ -153,6 +156,8 @@ export async function fetchFinanceSettings(): Promise<FinanceSettingsRow | null>
     receipt_prefix: String(row.receipt_prefix ?? base.receipt_prefix),
     finance_year_start: row.finance_year_start ? String(row.finance_year_start).slice(0, 10) : "",
     finance_year_end: row.finance_year_end ? String(row.finance_year_end).slice(0, 10) : "",
+    hierarchy_share_percent:
+      row.hierarchy_share_percent != null ? Number(row.hierarchy_share_percent) : base.hierarchy_share_percent,
     created_at: String(row.created_at ?? ""),
   };
 }

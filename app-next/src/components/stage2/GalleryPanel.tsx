@@ -19,6 +19,7 @@ import { SupabaseListFeedback } from "../common/SupabaseListFeedback";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { ConfirmModal } from "../common/ConfirmModal";
 import { GlassPanel, MotionCard } from "./Stage2Motion";
+import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { exportRowsToExcel, exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
 import { checkRequiredMediaBuckets } from "../../services/mediaHealthService";
 const IMAGE_MAX_BYTES = mbToBytes(UPLOAD_LIMITS_MB.images);
@@ -231,7 +232,15 @@ export function GalleryPanel(props: { highlightRecordId?: string | null }) {
               <button type="button" onClick={() => setPreview(r)} className="block w-full text-left">
                 <GlassPanel className="overflow-hidden p-0">
                   <div className="relative aspect-square bg-slate-100">
-                    <img src={r.image_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+                    <ResponsiveLazyImage
+                      src={r.image_url}
+                      alt={r.title ? `Picha: ${r.title}` : "Picha ya gallery"}
+
+                      className="absolute inset-0 h-full w-full object-cover"
+                      width={1200}
+                      height={1200}
+                      loading="lazy"
+                    />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/75 to-transparent opacity-90" />
                     <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
                       <p className="line-clamp-2 text-sm font-bold">{r.title}</p>
@@ -298,7 +307,17 @@ export function GalleryPanel(props: { highlightRecordId?: string | null }) {
               >
                 <X className="h-5 w-5" />
               </button>
-              <img src={preview.image_url} alt="" className="max-h-[80vh] w-full rounded-xl object-contain" />
+              <ResponsiveLazyImage
+                src={preview.image_url}
+                alt={preview.title ? `Picha: ${preview.title}` : "Picha"}
+
+                className="min-h-[48vh] w-full rounded-xl bg-slate-100 object-contain"
+
+                width={1600}
+                height={1200}
+
+                loading="lazy"
+              />
               <p className="p-4 text-center font-semibold text-[#0B3C5D]">{preview.title}</p>
             </motion.div>
           </ModalScrollLayer>
