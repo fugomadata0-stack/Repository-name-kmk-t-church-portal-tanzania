@@ -12,18 +12,17 @@ export function normalizeSupabaseEnvUrl(raw: string): string {
   return raw.trim().replace(/\/+$/, "");
 }
 
-export function isCiRunner(): boolean {
-  return process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
-}
-
 export function isCiSyntheticSupabaseUrl(url: string): boolean {
   return normalizeSupabaseEnvUrl(url) === CI_SUPABASE_URL;
 }
 
-export function looksLikePlaceholderSupabaseUrl(raw: string): boolean {
+export function looksLikePlaceholderSupabaseUrl(
+  raw: string,
+  options?: { allowCiSynthetic?: boolean },
+): boolean {
   const u = normalizeSupabaseEnvUrl(raw).toLowerCase();
   if (!u) return false;
-  if (isCiRunner() && isCiSyntheticSupabaseUrl(raw)) return false;
+  if (options?.allowCiSynthetic && isCiSyntheticSupabaseUrl(raw)) return false;
   return (
     u.includes("your_project_ref") ||
     u.includes("placeholder") ||
@@ -32,10 +31,13 @@ export function looksLikePlaceholderSupabaseUrl(raw: string): boolean {
   );
 }
 
-export function looksLikePlaceholderSupabaseKey(raw: string): boolean {
+export function looksLikePlaceholderSupabaseKey(
+  raw: string,
+  options?: { allowCiSynthetic?: boolean },
+): boolean {
   const k = raw.trim().toLowerCase();
   if (!k) return false;
-  if (isCiRunner() && k === CI_SUPABASE_ANON_KEY.toLowerCase()) return false;
+  if (options?.allowCiSynthetic && k === CI_SUPABASE_ANON_KEY.toLowerCase()) return false;
   return (
     k.includes("your_publishable") ||
     k.includes("your_anon") ||
@@ -47,10 +49,13 @@ export function looksLikePlaceholderSupabaseKey(raw: string): boolean {
   );
 }
 
-export function validateSupabaseUrlForBuild(url: string): string | null {
+export function validateSupabaseUrlForBuild(
+  url: string,
+  options?: { allowCiSynthetic?: boolean },
+): string | null {
   const u = normalizeSupabaseEnvUrl(url);
   if (!u) return "VITE_SUPABASE_URL ni tupu.";
-  if (looksLikePlaceholderSupabaseUrl(u)) {
+  if (looksLikePlaceholderSupabaseUrl(u, options)) {
     return "VITE_SUPABASE_URL inaonekana ni mfano — weka URL halisi ya Supabase (GitHub Secret / Vercel).";
   }
   try {
@@ -62,10 +67,13 @@ export function validateSupabaseUrlForBuild(url: string): string | null {
   }
 }
 
-export function validateSupabaseAnonKeyForBuild(key: string): string | null {
+export function validateSupabaseAnonKeyForBuild(
+  key: string,
+  options?: { allowCiSynthetic?: boolean },
+): string | null {
   const k = key.trim();
   if (!k) return "VITE_SUPABASE_ANON_KEY ni tupu.";
-  if (looksLikePlaceholderSupabaseKey(k)) {
+  if (looksLikePlaceholderSupabaseKey(k, options)) {
     return "VITE_SUPABASE_ANON_KEY inaonekana ni mfano — weka funguo halisi ya anon/publishable.";
   }
   if (k.length < 20) return "VITE_SUPABASE_ANON_KEY inaonekana fupi sana.";
@@ -86,11 +94,15 @@ export type SupabaseEnvBuildCheck = {
   source: "secrets" | "ci-synthetic" | "local" | "unknown";
 };
 
-export function evaluateSupabaseEnvForProductionBuild(env: Record<string, string | undefined>): SupabaseEnvBuildCheck {
+export function evaluateSupabaseEnvForProductionBuild(
+  env: Record<string, string | undefined>,
+  options?: { allowCiSynthetic?: boolean },
+): SupabaseEnvBuildCheck {
   const url = String(env.VITE_SUPABASE_URL ?? "").trim();
   const key = String(env.VITE_SUPABASE_ANON_KEY ?? "").trim();
   const missing: string[] = [];
   const errors: string[] = [];
+  const allowCi = options?.allowCiSynthetic === true;
 
   if (!url) missing.push("VITE_SUPABASE_URL");
   if (!key) missing.push("VITE_SUPABASE_ANON_KEY");
@@ -99,15 +111,15 @@ export function evaluateSupabaseEnvForProductionBuild(env: Record<string, string
     errors.push("VITE_SUPABASE_URL haiwezi kuwa localhost kwenye production build.");
   }
 
-  const uErr = url ? validateSupabaseUrlForBuild(url) : null;
-  const kErr = key ? validateSupabaseAnonKeyForBuild(key) : null;
+  const uErr = url ? validateSupabaseUrlForBuild(url, { allowCiSynthetic: allowCi }) : null;
+  const kErr = key ? validateSupabaseAnonKeyForBuild(key, { allowCiSynthetic: allowCi }) : null;
   if (uErr) errors.push(uErr);
   if (kErr) errors.push(kErr);
 
   let source: SupabaseEnvBuildCheck["source"] = "unknown";
   if (url && key) {
     if (isCiSyntheticSupabaseUrl(url)) source = "ci-synthetic";
-    else if (isCiRunner()) source = "secrets";
+    else if (allowCi) source = "secrets";
     else source = "local";
   }
 

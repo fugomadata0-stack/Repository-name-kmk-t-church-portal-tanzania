@@ -14,8 +14,15 @@ declare global {
 }
 
 interface ImportMetaEnv {
+  readonly MODE: string;
+  readonly BASE_URL: string;
+  readonly PROD: boolean;
+  readonly DEV: boolean;
+  readonly SSR: boolean;
   readonly VITE_SUPABASE_URL: string;
   readonly VITE_SUPABASE_ANON_KEY: string;
+  /** Hairuhusiwi kwenye frontend — runtime guard in `validateSupabaseEnv`. */
+  readonly VITE_SUPABASE_SERVICE_ROLE_KEY?: string;
   /** `false` kuzima Realtime; ikiwa haijawekwa chaguomsingi ni kuwasha. */
   readonly VITE_SUPABASE_REALTIME_ENABLED?: string;
   /** Hiari: `https://example.com` — kwa og:url wakati wa build (bila slash ya mwisho). */

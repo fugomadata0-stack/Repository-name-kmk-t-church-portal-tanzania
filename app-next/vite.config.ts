@@ -5,6 +5,7 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import {
   evaluateSupabaseEnvForProductionBuild,
+  isCiSyntheticSupabaseUrl,
   normalizeSupabaseEnvUrl,
 } from "./src/lib/supabaseEnvPolicy";
 
@@ -27,7 +28,9 @@ export default defineConfig(({ mode }) => {
   const supabaseOrigin = supabaseOriginFromEnv(env);
 
   if (mode === "production") {
-    const check = evaluateSupabaseEnvForProductionBuild(env);
+    const supabaseUrl = String(env.VITE_SUPABASE_URL ?? "");
+    const allowCiSynthetic = isCiSyntheticSupabaseUrl(supabaseUrl);
+    const check = evaluateSupabaseEnvForProductionBuild(env, { allowCiSynthetic });
     if (!check.ok) {
       const parts = [
         ...check.missing.map((k) => `Missing: ${k}`),
@@ -39,9 +42,9 @@ export default defineConfig(({ mode }) => {
       ];
       throw new Error(parts.join("\n"));
     }
-    if (process.env.CI === "true") {
+    if (allowCiSynthetic) {
       console.info(
-        `[vite] Supabase env OK (${check.source}) → ${normalizeSupabaseEnvUrl(env.VITE_SUPABASE_URL ?? "")}`,
+        `[vite] Supabase CI synthetic build (${check.source}) → ${normalizeSupabaseEnvUrl(supabaseUrl)}`,
       );
     }
   }
