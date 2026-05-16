@@ -26,7 +26,11 @@ import { dispatchPortalReloadMetrics, KMT_PORTAL_RELOAD_METRICS_EVENT } from "..
 import { PORTAL_GLOBAL_REALTIME_TABLES } from "../../lib/portalRealtimeSyncTables";
 import { roleBypassesGeoScope } from "../../utils/scopeAccess";
 import { readPortalUiSnapshot, writePortalUiSnapshot } from "../../lib/portalUiPersistence";
-import { buildBranchEnginePortalUrl } from "../../lib/branchEnginePortalUrl";
+import {
+  buildBranchEnginePortalUrl,
+  PORTAL_HOME_AFTER_LOGIN,
+  shouldOpenBranchEngineAsPortalHome,
+} from "../../lib/branchEnginePortalUrl";
 import { isMuundoBranchEngineSubmodule } from "../../lib/branchEngineRoute";
 import {
   coerceSubmoduleForModule,
@@ -79,25 +83,34 @@ export function AppLayout() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
     const snap = typeof window !== "undefined" ? readPortalUiSnapshot(authUser?.id) : null;
     if (snap?.expanded && Object.keys(snap.expanded).length > 0) return snap.expanded;
-    return Object.fromEntries(modules.map((m) => [m.key, m.key === "dashboard"]));
+    return Object.fromEntries(
+      modules.map((m) => [m.key, m.key === "dashboard" || m.key === PORTAL_HOME_AFTER_LOGIN.moduleKey]),
+    );
   });
   const [activeModule, setActiveModule] = useState(() => {
-    if (typeof window === "undefined") return "dashboard";
+    if (typeof window === "undefined") return PORTAL_HOME_AFTER_LOGIN.moduleKey;
+    const params = new URLSearchParams(window.location.search);
+    const urlMk = params.get("module")?.trim();
+    if (urlMk) return urlMk;
+    if (shouldOpenBranchEngineAsPortalHome(params.toString())) return PORTAL_HOME_AFTER_LOGIN.moduleKey;
     const snap = readPortalUiSnapshot(authUser?.id);
     if (snap?.activeModule) return snap.activeModule;
-    return new URLSearchParams(window.location.search).get("module")?.trim() || "dashboard";
+    return PORTAL_HOME_AFTER_LOGIN.moduleKey;
   });
   const [activeSubmodule, setActiveSubmodule] = useState(() => {
-    if (typeof window === "undefined") return getDashboardDefaultSubmodule();
-    const snap = readPortalUiSnapshot(authUser?.id);
+    if (typeof window === "undefined") return PORTAL_HOME_AFTER_LOGIN.submodule;
     const params = new URLSearchParams(window.location.search);
     const urlMk = params.get("module")?.trim();
     const urlSub = params.get("submodule")?.trim();
+    if (urlMk) return coerceSubmoduleForModule(urlMk, urlSub);
+    if (shouldOpenBranchEngineAsPortalHome(params.toString())) {
+      return PORTAL_HOME_AFTER_LOGIN.submodule;
+    }
+    const snap = readPortalUiSnapshot(authUser?.id);
     if (snap?.activeModule) {
       return coerceSubmoduleForModule(snap.activeModule, snap.activeSubmodule ?? undefined);
     }
-    const mod = urlMk ?? "dashboard";
-    return coerceSubmoduleForModule(mod, urlSub);
+    return PORTAL_HOME_AFTER_LOGIN.submodule;
   });
   const [highlightRecordId, setHighlightRecordId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -696,18 +709,27 @@ export function AppLayout() {
     urlBootRef.current = true;
     const params = new URLSearchParams(window.location.search);
     const mk = params.get("module")?.trim();
-    if (!mk || !canPortalViewModule(mk)) return;
-    const mod = modules.find((m) => m.key === mk);
-    const rawSm = params.get("submodule")?.trim() || mod?.submodules[0] || "";
-    const sm = coerceSubmoduleForModule(mk, rawSm || undefined);
-    const rid = params.get("recordId")?.trim();
-    const mid = params.get("engineModuleId")?.trim();
-    if (mid) setBranchEngineModuleId(mid);
-    if (rid) setHighlightRecordId(rid);
-    selectModule(mk, sm);
-    if (rid || mid) {
-      syncPortalUrl(mk, sm, { recordId: rid || null, engineModuleId: mid || null });
+    if (mk && canPortalViewModule(mk)) {
+      const mod = modules.find((m) => m.key === mk);
+      const rawSm = params.get("submodule")?.trim() || mod?.submodules[0] || "";
+      const sm = coerceSubmoduleForModule(mk, rawSm || undefined);
+      const rid = params.get("recordId")?.trim();
+      const mid = params.get("engineModuleId")?.trim();
+      if (mid) setBranchEngineModuleId(mid);
+      if (rid) setHighlightRecordId(rid);
+      selectModule(mk, sm);
+      if (rid || mid) {
+        syncPortalUrl(mk, sm, { recordId: rid || null, engineModuleId: mid || null });
+      }
+      return;
     }
+    if (!shouldOpenBranchEngineAsPortalHome(params.toString())) return;
+    const home = PORTAL_HOME_AFTER_LOGIN;
+    if (canPortalViewModule(home.moduleKey)) {
+      selectModule(home.moduleKey, home.submodule);
+      return;
+    }
+    selectModule("dashboard", getDashboardDefaultSubmodule());
   }, [authInitialized, authUser, rbacLoading, canPortalViewModule, selectModule, syncPortalUrl]);
 
   const reloadMetricsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);

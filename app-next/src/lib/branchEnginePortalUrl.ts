@@ -22,3 +22,19 @@ export function buildBranchEnginePortalUrl(options?: {
 
 /** Njia ya kudumu ya kufungua injini ndani ya portal (baada ya login). */
 export const BRANCH_ENGINE_PORTAL_ENTRY = buildBranchEnginePortalUrl();
+
+/** Baada ya login kutoka link kuu — ndani ya portal fungua injini ya Matawi. */
+export const PORTAL_HOME_AFTER_LOGIN = {
+  moduleKey: "muundo" as const,
+  submodule: MASTER_BRANCH_ENGINE_SUBMODULE,
+};
+
+export function isBarePortalEntryPath(pathname: string): boolean {
+  const p = pathname.replace(/\/+$/, "") || "/";
+  return p === "/" || p === "/index.html";
+}
+
+/** Hakuna ?module= kwenye URL — tumia injini kama ukurasa wa kwanza baada ya login. */
+export function shouldOpenBranchEngineAsPortalHome(search: string): boolean {
+  return !new URLSearchParams(search).get("module")?.trim();
+}
