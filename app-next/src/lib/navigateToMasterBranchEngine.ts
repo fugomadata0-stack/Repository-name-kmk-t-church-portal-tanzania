@@ -18,18 +18,31 @@ const TARGET_SUBMODULE: Record<MasterBranchNavigateTarget, string> = {
   "tawi-dashboard": TAWI_DASHBOARD_SUBMODULE,
 };
 
-/** Fungua Injini ya Ngazi Kuu — njia moja ya uendeshaji (sidebar, dashibodi, KPI). */
+const TARGET_ENGINE_MODULE: Partial<Record<MasterBranchNavigateTarget, string>> = {
+  matawi: "registration",
+};
+
+export type MasterBranchNavigateOptions = {
+  recordId?: string;
+  /** Fungua moduli maalum ndani ya MATAWI MODULE DD.html (mf. registration, finance). */
+  engineModuleId?: string;
+};
+
+/** Fungua Injini ya Matawi / Ngazi — njia moja ya uendeshaji (sidebar, dashibodi, KPI). */
 export function navigateToMasterBranchEngine(
   target: MasterBranchNavigateTarget = "executive",
-  recordId?: string
+  options?: MasterBranchNavigateOptions,
 ): void {
+  const recordId = options?.recordId?.trim();
+  const engineModuleId = options?.engineModuleId?.trim() || TARGET_ENGINE_MODULE[target];
   window.dispatchEvent(
     new CustomEvent("kmt-portal-navigate", {
       detail: {
         moduleKey: "muundo",
         submodule: TARGET_SUBMODULE[target],
         ...(recordId ? { recordId } : {}),
+        ...(engineModuleId ? { engineModuleId } : {}),
       },
-    })
+    }),
   );
 }

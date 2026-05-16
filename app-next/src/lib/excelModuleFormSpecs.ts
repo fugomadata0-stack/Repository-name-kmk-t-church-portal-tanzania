@@ -51,7 +51,7 @@ function bundle(
 export function getPortalExcelFormSpec(moduleKey: string, submodule: string): PortalExcelFormBundle | null {
   const sub = submodule.trim();
 
-  if (moduleKey === "muundo" && sub === "Dayosisi") {
+  if (moduleKey === "muundo" && (sub === "Dayosisi" || sub === "Orodha ya Dayosisi")) {
     return bundle(
       "muundo_dayosisi",
       "Blanki la Dayosisi",
@@ -72,7 +72,7 @@ export function getPortalExcelFormSpec(moduleKey: string, submodule: string): Po
     );
   }
 
-  if (moduleKey === "muundo" && sub === "Majimbo") {
+  if (moduleKey === "muundo" && (sub === "Majimbo" || sub === "Orodha ya Majimbo")) {
     return bundle(
       "muundo_majimbo",
       "Blanki la Majimbo",

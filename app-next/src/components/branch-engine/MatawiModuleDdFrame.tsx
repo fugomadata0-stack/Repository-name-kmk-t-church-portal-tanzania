@@ -3,9 +3,19 @@ import { motion } from "framer-motion";
 import { Cloud, ExternalLink, Loader2 } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
 import { snapshotToMatawiDdKpis } from "../../lib/matawiBranchEngineKpiMapper";
+import { buildMatawiDdStructure } from "../../lib/matawiBranchEngineStructure";
+import { enrichWorkspaceFromSupabase } from "../../lib/matawiBranchEnginePrefill";
+import { syncBranchEngineModuleToSupabase } from "../../services/matawiBranchEngineSyncService";
+import { BranchEngineScopeBar } from "./BranchEngineScopeBar";
+import { MASTER_BRANCH_ENGINE_REALTIME_TABLES } from "../../lib/masterBranchEngineHub";
+import {
+  KMT_PORTAL_RELOAD_METRICS_EVENT,
+  dispatchPortalReloadMetrics,
+} from "../../lib/portalEvents";
 import {
   MATAWI_DD_ACK_EVENT,
   MATAWI_DD_CLEAR_EVENT,
+  MATAWI_DD_CONTEXT_EVENT,
   MATAWI_DD_DATA_EVENT,
   MATAWI_DD_ERROR_EVENT,
   MATAWI_DD_KPIS_EVENT,
@@ -14,6 +24,7 @@ import {
   MATAWI_DD_REFRESH_KPIS_EVENT,
   MATAWI_DD_SAVE_EVENT,
   MATAWI_DD_SAVED_EVENT,
+  MATAWI_DD_STRUCTURE_EVENT,
   MATAWI_DD_UPLOAD_EVENT,
   MATAWI_DD_UPLOADED_EVENT,
 } from "../../lib/matawiModuleDdPortalBridge";
@@ -69,7 +80,7 @@ export function MatawiModuleDdFrame({
   initialEntityId = "",
   initialModuleId = "",
 }: Props) {
-  const { authUser, authInitialized, pushToast, reportError } = usePortal();
+  const { authUser, authInitialized, portalProfile, pushToast, reportError } = usePortal();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -83,20 +94,51 @@ export function MatawiModuleDdFrame({
     show: boolean;
   } | null>(null);
   const pendingReadyRef = useRef<IframeMessage | null>(null);
-  const scopeRef = useRef(initialScope);
-  const entityRef = useRef(initialEntityId);
+  const kpiRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [activeScope, setActiveScope] = useState<MasterBranchScope>(initialScope);
+  const [activeEntityId, setActiveEntityId] = useState(initialEntityId);
+  const [activeModuleId] = useState(initialModuleId);
 
-  scopeRef.current = initialScope;
-  entityRef.current = initialEntityId;
+  const scopeRef = useRef(activeScope);
+  const entityRef = useRef(activeEntityId);
+
+  scopeRef.current = activeScope;
+  entityRef.current = activeEntityId;
+
+  useEffect(() => {
+    setActiveScope(initialScope);
+    setActiveEntityId(initialEntityId);
+  }, [initialScope, initialEntityId]);
+
+  useEffect(() => {
+    if (activeEntityId || initialEntityId) return;
+    if (initialScope === "kitaifa") return;
+    const p = portalProfile;
+    if (!p) return;
+    if (p.tawi_scope?.trim()) {
+      setActiveScope("tawi");
+      setActiveEntityId(p.tawi_scope.trim());
+    } else if (p.jimbo_scope?.trim()) {
+      setActiveScope("jimbo");
+      setActiveEntityId(p.jimbo_scope.trim());
+    } else if (p.dayosisi_scope?.trim()) {
+      setActiveScope("dayosisi");
+      setActiveEntityId(p.dayosisi_scope.trim());
+    }
+  }, [portalProfile, activeEntityId, initialEntityId, initialScope]);
 
   const src = useMemo(() => {
     const q = new URLSearchParams();
     q.set("embedded", "1");
-    q.set("scope", initialScope);
-    if (initialEntityId) q.set("entityId", initialEntityId);
-    if (initialModuleId) q.set("module", initialModuleId);
+    q.set("scope", activeScope);
+    if (activeEntityId) q.set("entityId", activeEntityId);
+    if (activeModuleId) q.set("module", activeModuleId);
     return `/matawi-module-dd.html?${q.toString()}`;
-  }, [initialScope, initialEntityId, initialModuleId]);
+  }, [activeScope, activeEntityId, activeModuleId]);
+
+  useEffect(() => {
+    setIframeLoaded(false);
+  }, [src]);
 
   const postToIframe = useCallback((msg: Record<string, unknown>) => {
     iframeRef.current?.contentWindow?.postMessage(msg, window.location.origin);
@@ -109,6 +151,13 @@ export function MatawiModuleDdFrame({
     [postToIframe],
   );
 
+  const pushStructureToIframe = useCallback(() => {
+    postToIframe({
+      type: MATAWI_DD_STRUCTURE_EVENT,
+      structure: buildMatawiDdStructure(dayosisi, majimbo, matawi),
+    });
+  }, [dayosisi, majimbo, matawi, postToIframe]);
+
   const pushKpisToIframe = useCallback(
     async (scope: MasterBranchScope, entityId: string) => {
       try {
@@ -120,12 +169,29 @@ export function MatawiModuleDdFrame({
           matawi,
         });
         postToIframe({ type: MATAWI_DD_KPIS_EVENT, kpis: snapshotToMatawiDdKpis(snapshot) });
+        postToIframe({
+          type: MATAWI_DD_CONTEXT_EVENT,
+          scope,
+          entityId,
+          label: snapshot.label,
+          sublabel: snapshot.sublabel,
+          loadedAt: snapshot.loadedAt,
+          live: Boolean(snapshot.ngazi),
+        });
       } catch (err) {
         reportError(err, "matawiBranchEngine.kpis");
       }
     },
     [dayosisi, majimbo, matawi, postToIframe, reportError],
   );
+
+  const scheduleKpiRefresh = useCallback(() => {
+    if (kpiRefreshTimerRef.current) clearTimeout(kpiRefreshTimerRef.current);
+    kpiRefreshTimerRef.current = setTimeout(() => {
+      kpiRefreshTimerRef.current = null;
+      void pushKpisToIframe(scopeRef.current, entityRef.current);
+    }, 600);
+  }, [pushKpisToIframe]);
 
   const loadWorkspace = useCallback(
     async (scope: MasterBranchScope, entityId: string) => {
@@ -136,7 +202,16 @@ export function MatawiModuleDdFrame({
       setSyncing(true);
       try {
         const row = await loadBranchEngineWorkspace(scope, entityId);
-        pushDataToIframe(row?.payload ?? { fields: {} }, row?.activeModuleId);
+        let payload = row?.payload ?? { fields: {} };
+        payload = await enrichWorkspaceFromSupabase(
+          scope,
+          entityId,
+          payload,
+          dayosisi,
+          majimbo,
+          matawi,
+        );
+        pushDataToIframe(payload, row?.activeModuleId);
         if (row?.updatedAt) setLastSavedAt(row.updatedAt);
       } catch (err) {
         reportError(err, "matawiBranchEngineWorkspace.load");
@@ -149,7 +224,7 @@ export function MatawiModuleDdFrame({
         setSyncing(false);
       }
     },
-    [authUser, pushDataToIframe, pushToast, reportError],
+    [authUser, dayosisi, majimbo, matawi, pushDataToIframe, pushToast, reportError],
   );
 
   const flushSave = useCallback(async () => {
@@ -158,15 +233,55 @@ export function MatawiModuleDdFrame({
     if (!job || !authUser) return;
     setSyncing(true);
     try {
+      let payload = job.payload;
       await saveBranchEngineWorkspace({
         scope: job.scope,
         entityId: job.entityId,
         activeModuleId: job.moduleId,
-        payload: job.payload,
+        payload,
       });
+
+      const syncResult = await syncBranchEngineModuleToSupabase({
+        moduleId: job.moduleId,
+        scope: job.scope,
+        entityId: job.entityId,
+        payload,
+        dayosisi,
+        majimbo,
+        matawi,
+      });
+
+      const resolvedTawiId = syncResult.tawiId ?? (job.scope === "tawi" ? job.entityId : "");
+      const resolvedScope: MasterBranchScope =
+        resolvedTawiId && (job.scope !== "tawi" || !job.entityId) ? "tawi" : job.scope;
+
+      if (syncResult.leaderSlots && Object.keys(syncResult.leaderSlots).length > 0) {
+        payload = { ...payload, leaderSlots: syncResult.leaderSlots };
+        await saveBranchEngineWorkspace({
+          scope: resolvedScope,
+          entityId: resolvedTawiId || job.entityId,
+          activeModuleId: job.moduleId,
+          payload,
+        });
+        pushDataToIframe(payload, job.moduleId);
+      }
+
+      if (resolvedTawiId && (resolvedScope !== job.scope || resolvedTawiId !== job.entityId)) {
+        setActiveScope(resolvedScope);
+        setActiveEntityId(resolvedTawiId);
+        scopeRef.current = resolvedScope;
+        entityRef.current = resolvedTawiId;
+      }
+
       setLastSavedAt(new Date().toISOString());
       postToIframe({ type: MATAWI_DD_SAVED_EVENT, show: job.show });
-      if (job.show) pushToast("Imehifadhiwa kwenye Supabase.", "success");
+      dispatchPortalReloadMetrics();
+
+      if (syncResult.messages.length > 0) {
+        pushToast(syncResult.messages.join(" · "), syncResult.ok ? "success" : "error");
+      } else if (job.show) {
+        pushToast("Imehifadhiwa kwenye Supabase.", "success");
+      }
     } catch (err) {
       reportError(err, "matawiBranchEngineWorkspace.save");
       const message = err instanceof Error ? err.message : "Imeshindwa kuhifadhi.";
@@ -175,7 +290,22 @@ export function MatawiModuleDdFrame({
     } finally {
       setSyncing(false);
     }
-  }, [authUser, postToIframe, pushToast, reportError]);
+  }, [authUser, dayosisi, majimbo, matawi, postToIframe, pushDataToIframe, pushToast, reportError]);
+
+  const handleScopeChange = useCallback(
+    (nextScope: MasterBranchScope, nextEntityId: string) => {
+      if (pendingSaveRef.current && authUser) {
+        void flushSave().finally(() => {
+          setActiveScope(nextScope);
+          setActiveEntityId(nextEntityId);
+        });
+        return;
+      }
+      setActiveScope(nextScope);
+      setActiveEntityId(nextEntityId);
+    },
+    [authUser, flushSave],
+  );
 
   const queueSave = useCallback(
     (job: NonNullable<typeof pendingSaveRef.current>, debounceMs: number) => {
@@ -223,15 +353,41 @@ export function MatawiModuleDdFrame({
           }
         }
       }
+
+      await loadWorkspace(scope, entityId);
+      pushStructureToIframe();
+      void pushKpisToIframe(scope, entityId);
     },
-    [authUser, postToIframe, pushToast, reportError],
+    [
+      authUser,
+      loadWorkspace,
+      postToIframe,
+      pushKpisToIframe,
+      pushStructureToIframe,
+      pushToast,
+      reportError,
+    ],
   );
 
   useEffect(() => {
     if (!iframeLoaded || !authInitialized) return;
     void loadWorkspace(scopeRef.current, entityRef.current);
+    pushStructureToIframe();
     void pushKpisToIframe(scopeRef.current, entityRef.current);
-  }, [iframeLoaded, authInitialized, authUser, loadWorkspace, pushKpisToIframe]);
+  }, [
+    iframeLoaded,
+    authInitialized,
+    authUser,
+    loadWorkspace,
+    pushKpisToIframe,
+    pushStructureToIframe,
+  ]);
+
+  useEffect(() => {
+    if (!iframeLoaded) return;
+    pushStructureToIframe();
+    scheduleKpiRefresh();
+  }, [iframeLoaded, dayosisi, majimbo, matawi, pushStructureToIframe, scheduleKpiRefresh]);
 
   useEffect(() => {
     if (!iframeLoaded || !authInitialized || !authUser || !pendingReadyRef.current) return;
@@ -254,26 +410,45 @@ export function MatawiModuleDdFrame({
     const c = getSupabase();
     if (!c) return;
 
-    const channel = c
-      .channel(`branch-engine-workspace:${authUser.id}`)
-      .on(
+    let channel = c.channel(`branch-engine-live:${authUser.id}`);
+
+    channel = channel.on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "portal_branch_engine_workspace",
+        filter: `auth_user_id=eq.${authUser.id}`,
+      },
+      () => {
+        void loadWorkspace(scopeRef.current, entityRef.current);
+      },
+    );
+
+    for (const table of MASTER_BRANCH_ENGINE_REALTIME_TABLES) {
+      if (table === "portal_branch_engine_workspace") continue;
+      channel = channel.on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "portal_branch_engine_workspace",
-          filter: `auth_user_id=eq.${authUser.id}`,
-        },
+        { event: "*", schema: "public", table },
         () => {
-          void loadWorkspace(scopeRef.current, entityRef.current);
+          scheduleKpiRefresh();
         },
-      )
-      .subscribe();
+      );
+    }
+
+    channel.subscribe();
 
     return () => {
+      if (kpiRefreshTimerRef.current) clearTimeout(kpiRefreshTimerRef.current);
       void c.removeChannel(channel);
     };
-  }, [authUser, loadWorkspace]);
+  }, [authUser, loadWorkspace, scheduleKpiRefresh]);
+
+  useEffect(() => {
+    const onMetricsReload = () => scheduleKpiRefresh();
+    window.addEventListener(KMT_PORTAL_RELOAD_METRICS_EVENT, onMetricsReload);
+    return () => window.removeEventListener(KMT_PORTAL_RELOAD_METRICS_EVENT, onMetricsReload);
+  }, [scheduleKpiRefresh]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -382,6 +557,7 @@ export function MatawiModuleDdFrame({
     return () => {
       window.removeEventListener("message", onMessage);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (kpiRefreshTimerRef.current) clearTimeout(kpiRefreshTimerRef.current);
     };
   }, [
     authUser,
@@ -403,6 +579,15 @@ export function MatawiModuleDdFrame({
       animate={{ opacity: 1 }}
       className="relative -mx-3 w-[calc(100%+1.5rem)] sm:-mx-4 sm:w-[calc(100%+2rem)] md:-mx-6 md:w-[calc(100%+3rem)]"
     >
+      <BranchEngineScopeBar
+        scope={activeScope}
+        entityId={activeEntityId}
+        dayosisi={dayosisi}
+        majimbo={majimbo}
+        matawi={matawi}
+        portalProfile={portalProfile}
+        onScopeChange={handleScopeChange}
+      />
       {showOverlay && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -418,6 +603,7 @@ export function MatawiModuleDdFrame({
         </motion.div>
       )}
       <iframe
+        key={src}
         ref={iframeRef}
         title="KMK(T) — Injini ya Matawi / Matawi Module"
         src={src}
@@ -437,7 +623,7 @@ export function MatawiModuleDdFrame({
         </span>
         <span className="inline-flex items-center gap-1">
           <ExternalLink className="h-3 w-3 shrink-0" aria-hidden />
-          KPI na faili zinasawazishwa na portal
+          KPI · muundo · workspace — Supabase Realtime
         </span>
       </p>
     </motion.div>

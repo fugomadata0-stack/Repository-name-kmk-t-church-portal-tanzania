@@ -1,4 +1,5 @@
 import { modules } from "../data/portalModules";
+import { coerceMuundoSubmodule } from "./branchEngineRoute";
 import { MASTER_BRANCH_ENGINE_SUBMODULE } from "./masterBranchEngineHub";
 
 /** Submodule ya foleni ya vibali — tumia kwenye URL na arifa (thamani ya kisasa). */
@@ -67,7 +68,8 @@ export function coerceSubmoduleForModule(moduleKey: string, raw: string | undefi
     return normalizeDashboardSubmodule(raw);
   }
 
-  const t = String(raw ?? "").trim();
+  const tRaw = String(raw ?? "").trim();
+  const t = moduleKey === "muundo" ? coerceMuundoSubmodule(tRaw) : tRaw;
   if (!t) {
     if (moduleKey === "muundo" && subs.includes(MASTER_BRANCH_ENGINE_SUBMODULE)) {
       return MASTER_BRANCH_ENGINE_SUBMODULE;

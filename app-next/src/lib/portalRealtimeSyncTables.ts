@@ -38,6 +38,7 @@ export const PORTAL_GLOBAL_REALTIME_TABLES: readonly string[] = [
   "developer_profile",
   "church_structure_entities",
   "church_structure_leaders",
+  "portal_branch_engine_workspace",
   "portal_project_notes",
   "aid_requests",
   "aid_beneficiaries",

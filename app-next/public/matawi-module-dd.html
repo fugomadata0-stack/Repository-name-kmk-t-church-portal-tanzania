@@ -1006,7 +1006,7 @@
       <div class="logo">K</div>
       <div>
         <h1>KMK(T) — Professional Module ya Tawi / Matawi</h1>
-        <p>Branch Engine · Auto Choose · 40+ Michango · Uploads · KPI · Tawi ➜ Jimbo ➜ Dayosisi ➜ KMK(T)</p>
+        <p id="brandSubline">Branch Engine · Auto Choose · 40+ Michango · Uploads · KPI · Tawi ➜ Jimbo ➜ Dayosisi ➜ KMK(T)</p>
       </div>
     </div>
     <div class="top-actions no-print">
@@ -1724,6 +1724,13 @@ function openModule(id, btn){
     });
     calculateAttendanceTotal();
   }
+  if(id === "leaders"){
+    const banner = leaderSlotsBannerHtml();
+    if(banner){
+      const panel = $("panelContent");
+      if(panel) panel.insertAdjacentHTML("afterbegin", banner);
+    }
+  }
   bindModuleUploads(id);
   $("dynamicPanel").scrollIntoView({behavior:"smooth",block:"start"});
 }
@@ -1788,8 +1795,8 @@ const kpis = {
     ["Finance Summary","TZS 0","Mapato consolidate","#16a34a"],["Institutions","0","Church projects","#7c3aed"],["Audit Alerts","0","Audit issues","#ef4444"]
   ],
   kmkt:[
-    ["Dayosisi","6","Official dioceses","#0ea5e9"],["Majimbo","38","Confirmed majimbo","#22c55e"],["National Finance","TZS 0","Mapato national","#16a34a"],
-    ["National Attendance","0","Attendance all levels","#06b6d4"],["Institutions","0","Schools/Hospital/Bible colleges","#7c3aed"],["System Health","OK","Realtime status","#22c55e"]
+    ["Dayosisi","0","Official dioceses","#0ea5e9"],["Majimbo","0","Confirmed majimbo","#22c55e"],["National Finance","TZS 0","Mapato national","#16a34a"],
+    ["National Attendance","0","Attendance all levels","#06b6d4"],["Institutions","0","Schools/Hospital/Bible colleges","#7c3aed"],["System Health","…","Realtime status","#22c55e"]
   ]
 };
 
@@ -1818,6 +1825,32 @@ function applyKpisFromPortal(next){
   renderKpis();
 }
 
+function applyStructureFromPortal(structure){
+  if(!structure) return;
+  if(Array.isArray(structure.diocese) && structure.diocese.length){
+    selectOptions.diocese = structure.diocese;
+  }
+  if(Array.isArray(structure.jimbo) && structure.jimbo.length){
+    selectOptions.jimbo = structure.jimbo;
+  }
+  if(Array.isArray(structure.matawi) && structure.matawi.length){
+    selectOptions.matawi = structure.matawi;
+  }
+  __structureJimboDayosisi = structure.jimboDayosisi || {};
+}
+
+function applyContextFromPortal(ctx){
+  if(!ctx) return;
+  const sub = $("brandSubline");
+  if(!sub) return;
+  const scopeLabel = {kitaifa:"Kitaifa — KMK(T)",dayosisi:"Dayosisi",jimbo:"Jimbo",tawi:"Tawi / Kituo"}[ctx.scope] || ctx.scope;
+  const live = ctx.live ? " · Supabase Live" : " · Portal";
+  const when = ctx.loadedAt ? " · "+new Date(ctx.loadedAt).toLocaleString("sw-TZ",{hour:"2-digit",minute:"2-digit"}) : "";
+  sub.textContent = (ctx.label || scopeLabel) + (ctx.sublabel ? " — "+ctx.sublabel : "") + live + when;
+}
+
+let __structureJimboDayosisi = {};
+
 function showKpi(level, btn){
   document.querySelectorAll(".kpi-panel").forEach(p=>p.classList.remove("active"));
   document.querySelectorAll(".kpi-tab").forEach(b=>b.classList.remove("active"));
@@ -1842,7 +1875,8 @@ function collectFullState(){
     fields: collectData(),
     contributionSources: contributionSources.slice(),
     uploads: __cloudState.uploads || {},
-    formHistory: __formHistory.slice(-80)
+    formHistory: __formHistory.slice(-80),
+    leaderSlots: __leaderSlots || {}
   };
 }
 
@@ -1899,6 +1933,7 @@ function applyFullState(state){
       logs.innerHTML = __formHistory.map(line=>`<div class="history-log">${line}</div>`).join("") || '<div class="history-log">Hakuna upload bado.</div>';
     }
   }
+  if(state.leaderSlots) applyLeaderSlots(state.leaderSlots);
 }
 
 function saveAll(show=true){
@@ -1940,6 +1975,25 @@ function clearData(){
 
 let __cloudState = { fields: {}, uploads: {} };
 let __formHistory = [];
+let __leaderSlots = {};
+
+function applyLeaderSlots(slots){
+  __leaderSlots = slots && typeof slots === "object" ? slots : {};
+}
+
+function leaderSlotsBannerHtml(){
+  const keys = Object.keys(__leaderSlots || {});
+  if(!keys.length) return "";
+  const rows = keys.map(role => {
+    const slot = __leaderSlots[role];
+    return '<div class="history-log"><strong>' + role + '</strong> &middot; ' + (slot.jina || "—") + (slot.simu ? " &middot; " + slot.simu : "") + '</div>';
+  }).join("");
+  return '<div class="notice" style="margin-top:12px;border-color:#16a34a;background:#ecfdf5">' +
+    '<strong>👔 Viongozi kutoka Supabase (' + keys.length + ')</strong>' +
+    '<div style="margin-top:8px">' + rows + '</div>' +
+    '<p style="margin:8px 0 0;font-size:11px;color:#166534">Hariri nafasi hapa; Hifadhi inasawazisha na church_viongozi.</p>' +
+    '</div>';
+}
 
 function bindModuleUploads(moduleId){
   document.querySelectorAll("#panelContent input[data-upload]").forEach(input=>{
@@ -1977,6 +2031,12 @@ window.addEventListener("message", function(event){
   }
   if(data.type === "kmt-matawi-dd-kpis" && data.kpis){
     applyKpisFromPortal(data.kpis);
+  }
+  if(data.type === "kmt-matawi-dd-structure" && data.structure){
+    applyStructureFromPortal(data.structure);
+  }
+  if(data.type === "kmt-matawi-dd-context"){
+    applyContextFromPortal(data);
   }
   if(data.type === "kmt-matawi-dd-saved" && data.show){
     alert("Imehifadhiwa kwenye Supabase.");
@@ -2062,6 +2122,10 @@ function calculateAttendanceTotal(){
 }
 
 function refreshKpis(){
+  if(isPortalEmbedded()){
+    postToPortal({ type:"kmt-matawi-dd-refresh-kpis", scope:getScope(), entityId:getEntityId() });
+    return;
+  }
   const totalMembers =
     Number($("members_wanaume")?.value || 0) +
     Number($("members_wanawake")?.value || 0) +
@@ -2080,9 +2144,6 @@ function refreshKpis(){
 
   renderKpis();
   saveAll(false);
-  if(isPortalEmbedded()){
-    postToPortal({ type:"kmt-matawi-dd-refresh-kpis", scope:getScope(), entityId:getEntityId() });
-  }
 }
 
 

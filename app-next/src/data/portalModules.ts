@@ -80,6 +80,8 @@ export const modules: ModuleItem[] = [
       "Majimbo",
       "Matawi / Vituo",
       "Orodha ya Matawi / Vituo",
+      "Orodha ya Dayosisi",
+      "Orodha ya Majimbo",
       "Dashboard ya Tawi",
       "Idara",
       "Huduma",

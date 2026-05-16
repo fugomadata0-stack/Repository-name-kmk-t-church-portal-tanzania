@@ -3,12 +3,16 @@ import { stripUndefined } from "../lib/supabaseResult";
 import { getSupabase } from "../lib/supabaseClient";
 import type { MasterBranchScope } from "./masterBranchEngineService";
 
+import type { BranchEngineLeaderSlot } from "../lib/matawiBranchEngineTypes";
+
 export type BranchEngineWorkspacePayload = {
   fields: Record<string, string>;
   contributionSources?: string[];
   /** URLs za faili zilizopakiwa kwenye Storage. */
   uploads?: Record<string, { publicUrl: string; fileName: string; uploadedAt: string }>;
   formHistory?: string[];
+  /** Viongozi wa tawi (nafasi 4) — viunganisho na church_viongozi. */
+  leaderSlots?: Record<string, BranchEngineLeaderSlot>;
 };
 
 export type BranchEngineWorkspaceRecord = {
@@ -43,7 +47,24 @@ function normalizePayload(raw: unknown): BranchEngineWorkspacePayload {
     const formHistory = Array.isArray(o.formHistory)
       ? o.formHistory.map((x) => String(x)).slice(-200)
       : undefined;
-    return { fields, contributionSources, uploads, formHistory };
+    let leaderSlots: BranchEngineWorkspacePayload["leaderSlots"];
+    if (o.leaderSlots && typeof o.leaderSlots === "object" && !Array.isArray(o.leaderSlots)) {
+      leaderSlots = {};
+      for (const [role, slot] of Object.entries(o.leaderSlots as Record<string, unknown>)) {
+        if (!slot || typeof slot !== "object") continue;
+        const s = slot as Record<string, unknown>;
+        leaderSlots[role] = {
+          id: s.id == null ? undefined : String(s.id),
+          role: String(s.role ?? role),
+          jina: String(s.jina ?? ""),
+          simu: s.simu == null ? undefined : String(s.simu),
+          whatsapp: s.whatsapp == null ? undefined : String(s.whatsapp),
+          email: s.email == null ? undefined : String(s.email),
+          status: s.status == null ? undefined : String(s.status),
+        };
+      }
+    }
+    return { fields, contributionSources, uploads, formHistory, leaderSlots };
   }
   const fields: Record<string, string> = {};
   for (const [k, v] of Object.entries(o)) {

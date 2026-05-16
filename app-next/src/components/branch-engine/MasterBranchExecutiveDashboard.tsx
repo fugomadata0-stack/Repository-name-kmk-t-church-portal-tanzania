@@ -8,6 +8,7 @@ interface Props {
   matawi: TawiRecord[];
   initialScope?: MasterBranchScope;
   initialEntityId?: string;
+  initialModuleId?: string;
 }
 
 /**
@@ -19,6 +20,7 @@ export function MasterBranchExecutiveDashboard({
   matawi,
   initialScope = "kitaifa",
   initialEntityId = "",
+  initialModuleId = "",
 }: Props) {
   return (
     <MatawiModuleDdFrame
@@ -27,6 +29,7 @@ export function MasterBranchExecutiveDashboard({
       matawi={matawi}
       initialScope={initialScope}
       initialEntityId={initialEntityId}
+      initialModuleId={initialModuleId}
     />
   );
 }

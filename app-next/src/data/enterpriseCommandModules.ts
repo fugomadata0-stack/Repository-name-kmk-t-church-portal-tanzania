@@ -42,6 +42,8 @@ export const ENTERPRISE_COMMAND_MODULES: EnterpriseCommandModule[] = [
       "Majimbo",
       "Matawi / Vituo",
       "Orodha ya Matawi / Vituo",
+      "Orodha ya Dayosisi",
+      "Orodha ya Majimbo",
       "Dashboard ya Tawi",
       "Hierarchy View",
     ],

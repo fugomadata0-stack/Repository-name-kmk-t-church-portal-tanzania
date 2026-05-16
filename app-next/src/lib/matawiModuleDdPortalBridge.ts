@@ -37,3 +37,7 @@ export const MATAWI_DD_REFRESH_KPIS_EVENT = "kmt-matawi-dd-refresh-kpis" as cons
 export const MATAWI_DD_UPLOAD_EVENT = "kmt-matawi-dd-upload" as const;
 export const MATAWI_DD_UPLOADED_EVENT = "kmt-matawi-dd-uploaded" as const;
 export const MATAWI_DD_ACK_EVENT = "kmt-matawi-dd-ack" as const;
+/** Orodha za Dayosisi/Jimbo/Matawi kutoka Supabase (si mock). */
+export const MATAWI_DD_STRUCTURE_EVENT = "kmt-matawi-dd-structure" as const;
+/** Kichwa cha ngazi / entity label kutoka portal. */
+export const MATAWI_DD_CONTEXT_EVENT = "kmt-matawi-dd-context" as const;

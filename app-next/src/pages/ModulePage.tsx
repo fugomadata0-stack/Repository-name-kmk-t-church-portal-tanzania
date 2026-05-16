@@ -54,6 +54,11 @@ import { ViongoziWaMatawiHubPanel } from "../components/viongozi/ViongoziWaMataw
 import type { PremiumTableExcelBulk, Column } from "../components/common/PremiumTable";
 import { SubmoduleEmptyState } from "../components/common/SubmoduleEmptyState";
 import { ENTERPRISE_VIONGOZI_SUBMODULE, modules } from "../data/portalModules";
+import { isMuundoBranchEngineSubmodule, resolveBranchEngineRoute } from "../lib/branchEngineRoute";
+import {
+  DAYOSISI_REGISTRY_SUBMODULE,
+  JIMBO_REGISTRY_SUBMODULE,
+} from "../lib/masterBranchEngineHub";
 import { usePortal } from "../context/PortalContext";
 import { getSupabase } from "../lib/supabaseClient";
 import { dispatchPortalReloadMetrics } from "../lib/portalEvents";
@@ -177,6 +182,8 @@ interface Props {
   ) => void;
   /** Kutoka AppLayout: angazia safu mpya kwa muda */
   highlightRecordId?: string | null;
+  /** Moduli ya DD.html ya kufungua (kutoka deep link / KPI). */
+  branchEngineModuleId?: string | null;
   /** Sawia na Topbar — zuia Rudi Nyuma wakati hapatiani kurudi */
   canNavigateBack?: boolean;
 }
@@ -500,7 +507,7 @@ export function ModulePage(props: Props) {
       editing && typeof (editing as { id?: string }).id === "string" && String((editing as { id?: string }).id).length > 0
     );
 
-    if (props.moduleKey === "muundo" && props.submodule === "Dayosisi") {
+    if (props.moduleKey === "muundo" && props.submodule === DAYOSISI_REGISTRY_SUBMODULE) {
       const updatingDsEarly = typeof editing?.id === "string" && isPersistedUuid(editing.id);
       if (updatingDsEarly && !canEditMuundoRows) {
         pushToast("Huna ruhusa ya kuhariri muundo wa kanisa.", "error");
@@ -555,7 +562,7 @@ export function ModulePage(props: Props) {
       }
       return;
     }
-    if (props.moduleKey === "muundo" && props.submodule === "Majimbo") {
+    if (props.moduleKey === "muundo" && props.submodule === JIMBO_REGISTRY_SUBMODULE) {
       const updatingJEarly = typeof editing?.id === "string" && isPersistedUuid(editing.id);
       if (updatingJEarly && !canEditMuundoRows) {
         pushToast("Huna ruhusa ya kuhariri muundo wa kanisa.", "error");
@@ -1196,23 +1203,20 @@ export function ModulePage(props: Props) {
         />
       );
     }
-    if (
-      props.moduleKey === "muundo" &&
-      (props.submodule === "Injini ya Ngazi — Executive" ||
-        props.submodule === "Ngazi Kuu" ||
-        props.submodule === "KMK(T)" ||
-        props.submodule === "Matawi / Vituo" ||
-        props.submodule === "Dashboard ya Tawi")
-    ) {
-      const initialScope =
-        props.submodule === "Dashboard ya Tawi" ? ("tawi" as const) : ("kitaifa" as const);
+    if (props.moduleKey === "muundo" && isMuundoBranchEngineSubmodule(props.submodule)) {
+      const route = resolveBranchEngineRoute(props.submodule, portalProfile, {
+        recordId: props.highlightRecordId,
+        engineModuleId: props.branchEngineModuleId,
+      });
       return (
         <ErrorBoundary>
           <MasterBranchExecutiveDashboard
             dayosisi={props.dayosisi}
             majimbo={props.majimbo}
             matawi={props.matawi}
-            initialScope={initialScope}
+            initialScope={route.initialScope}
+            initialEntityId={route.initialEntityId}
+            initialModuleId={route.initialModuleId}
           />
         </ErrorBoundary>
       );
@@ -1250,8 +1254,8 @@ export function ModulePage(props: Props) {
         />
       );
     }
-    if (props.moduleKey === "muundo" && props.submodule === "Dayosisi") {
-      const dayosisiSpec = getPortalExcelFormSpec("muundo", "Dayosisi");
+    if (props.moduleKey === "muundo" && props.submodule === DAYOSISI_REGISTRY_SUBMODULE) {
+      const dayosisiSpec = getPortalExcelFormSpec("muundo", DAYOSISI_REGISTRY_SUBMODULE);
       const dayosisiExcel: PremiumTableExcelBulk | undefined = dayosisiSpec
         ? {
             specTitle: dayosisiSpec.specTitle,
@@ -1313,8 +1317,8 @@ export function ModulePage(props: Props) {
         </div>
       );
     }
-    if (props.moduleKey === "muundo" && props.submodule === "Majimbo") {
-      const majimboSpec = getPortalExcelFormSpec("muundo", "Majimbo");
+    if (props.moduleKey === "muundo" && props.submodule === JIMBO_REGISTRY_SUBMODULE) {
+      const majimboSpec = getPortalExcelFormSpec("muundo", JIMBO_REGISTRY_SUBMODULE);
       const majimboExcel: PremiumTableExcelBulk | undefined = majimboSpec
         ? {
             specTitle: majimboSpec.specTitle,
@@ -3357,9 +3361,9 @@ function RecordModal({
   const fields =
     moduleKey === "viongozi"
       ? ([] as [string, string][])
-      : moduleKey === "muundo" && submodule === "Dayosisi"
+      : moduleKey === "muundo" && submodule === DAYOSISI_REGISTRY_SUBMODULE
       ? [["Jina la Dayosisi", "jina"], ["Code", "code"], ["Askofu wa Dayosisi", "askofu"], ["Makao Makuu", "makao"], ["Mkoa", "mkoa"], ["Simu", "simu"], ["Email", "email"], ["Maelezo", "maelezo"], ["Status", "status"]]
-      : moduleKey === "muundo" && submodule === "Majimbo"
+      : moduleKey === "muundo" && submodule === JIMBO_REGISTRY_SUBMODULE
       ? [["Jina la Jimbo", "jina"], ["Dayosisi", "dayosisi_id"], ["Mkuu wa Jimbo", "mkuu"], ["Mkoa", "mkoa"], ["Simu", "simu"], ["Status", "status"]]
       : moduleKey === "muundo"
       ? [["Jina la Tawi/Kituo", "jina"], ["Aina", "aina"], ["Jimbo", "jimbo_id"], ["Kiongozi", "kiongozi"], ["Simu", "simu"], ["Status", "status"]]
@@ -3479,11 +3483,11 @@ function RecordModal({
           if ("kiasi" in payload) payload.kiasi = Number(payload.kiasi || 0);
           if ("amount" in payload) payload.amount = Number(payload.amount || 0);
           const need = (k: string) => String(payload[k] ?? "").trim() === "";
-          if (moduleKey === "muundo" && submodule === "Dayosisi" && (need("jina") || need("code"))) {
+          if (moduleKey === "muundo" && submodule === DAYOSISI_REGISTRY_SUBMODULE && (need("jina") || need("code"))) {
             setFormError("Jina na code za dayosisi zinahitajika.");
             return;
           }
-          if (moduleKey === "muundo" && submodule === "Majimbo" && (need("jina") || need("dayosisi_id"))) {
+          if (moduleKey === "muundo" && submodule === JIMBO_REGISTRY_SUBMODULE && (need("jina") || need("dayosisi_id"))) {
             setFormError("Jina la jimbo na uchague dayosisi.");
             return;
           }
@@ -3493,8 +3497,8 @@ function RecordModal({
           }
           if (
             moduleKey === "muundo" &&
-            submodule !== "Dayosisi" &&
-            submodule !== "Majimbo" &&
+            submodule !== DAYOSISI_REGISTRY_SUBMODULE &&
+            submodule !== JIMBO_REGISTRY_SUBMODULE &&
             !submodule.includes("Orodha ya Matawi") &&
             need("jina")
           ) {

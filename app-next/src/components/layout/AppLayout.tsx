@@ -98,6 +98,7 @@ export function AppLayout() {
     return coerceSubmoduleForModule(mod, urlSub);
   });
   const [highlightRecordId, setHighlightRecordId] = useState<string | null>(null);
+  const [branchEngineModuleId, setBranchEngineModuleId] = useState<string | null>(null);
 
   const [dayosisi, setDayosisi] = useState<DayosisiRecord[]>([]);
   const [majimbo, setMajimbo] = useState<JimboRecord[]>([]);
@@ -701,7 +702,14 @@ export function AppLayout() {
 
   useEffect(() => {
     const onNavigate = (ev: Event) => {
-      const detail = (ev as CustomEvent<{ moduleKey?: string; submodule?: string; recordId?: string }>).detail;
+      const detail = (
+        ev as CustomEvent<{
+          moduleKey?: string;
+          submodule?: string;
+          recordId?: string;
+          engineModuleId?: string;
+        }>
+      ).detail;
       const mk = detail?.moduleKey?.trim();
       if (!mk || !canPortalViewModule(mk)) return;
       const mod = modules.find((m) => m.key === mk);
@@ -709,8 +717,12 @@ export function AppLayout() {
       const sm = coerceSubmoduleForModule(mk, rawSm || undefined);
       selectModule(mk, sm);
       const rid = detail?.recordId?.trim();
+      const mid = detail?.engineModuleId?.trim();
+      setBranchEngineModuleId(mid || null);
       if (rid) {
         requestAnimationFrame(() => setHighlightRecordId(rid));
+      } else {
+        setHighlightRecordId(null);
       }
     };
     window.addEventListener("kmt-portal-navigate", onNavigate);
@@ -889,6 +901,7 @@ export function AppLayout() {
                     (kpiLive.failedKpis ?? {})["kpi.church_tawi.count_registry_pending_review"]
                   )}
                   highlightRecordId={highlightRecordId}
+                  branchEngineModuleId={branchEngineModuleId}
                   onCrudSuccess={(action, meta) => {
                     dispatchPortalReloadMetrics();
                     clearPortalDraft({ userId: authUser?.id, moduleKey: meta.moduleKey, submodule: meta.submodule });
