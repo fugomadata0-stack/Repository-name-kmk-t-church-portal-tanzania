@@ -578,7 +578,7 @@ export function MatawiModuleDdFrame({
     reportError,
   ]);
 
-  const showOverlay = !iframeLoaded || syncing;
+  const showLoadOverlay = !iframeLoaded;
 
   return (
     <motion.div
@@ -595,20 +595,30 @@ export function MatawiModuleDdFrame({
         portalProfile={portalProfile}
         onScopeChange={handleScopeChange}
       />
-      {showOverlay && (
+      {syncing ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="pointer-events-none absolute inset-0 z-10 flex min-h-[70vh] items-center justify-center bg-[#061633]/5 backdrop-blur-[1px]"
+          className="no-print mb-2 flex items-center gap-2 rounded-lg border border-emerald-200/80 bg-emerald-50/90 px-3 py-1.5 text-[11px] font-medium text-emerald-900"
+          role="status"
+          aria-live="polite"
         >
-          <div className="flex items-center gap-2 rounded-xl border border-[#D4AF37]/30 bg-white/95 px-4 py-3 text-sm text-[#0B1F3A] shadow-lg">
-            <Loader2 className="h-4 w-4 animate-spin text-[#0B3C5D]" aria-hidden />
-            {!iframeLoaded
-              ? "Inapakia Injini ya Matawi…"
-              : "Inasawazisha na Supabase…"}
-          </div>
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+          Inasawazisha na Supabase…
         </motion.div>
-      )}
+      ) : null}
+      {showLoadOverlay ? (
+        <div className="pointer-events-none absolute inset-0 z-10 flex min-h-[28vh] items-start justify-center bg-[#f4f7fb]/70 pt-10">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center gap-2 rounded-xl border border-[#D4AF37]/30 bg-white/95 px-4 py-2.5 text-sm text-[#0B1F3A] shadow-md"
+          >
+            <Loader2 className="h-4 w-4 animate-spin text-[#0B3C5D]" aria-hidden />
+            Inapakia Injini ya Matawi…
+          </motion.div>
+        </div>
+      ) : null}
       <iframe
         key={src}
         ref={iframeRef}

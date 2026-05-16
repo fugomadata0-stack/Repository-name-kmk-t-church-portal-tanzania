@@ -1008,6 +1008,25 @@
       .command-section,.dynamic-panel{padding:14px;border-radius:22px}
     }
 
+    /* Ndani ya portal mama — ficha cover/header ya mradi wa pili ili data ionekane */
+    html.embedded-portal header,
+    html.embedded-portal .hero,
+    html.embedded-portal section.command-section.no-print:first-of-type{
+      display:none!important;
+    }
+    html.embedded-portal main{
+      padding:10px 12px 18px;
+      max-width:none;
+    }
+    html.embedded-portal .command-section,
+    html.embedded-portal .dynamic-panel{
+      border-radius:18px;
+      margin-top:0;
+    }
+    html.embedded-portal .section-title h3{
+      font-size:15px;
+    }
+
     @media print{
       header,.module-grid,.top-actions,.inline-actions,.kpi-tabs,.no-print{display:none!important}
       main{padding:0}
@@ -2091,7 +2110,14 @@ function updateContributionUploadPreview(meta, ok, errMsg){
   `;
 }
 
+function applyEmbeddedPortalChrome(){
+  if(!isPortalEmbedded()) return;
+  document.documentElement.classList.add("embedded-portal");
+  document.body.classList.add("embedded-portal");
+}
+
 function notifyPortalReady(){
+  applyEmbeddedPortalChrome();
   postToPortal({
     type: "kmt-matawi-dd-ready",
     scope: getScope(),
@@ -2417,6 +2443,10 @@ renderModules();
 renderFinanceGrid();
 renderKpis();
 calculateDistribution();
+if (window.parent !== window && new URLSearchParams(location.search).get("embedded") === "1") {
+  document.documentElement.classList.add("embedded-portal");
+  document.body.classList.add("embedded-portal");
+}
 notifyPortalReady();
 (function bootMatawiModule(){
   const params = new URLSearchParams(location.search);

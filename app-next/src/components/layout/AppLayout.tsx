@@ -903,7 +903,10 @@ export function AppLayout() {
             tabIndex={-1}
             className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-y-contain p-3 pb-[max(5rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch] focus:outline-none sm:p-4"
           >
-            {authInitialized && authUser && visibleModules.length > 0 ? (
+            {authInitialized &&
+            authUser &&
+            visibleModules.length > 0 &&
+            !(activeModule === "muundo" && isMuundoBranchEngineSubmodule(activeSubmodule)) ? (
               <PortalProjectNotesRibbon show />
             ) : null}
             {noModuleRbac ? (
