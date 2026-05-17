@@ -33,11 +33,7 @@ import {
   shouldOpenBranchEngineAsPortalHome,
 } from "../../lib/branchEnginePortalUrl";
 import { isPortalBranchEngineSurface, resolveBranchEngineRoute } from "../../lib/branchEngineRoute";
-import {
-  getPortalLayoutMode,
-  isPortalWideSurface,
-  shouldHidePortalProjectRibbon,
-} from "../../lib/portalLayoutMode";
+import { getPortalLayoutMode, shouldHidePortalProjectRibbon } from "../../lib/portalLayoutMode";
 import { MasterBranchExecutiveDashboard } from "../branch-engine/MasterBranchExecutiveDashboard";
 import {
   coerceSubmoduleForModule,
@@ -52,6 +48,7 @@ import {
   type PortalDraftScope,
 } from "../../lib/portalDraftRecovery";
 import { ErrorBoundary } from "../common/ErrorBoundary";
+import { PortalPanelSkeleton } from "../common/PortalSkeleton";
 import { CookieConsentBanner } from "./CookieConsentBanner";
 import { MaintenanceBanner } from "./MaintenanceBanner";
 import { PortalAutoDraftRecovery } from "../draft/PortalAutoDraftRecovery";
@@ -59,8 +56,6 @@ import { SiteFooter } from "./SiteFooter";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { ExecutiveMenuBar } from "../executive/ExecutiveMenuBar";
-import { ExecutiveLayout } from "../executive/ExecutiveLayout";
-import { GlobalBackButton } from "../executive/GlobalBackButton";
 import { PortalProjectNotesRibbon } from "./PortalProjectNotesRibbon";
 const ModulePage = lazy(async () => {
   const m = await import("../../pages/ModulePage");
@@ -110,17 +105,7 @@ function PortalKpiSyncStatus({
 }
 
 function ModuleLoadingFallback() {
-  return (
-    <div
-      className="flex min-h-[calc(100dvh-10rem)] flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-8 text-slate-600"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <div className="h-9 w-9 animate-spin rounded-full border-2 border-blue-900 border-t-transparent" aria-hidden />
-      <p className="text-sm font-medium">Inapakia moduli…</p>
-    </div>
-  );
+  return <PortalPanelSkeleton rows={5} />;
 }
 
 export function AppLayout() {
@@ -917,7 +902,6 @@ export function AppLayout() {
   const layoutMode = getPortalLayoutMode(activeModule, activeSubmodule);
   const branchEngineSurface = layoutMode === "fullscreen";
   const moduleWorkspace = activeModule !== "dashboard";
-  const wideSurface = moduleWorkspace || isPortalWideSurface(activeModule, activeSubmodule);
 
   const canSubBack = useMemo(() => {
     const mod = modules.find((m) => m.key === activeModule);
@@ -929,6 +913,17 @@ export function AppLayout() {
     if (activeSubmodule !== first) return true;
     return activeModule !== "dashboard" && canPortalViewModule("dashboard");
   }, [activeModule, activeSubmodule, canPortalViewModule]);
+
+  const activeModuleMeta = useMemo(
+    () => modules.find((m) => m.key === activeModule),
+    [activeModule],
+  );
+  const topbarModuleLabel = activeModuleMeta?.label ?? activeModule;
+  const topbarSubmoduleLabel = activeSubmodule?.trim() || undefined;
+
+  const handleTopbarBack = useCallback(() => {
+    window.dispatchEvent(new Event("kmt-portal-submodule-back"));
+  }, []);
 
   return (
     <div className="flex h-screen flex-col bg-[#F3F6FA]" style={{ height: "100dvh" }}>
@@ -972,7 +967,10 @@ export function AppLayout() {
             />
           ) : null}
           <Topbar
-            title={activeSubmodule || "Dashibodi Kuu"}
+            moduleLabel={topbarModuleLabel}
+            submoduleLabel={topbarSubmoduleLabel}
+            canBack={canSubBack}
+            onBack={handleTopbarBack}
             onOpenMobileSidebar={() => setMobileOpen(true)}
             onNavigateToModule={(moduleKey, submodule) => {
               selectModule(moduleKey, submodule ?? "");
@@ -995,17 +993,10 @@ export function AppLayout() {
             tabIndex={-1}
             className={`relative flex min-h-0 min-w-0 flex-1 flex-col overscroll-y-contain [-webkit-overflow-scrolling:touch] focus:outline-none ${
               branchEngineSurface
-                ? "overflow-hidden p-0"
-                : moduleWorkspace
-                  ? "overflow-y-auto overflow-x-hidden p-0"
-                  : "overflow-y-auto overflow-x-auto p-0 pb-[max(5rem,env(safe-area-inset-bottom))]"
+                ? "overflow-hidden"
+                : "overflow-y-auto overflow-x-hidden pb-[max(5rem,env(safe-area-inset-bottom))]"
             }`}
           >
-            <div className={`pointer-events-none sticky top-0 z-20 shrink-0 pt-1 ${wideSurface ? "px-1 sm:px-2" : "px-3 sm:px-4"}`}>
-              <div className="pointer-events-auto inline-block">
-                <GlobalBackButton canBack={canSubBack} />
-              </div>
-            </div>
             {authInitialized &&
             authUser &&
             visibleModules.length > 0 &&
@@ -1013,14 +1004,19 @@ export function AppLayout() {
               <PortalProjectNotesRibbon show />
             ) : null}
             {noModuleRbac ? (
-              <ExecutiveLayout className="mb-4 px-4 pt-2 md:px-6 xl:px-8">
+              <div className="portal-page-content">
                 <NoModuleAccessNotice />
-              </ExecutiveLayout>
+              </div>
             ) : null}
-            <div className={moduleWorkspace ? "flex min-h-0 w-full flex-1 flex-col" : "w-full"}>
+            <div
+              className={`portal-page-content flex w-full min-w-0 flex-1 flex-col ${
+                branchEngineSurface ? "portal-page-content--fullscreen min-h-0 p-0" : ""
+              } ${moduleWorkspace && !branchEngineSurface ? "min-h-0" : ""}`}
+            >
             <Suspense fallback={<ModuleLoadingFallback />}>
               <ErrorBoundary sectionLabel={activeModule === "dashboard" ? "Dashibodi" : `Moduli: ${activeModule}`}>
               {activeModule === "dashboard" ? (
+                <div className="flex min-h-0 w-full flex-1 flex-col">
                 <MasterBranchExecutiveDashboard
                   dayosisi={dayosisi}
                   majimbo={majimbo}
@@ -1031,11 +1027,8 @@ export function AppLayout() {
                     engineModuleId: branchEngineModuleId,
                   })}
                 />
+                </div>
               ) : (
-                <ExecutiveLayout
-                  bleed
-                  className={`flex min-h-0 w-full flex-1 flex-col ${branchEngineSurface ? "" : "py-0"}`}
-                >
                 <ModulePage
                   moduleKey={activeModule}
                   submodule={activeSubmodule}
@@ -1087,7 +1080,6 @@ export function AppLayout() {
                     }
                   }}
                 />
-                </ExecutiveLayout>
               )}
               </ErrorBoundary>
             </Suspense>

@@ -631,7 +631,7 @@ export function MatawiModuleDdFrame({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="branch-engine-shell relative w-full min-w-0"
+      className="branch-engine-shell relative flex min-h-0 w-full min-w-0 flex-1 flex-col"
     >
       <BranchEngineScopeBar
         scope={activeScope}
@@ -674,11 +674,7 @@ export function MatawiModuleDdFrame({
         ref={iframeRef}
         title="KMK(T) — Injini ya Matawi / Matawi Module"
         src={src}
-        className="block w-full min-w-0 border-0 bg-[#f4f7fb]"
-        style={{
-          minHeight: "calc(100dvh - 3.25rem - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
-          height: "calc(100dvh - 3.25rem - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
-        }}
+        className="block min-h-0 w-full min-w-0 flex-1 border-0 bg-[#f4f7fb]"
         onLoad={() => setIframeLoaded(true)}
       />
       <p className="mt-1 hidden flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[10px] text-slate-500 no-print sm:flex">

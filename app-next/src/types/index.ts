@@ -1,3 +1,5 @@
+import type { FileManagerStorageBucket } from "../config/storageBuckets";
+
 export type UserRole =
   | "super_admin"
   | "chief_admin"
@@ -958,20 +960,15 @@ export interface SystemHealthSnapshot {
   checked_at: string;
 }
 
-/** Buckets za Stage 3 — File Manager */
-export type ChurchFileStorageBucket =
-  | "church-files"
-  | "church-images"
-  | "church-media"
-  | "portal-uploads"
-  | "certificates";
+/** Buckets za Stage 3 — File Manager (chanzo: config/storageBuckets) */
+export type ChurchFileStorageBucket = FileManagerStorageBucket;
 
 /** Jedwali: file_manager_items */
 export interface FileManagerItemRecord {
   id: string;
   title: string;
   file_url: string;
-  bucket_name: ChurchFileStorageBucket;
+  bucket_name: FileManagerStorageBucket;
   file_path: string;
   file_type: string;
   category: string;

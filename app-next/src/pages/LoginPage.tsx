@@ -78,6 +78,7 @@ type HeroState = { src: string; idx: number; variant: number };
 type PublicCounts = {
   dayosisi: number | null;
   majimbo: number | null;
+  majimboActive: number | null;
   matawi: number | null;
   matawiActive: number | null;
   matawiPending: number | null;
@@ -119,6 +120,10 @@ const KPI_CARD_STYLES = [
   "border-cyan-400/35 bg-gradient-to-br from-cyan-500/15 to-cyan-950/25 shadow-cyan-500/10",
   "border-orange-400/35 bg-gradient-to-br from-orange-500/15 to-orange-950/25 shadow-orange-500/10",
 ] as const;
+
+/** Kadi za KPI za umma — statiki, si za kubofya. */
+const PUBLIC_STATIC_KPI_CARD =
+  "cursor-default rounded-2xl border p-3 text-center shadow-lg backdrop-blur-md transition-opacity duration-300";
 
 /** Takwimu halisi kutoka Supabase; si nambari bandia. */
 function formatStatCount(value: number | null, loading: boolean, queryFailed: boolean): string {
@@ -184,6 +189,7 @@ export function LoginPage() {
   const [stats, setStats] = useState<PublicCounts>({
     dayosisi: null,
     majimbo: null,
+    majimboActive: null,
     matawi: null,
     matawiActive: null,
     matawiPending: null,
@@ -201,6 +207,7 @@ export function LoginPage() {
   const [statQueryFailed, setStatQueryFailed] = useState<Record<keyof PublicCounts, boolean>>({
     dayosisi: false,
     majimbo: false,
+    majimboActive: false,
     matawi: false,
     matawiActive: false,
     matawiPending: false,
@@ -216,6 +223,7 @@ export function LoginPage() {
   });
 
   const [publicLiveAt, setPublicLiveAt] = useState<string | null>(null);
+  const [majimboActiveColumnFromRpc, setMajimboActiveColumnFromRpc] = useState(false);
   const [publicContentLoading, setPublicContentLoading] = useState(true);
 
   const [branding, setBranding] = useState(() => {
@@ -285,6 +293,7 @@ export function LoginPage() {
     setStatQueryFailed({
       dayosisi: false,
       majimbo: false,
+      majimboActive: false,
       matawi: false,
       matawiActive: false,
       matawiPending: false,
@@ -355,18 +364,22 @@ export function LoginPage() {
         const countsErr = publicCountsPack.error;
         const countsRow = publicCountsPack.counts;
         const attendanceRpcOk = publicCountsPack.attendanceColumnsFromRpc;
+        const majimboActiveRpcOk = publicCountsPack.majimboActiveColumnFromRpc;
+        if (!cancelled) setMajimboActiveColumnFromRpc(majimboActiveRpcOk);
         const countOrNull = (key: keyof PublicCounts) => {
           if (countsErr || !countsRow) return null;
           const attendanceStale =
             !attendanceRpcOk &&
             (key === "attendanceSessionsToday" || key === "attendanceSessionsMonth" || key === "attendanceVisitorsMonth");
           if (attendanceStale) return null;
+          if (key === "majimboActive" && !majimboActiveRpcOk) return null;
           return parsePublicCount(countsRow[key]);
         };
 
         setStats({
           dayosisi: countOrNull("dayosisi"),
           majimbo: countOrNull("majimbo"),
+          majimboActive: countOrNull("majimboActive"),
           matawi: countOrNull("matawi"),
           matawiActive: countOrNull("matawiActive"),
           matawiPending: countOrNull("matawiPending"),
@@ -383,6 +396,7 @@ export function LoginPage() {
         setStatQueryFailed({
           dayosisi: !!countsErr,
           majimbo: !!countsErr,
+          majimboActive: !!countsErr || (!!countsRow && !majimboActiveRpcOk),
           matawi: !!countsErr,
           matawiActive: !!countsErr,
           matawiPending: !!countsErr,
@@ -417,6 +431,7 @@ export function LoginPage() {
           setStats({
             dayosisi: null,
             majimbo: null,
+            majimboActive: null,
             matawi: null,
             matawiActive: null,
             matawiPending: null,
@@ -433,6 +448,7 @@ export function LoginPage() {
           setStatQueryFailed({
             dayosisi: true,
             majimbo: true,
+            majimboActive: true,
             matawi: true,
             matawiActive: true,
             matawiPending: true,
@@ -464,11 +480,13 @@ export function LoginPage() {
     const client = getSupabase();
     if (!client || !supabaseReady) return;
     try {
-      const { counts, error, attendanceColumnsFromRpc } = await fetchPortalPublicDashboardCounts();
+      const { counts, error, attendanceColumnsFromRpc, majimboActiveColumnFromRpc } =
+        await fetchPortalPublicDashboardCounts();
       if (error) {
         setStatQueryFailed({
           dayosisi: true,
           majimbo: true,
+          majimboActive: true,
           matawi: true,
           matawiActive: true,
           matawiPending: true,
@@ -486,9 +504,11 @@ export function LoginPage() {
       }
       if (!counts) return;
       const attOk = attendanceColumnsFromRpc;
+      setMajimboActiveColumnFromRpc(majimboActiveColumnFromRpc);
       setStatQueryFailed({
         dayosisi: false,
         majimbo: false,
+        majimboActive: false,
         matawi: false,
         matawiActive: false,
         matawiPending: false,
@@ -506,6 +526,7 @@ export function LoginPage() {
         ...p,
         dayosisi: counts.dayosisi,
         majimbo: counts.majimbo,
+        majimboActive: majimboActiveColumnFromRpc ? counts.majimboActive : null,
         matawi: counts.matawi,
         matawiActive: counts.matawiActive,
         matawiPending: counts.matawiPending,
@@ -885,7 +906,7 @@ export function LoginPage() {
               </div>
             </div>
             {wauminiPerTawi ? (
-              <div className="shrink-0 rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center backdrop-blur-sm md:text-right">
+              <div className="shrink-0 cursor-default rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center backdrop-blur-sm md:text-right">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-300">Wastani wa waumini kwa tawi</p>
                 <p className="mt-0.5 font-kmkt-display text-2xl font-black tabular-nums text-amber-100">{wauminiPerTawi}</p>
               </div>
@@ -896,7 +917,7 @@ export function LoginPage() {
               <article
                 key={key}
                 style={{ animationDelay: `${90 + i * 40}ms` }}
-                className={`animate-kmkt-fade-up rounded-2xl border border-amber-300/25 bg-gradient-to-br p-3 text-center shadow-lg backdrop-blur-md ${KPI_CARD_STYLES[i % KPI_CARD_STYLES.length]}`}
+                className={`animate-kmkt-fade-up ${PUBLIC_STATIC_KPI_CARD} border-amber-300/25 bg-gradient-to-br ${KPI_CARD_STYLES[i % KPI_CARD_STYLES.length]}`}
               >
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-200/95">{label}</p>
                 <p
@@ -917,7 +938,7 @@ export function LoginPage() {
             <article
               key={key}
               style={{ animationDelay: `${120 + i * 35}ms` }}
-              className={`animate-kmkt-fade-up rounded-2xl border p-3 text-center shadow-lg backdrop-blur-md ${KPI_CARD_STYLES[(i + 3) % KPI_CARD_STYLES.length]}`}
+              className={`animate-kmkt-fade-up ${PUBLIC_STATIC_KPI_CARD} ${KPI_CARD_STYLES[(i + 3) % KPI_CARD_STYLES.length]}`}
             >
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-300/95">{label}</p>
               <p
@@ -950,9 +971,12 @@ export function LoginPage() {
 
       <PublicLandingEnterpriseStrip
         stats={{
+          dayosisi: stats.dayosisi,
+          majimbo: stats.majimbo,
+          majimboActive: stats.majimboActive,
+          showMajimboActive: majimboActiveColumnFromRpc,
           matawi: stats.matawi,
           waumini: stats.waumini,
-          dayosisi: stats.dayosisi,
           loading: publicStatsLoading,
         }}
         liveAt={publicLiveAt}

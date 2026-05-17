@@ -15,3 +15,9 @@ export function formatMoneyTz(n: number): string {
   if (!Number.isFinite(n)) return "0";
   return n.toLocaleString("sw-TZ", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
+
+/** Fedha kwa UI — "—" ikiwa thamani haipo (si 0 bandia). */
+export function formatMoneyTzOrDash(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  return formatMoneyTz(n);
+}

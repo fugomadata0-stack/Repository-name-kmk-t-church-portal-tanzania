@@ -26,18 +26,24 @@ import {
   uploadChurchFile,
   upsertFileManagerItem,
 } from "../../services/stage3/fileManagerService";
-import type { ChurchFileStorageBucket, FileManagerItemRecord } from "../../types";
+import {
+  FILE_MANAGER_BUCKET_NAMES,
+  type FileManagerStorageBucket,
+} from "../../config/storageBuckets";
+import type { FileManagerItemRecord } from "../../types";
+
+type ChurchFileStorageBucket = FileManagerStorageBucket;
 import { SupabaseListFeedback } from "../common/SupabaseListFeedback";
 import { ConfirmModal } from "../common/ConfirmModal";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { GlassPanel, MotionCard } from "../stage2/Stage2Motion";
 
 const BUCKETS: { id: ChurchFileStorageBucket; label: string; hint: string }[] = [
-  { id: "church-files", label: "Nyaraka", hint: "PDF, Word, Excel…" },
-  { id: "church-images", label: "Picha", hint: "JPG, PNG, WebP…" },
-  { id: "church-media", label: "Media", hint: "Video / Sauti" },
-  { id: "portal-uploads", label: "Portal uploads", hint: "Faili za jumla (kikomo cha juu)" },
-  { id: "certificates", label: "Hati / vyeti", hint: "PDF, picha, DOC/DOCX" },
+  { id: FILE_MANAGER_BUCKET_NAMES[0], label: "Nyaraka", hint: "PDF, Word, Excel…" },
+  { id: FILE_MANAGER_BUCKET_NAMES[1], label: "Picha", hint: "JPG, PNG, WebP…" },
+  { id: FILE_MANAGER_BUCKET_NAMES[2], label: "Media", hint: "Video / Sauti" },
+  { id: FILE_MANAGER_BUCKET_NAMES[3], label: "Portal uploads", hint: "Faili za jumla (kikomo cha juu)" },
+  { id: FILE_MANAGER_BUCKET_NAMES[4], label: "Hati / vyeti", hint: "PDF, picha, DOC/DOCX" },
 ];
 const FILE_MAX_BY_BUCKET: Record<ChurchFileStorageBucket, number> = {
   "church-files": mbToBytes(200),
@@ -233,7 +239,7 @@ export function FileManagerPanel() {
         </p>
       </header>
 
-      <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
+      <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} onRetry={() => void load()} />
 
       <GlassPanel className="p-4">
         <div className="flex flex-wrap gap-2">

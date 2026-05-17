@@ -23,16 +23,14 @@ export function EnterprisePageShell({
   children: ReactNode;
   className?: string;
 }) {
-  const minH =
-    mode === "fullscreen"
-      ? "min-h-0 h-full"
-      : "min-h-[calc(100dvh-10.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))]";
+  const layoutClass =
+    mode === "fullscreen" ? "min-h-0 h-full flex-1" : "min-h-0 w-full flex-1";
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className={`enterprise-page-shell flex w-full min-w-0 max-w-[100%] flex-col ${minH} ${className}`}
+      className={`enterprise-page-shell flex min-w-0 max-w-[100%] flex-col ${layoutClass} ${className}`}
     >
       {title && mode !== "fullscreen" ? (
         <div className="mb-3 shrink-0">

@@ -72,12 +72,45 @@ body {
   color: var(--kmt-navy);
 }
 
-/* Moduli za portal — jaza eneo linalobaki la skrini */
+/* Moduli za portal — eneo moja la maudhui (hakuna shell ndani ya shell) */
 [data-portal-main] #portal-main-scroll {
   .enterprise-page-shell {
     width: 100%;
     max-width: 100%;
   }
+}
+
+.portal-page-content {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.portal-page-content:not(.portal-page-content--fullscreen) {
+  padding: 0.75rem 0.75rem 1rem;
+
+  @media (min-width: 640px) {
+    padding: 1rem 1rem 1.25rem;
+  }
+
+  @media (min-width: 768px) {
+    padding: 1rem 1.5rem 1.5rem;
+  }
+}
+
+.chart-safe-box {
+  width: 100%;
+  min-width: 0;
+  contain: layout;
+}
+
+[data-portal-main] #portal-main-scroll {
+  overflow-x: hidden;
+}
+
+.portal-kpi-shell,
+.enterprise-page-shell {
+  min-width: 0;
 }
 
 @media print {

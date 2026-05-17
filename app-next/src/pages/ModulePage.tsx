@@ -57,6 +57,7 @@ import {
 } from "./moduleLazyPanels";
 import { ViongoziWaMatawiHubPanel } from "../components/viongozi/ViongoziWaMatawiHubPanel";
 import type { PremiumTableExcelBulk, Column } from "../components/common/PremiumTable";
+import { PortalPanelSkeleton } from "../components/common/PortalSkeleton";
 import { SubmoduleEmptyState } from "../components/common/SubmoduleEmptyState";
 import {
   ENTERPRISE_VIONGOZI_SUBMODULE,
@@ -156,17 +157,7 @@ const MapatoIncomeCharts = lazy(async () => {
 });
 
 function ModulePanelSuspenseFallback() {
-  return (
-    <div
-      className="flex min-h-[36vh] flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white/90 p-8 text-slate-600"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <div className="h-9 w-9 animate-spin rounded-full border-2 border-[#0B1F3A] border-t-transparent" aria-hidden />
-      <p className="text-sm font-medium">Inapakia moduli…</p>
-    </div>
-  );
+  return <PortalPanelSkeleton rows={6} />;
 }
 
 interface Props {
@@ -2663,7 +2654,13 @@ export function ModulePage(props: Props) {
   const usesFinanceEngineShell =
     props.moduleKey === "mapato_income" ||
     (props.moduleKey === "fedha" && props.submodule !== "Audit Trail");
-  const hideModuleHeader = !isFullscreenEngine && usesFinanceEngineShell;
+  const moduleHasOwnHero =
+    usesFinanceEngineShell ||
+    (props.moduleKey === "viongozi" &&
+      (props.submodule === ENTERPRISE_VIONGOZI_SUBMODULE ||
+        props.submodule === EXECUTIVE_LEADERSHIP_PROFILE_SUBMODULE ||
+        props.submodule === LEADERSHIP_CREDENTIALS_HUB_SUBMODULE));
+  const hideModuleHeader = isFullscreenEngine || moduleHasOwnHero;
   const showIntelligenceStrip =
     layoutMode === "wide" &&
     Boolean(props.kpiLive) &&
@@ -2686,9 +2683,9 @@ export function ModulePage(props: Props) {
     >
       {!hideModuleHeader ? (
       <ModuleHeader
+        variant="toolbar"
         title={`${props.submodule}`}
         subtitle="Ongoza, hariri, futa — Excel: Pakua blanki (Maelekezo + Data), jaza jalada Data, Pakia; au Excel orodha, PDF, chapisha."
-        canBack={props.canNavigateBack ?? true}
         onAdd={() => setEditing({})}
         canAdd={moduleHeaderCanAdd}
         addDisabled={!!editing}

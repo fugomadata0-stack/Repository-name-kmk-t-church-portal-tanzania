@@ -7,6 +7,7 @@ import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
 import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { formatCaughtError } from "../../lib/supabaseErrors";
+import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
 import type { StorageUploadProgress } from "../../lib/enterpriseStorageUpload";
 import {
   deleteChurchDocument,
@@ -143,7 +144,7 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
     } catch (err) {
       console.error("[Documents:load]", err);
       setRows([]);
-      setLoadError(err instanceof Error ? err.message : formatCaughtError(err));
+      setLoadError(SUPABASE_QUERY_ERROR_SW);
       pushToast(formatCaughtError(err), "error");
     } finally {
       setLoading(false);
@@ -515,7 +516,7 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
 
   return (
     <div className="space-y-3">
-      <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
+      <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} onRetry={() => void load()} />
       <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <label className="grid gap-1 text-xs font-medium text-slate-700">

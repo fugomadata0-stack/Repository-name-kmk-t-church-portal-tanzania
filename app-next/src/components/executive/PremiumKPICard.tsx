@@ -19,6 +19,8 @@ type PremiumKPICardProps = {
   hint?: string;
   icon?: ReactNode;
   live?: boolean;
+  /** Ukurasa wa umma: kadi statiki — hakuna click, hover ya kitufe, au pointer. */
+  static?: boolean;
   onClick?: () => void;
   className?: string;
   index?: number;
@@ -30,6 +32,7 @@ function PremiumKPICardInner({
   hint,
   icon,
   live = true,
+  static: staticCard = false,
   onClick,
   className = "",
   index = 0,
@@ -39,8 +42,13 @@ function PremiumKPICardInner({
   const displayValue = safeKpiValue(value);
   const displayHint = safeHint(hint);
   const displayTitle = safeKpiValue(title, "Kipimo");
+  const interactive = Boolean(onClick) && !staticCard;
 
-  const cardClass = `portal-kpi-card relative flex min-h-[7.25rem] w-full flex-col justify-center overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-center shadow-xl ${grad} ${onClick ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400" : ""}`;
+  const cardClass = `portal-kpi-card relative flex min-h-[7.25rem] w-full flex-col justify-center overflow-hidden rounded-2xl border bg-gradient-to-br p-4 text-center shadow-xl ${grad} ${
+    interactive
+      ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+      : "cursor-default"
+  }`;
 
   const inner = (
     <>
@@ -77,12 +85,12 @@ function PremiumKPICardInner({
   if (reducedMotion) {
     return (
       <div className={shellClass}>
-        {onClick ? (
+        {interactive ? (
           <button type="button" onClick={onClick} data-kpi-live={live ? "true" : undefined} className={cardClass}>
             {inner}
           </button>
         ) : (
-          <article data-kpi-live={live ? "true" : undefined} className={cardClass}>
+          <article data-kpi-live={live ? "true" : undefined} className={cardClass} aria-label={`${displayTitle}: ${displayValue}`}>
             {inner}
           </article>
         )}
@@ -95,15 +103,15 @@ function PremiumKPICardInner({
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(index * 0.02, 0.2), duration: 0.28 }}
-      whileHover={{ y: -2, scale: 1.01 }}
+      {...(interactive ? { whileHover: { y: -2, scale: 1.01 } } : {})}
       className={shellClass}
     >
-      {onClick ? (
+      {interactive ? (
         <button type="button" onClick={onClick} data-kpi-live={live ? "true" : undefined} className={cardClass}>
           {inner}
         </button>
       ) : (
-        <article data-kpi-live={live ? "true" : undefined} className={cardClass}>
+        <article data-kpi-live={live ? "true" : undefined} className={cardClass} aria-label={`${displayTitle}: ${displayValue}`}>
           {inner}
         </article>
       )}

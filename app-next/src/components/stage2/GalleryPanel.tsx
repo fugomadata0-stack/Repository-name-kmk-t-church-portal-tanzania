@@ -173,7 +173,7 @@ export function GalleryPanel(props: { highlightRecordId?: string | null }) {
         </div>
       </header>
 
-      <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
+      <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} onRetry={() => void load()} />
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/80 bg-white/90 p-3 backdrop-blur-sm">
         <Grid3x3 className="h-4 w-4" style={{ color: STAGE2_COLORS.navy }} />
         <span className="text-sm font-semibold text-slate-700">Kategoria:</span>

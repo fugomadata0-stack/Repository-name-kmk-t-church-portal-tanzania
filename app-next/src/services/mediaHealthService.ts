@@ -1,25 +1,25 @@
-import { ALL_STORAGE_BUCKET_NAMES, MEDIA_MODULE_BUCKET_NAMES } from "../lib/storageBuckets";
+/**
+ * Ukaguzi wa muunganisho wa Supabase — SI kwa onyo la buckets kwenye moduli za media.
+ * Bucket diagnostics: System Health Center pekee (`StorageDiagnosticsPanel`).
+ */
+import { ALL_STORAGE_BUCKET_NAMES, MEDIA_MODULE_BUCKET_NAMES } from "../config/storageBuckets";
 import { checkStorageBucketsSummary } from "../lib/storageBucketProbe";
 import { formatPostgrestError, isMissingTableError } from "../lib/supabaseErrors";
 import { getSupabase } from "../lib/supabaseClient";
 
-/** @deprecated Tumia `ALL_STORAGE_BUCKET_NAMES` kutoka `storageBuckets`. */
+/** @deprecated Tumia `ALL_STORAGE_BUCKET_NAMES` kutoka `config/storageBuckets`. */
 export const REQUIRED_MEDIA_BUCKETS = ALL_STORAGE_BUCKET_NAMES;
 
-/**
- * Kagua buckets — kwa System Health / diagnostics pekee.
- * Usiite kwenye moduli za media (Gallery, Video, nk.).
- */
+/** @internal — diagnostics/admin pekee; usiite kwenye Gallery/Video/Audio panels. */
 export async function checkRequiredMediaBuckets(buckets?: readonly string[]) {
   return checkStorageBucketsSummary(buckets ?? ALL_STORAGE_BUCKET_NAMES);
 }
 
-/** Kagua buckets za moduli za media (gallery, video, audio, events). */
+/** @internal — diagnostics/admin pekee. */
 export async function checkMediaModuleBuckets() {
   return checkStorageBucketsSummary(MEDIA_MODULE_BUCKET_NAMES);
 }
 
-/** Muunganisho wa DB (si orodha ya buckets). */
 export async function checkSupabaseMediaLink(): Promise<{ ok: boolean; message: string }> {
   const c = getSupabase();
   if (!c) return { ok: false, message: "Supabase haijasanidiwa." };

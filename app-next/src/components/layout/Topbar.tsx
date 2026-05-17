@@ -1,10 +1,15 @@
 import { usePortal } from "../../context/PortalContext";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { useEffect, useState } from "react";
-import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ArrowLeft, Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 interface Props {
-  title: string;
+  /** Jina la moduli (kichwa kikuu). */
+  moduleLabel: string;
+  /** Kichwa kidogo — submodule au sehemu ya sasa. */
+  submoduleLabel?: string;
+  canBack?: boolean;
+  onBack?: () => void;
   onOpenMobileSidebar: () => void;
   /** Tumia kusogeza moduli programu (mf. taarifa kutoka bell). */
   onNavigateToModule?: (moduleKey: string, submodule?: string) => void;
@@ -13,7 +18,10 @@ interface Props {
 }
 
 export function Topbar({
-  title,
+  moduleLabel,
+  submoduleLabel,
+  canBack = false,
+  onBack,
   onOpenMobileSidebar,
   onNavigateToModule,
   sidebarCollapsed,
@@ -39,6 +47,24 @@ export function Topbar({
       window.removeEventListener("appinstalled", onInstalled);
     };
   }, []);
+
+  useEffect(() => {
+    if (!canBack || !onBack) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && e.key === "ArrowLeft") {
+        e.preventDefault();
+        onBack();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [canBack, onBack]);
+
+  const showSubmodule =
+    submoduleLabel &&
+    submoduleLabel.trim() !== "" &&
+    submoduleLabel.trim() !== moduleLabel.trim();
+
   return (
     <header className="sticky top-0 z-40 shrink-0 border-b border-amber-200/80 bg-white/90 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-md">
       <div className="flex flex-col gap-1.5 px-2 py-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1.5 sm:px-3 sm:py-2">
@@ -66,9 +92,25 @@ export function Topbar({
               )}
             </button>
           ) : null}
-          <h2 className="min-w-0 flex-1 hyphens-auto break-words text-base font-bold leading-snug text-[#0f1e46] sm:text-lg">
-            {title}
-          </h2>
+          {canBack && onBack ? (
+            <button
+              type="button"
+              onClick={onBack}
+              className="hidden shrink-0 items-center justify-center rounded-lg border border-slate-200 p-2 text-slate-800 hover:bg-slate-50 sm:flex"
+              aria-label="Rudi nyuma (Alt+←)"
+              title="Rudi nyuma (Alt+←)"
+            >
+              <ArrowLeft className="h-5 w-5" strokeWidth={2} aria-hidden />
+            </button>
+          ) : null}
+          <div className="min-w-0 flex-1">
+            <h1 className="min-w-0 hyphens-auto break-words text-base font-bold leading-snug text-[#0f1e46] sm:text-lg">
+              {moduleLabel}
+            </h1>
+            {showSubmodule ? (
+              <p className="mt-0.5 truncate text-xs font-medium text-slate-600">{submoduleLabel}</p>
+            ) : null}
+          </div>
         </div>
         <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-2 sm:ml-auto sm:max-w-none">
           {onNavigateToModule ? (

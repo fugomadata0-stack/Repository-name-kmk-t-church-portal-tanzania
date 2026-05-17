@@ -587,7 +587,7 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
         </div>
       </motion.section>
 
-      <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={false} />
+      <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={false} onRetry={() => void reloadWithMetrics()} />
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
@@ -610,7 +610,9 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
               <p className="text-xs font-semibold text-slate-700">{k.label}</p>
               <k.icon className="h-4 w-4 text-slate-600" />
             </div>
-            <p className="mt-2 text-2xl font-extrabold tabular-nums text-[#0B1F3A]">{loading ? "—" : k.value}</p>
+            <p className="mt-2 text-2xl font-extrabold tabular-nums text-[#0B1F3A]">
+              {loading ? "—" : Number.isFinite(k.value) ? k.value.toLocaleString("sw-TZ") : "—"}
+            </p>
           </motion.article>
         ))}
       </section>

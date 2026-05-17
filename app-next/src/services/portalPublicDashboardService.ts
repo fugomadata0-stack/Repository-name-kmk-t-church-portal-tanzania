@@ -9,6 +9,8 @@ import { getSupabase } from "../lib/supabaseClient";
 export type PortalPublicDashboardCounts = {
   dayosisi: number;
   majimbo: number;
+  /** Majimbo yenye status active (ikiwa RPC inarudisha safu hii). */
+  majimboActive: number;
   matawi: number;
   /** Matawi yenye hali active (operational). */
   matawiActive: number;
@@ -40,6 +42,7 @@ function parseCount(value: number | string | null | undefined): number {
 }
 
 const ATTENDANCE_RPC_COLUMN_KEYS = ["attendance_sessions_today", "attendance_sessions_month", "attendance_visitors_month"] as const;
+const MAJIMBO_ACTIVE_RPC_KEY = "majimbo_active";
 
 /** True when PostgREST row includes attendance columns (avoids showing 0 before migration applies). */
 export function portalPublicDashboardRowHasAttendanceColumns(raw: unknown): boolean {
@@ -48,11 +51,18 @@ export function portalPublicDashboardRowHasAttendanceColumns(raw: unknown): bool
   return ATTENDANCE_RPC_COLUMN_KEYS.every((k) => Object.prototype.hasOwnProperty.call(o, k));
 }
 
+/** True when RPC includes majimbo_active (baada ya migration 20260629150000). */
+export function portalPublicDashboardRowHasMajimboActiveColumn(raw: unknown): boolean {
+  if (!raw || typeof raw !== "object") return false;
+  return Object.prototype.hasOwnProperty.call(raw as Record<string, unknown>, MAJIMBO_ACTIVE_RPC_KEY);
+}
+
 function rowToCounts(row: Record<string, unknown> | null | undefined): PortalPublicDashboardCounts | null {
   if (!row || typeof row !== "object") return null;
   return {
     dayosisi: parseCount(row.dayosisi as number | string | null | undefined),
     majimbo: parseCount(row.majimbo as number | string | null | undefined),
+    majimboActive: parseCount(row.majimbo_active as number | string | null | undefined),
     matawi: parseCount(row.matawi as number | string | null | undefined),
     matawiActive: parseCount(row.matawi_active as number | string | null | undefined),
     matawiPending: parseCount(row.matawi_pending as number | string | null | undefined),
@@ -73,13 +83,15 @@ export async function fetchPortalPublicDashboardCounts(): Promise<{
   error: PostgrestError | null;
   /** Meaningful only when `error` is null: false if RPC response omits attendance totals (old `portal_public_dashboard_counts`). */
   attendanceColumnsFromRpc: boolean;
+  majimboActiveColumnFromRpc: boolean;
 }> {
   const c = getSupabase();
-  if (!c) return { counts: null, error: null, attendanceColumnsFromRpc: false };
+  if (!c) return { counts: null, error: null, attendanceColumnsFromRpc: false, majimboActiveColumnFromRpc: false };
   const { data, error } = await c.rpc("portal_public_dashboard_counts");
-  if (error) return { counts: null, error, attendanceColumnsFromRpc: false };
+  if (error) return { counts: null, error, attendanceColumnsFromRpc: false, majimboActiveColumnFromRpc: false };
   const raw = Array.isArray(data) ? data[0] : data;
   const attendanceColumnsFromRpc = portalPublicDashboardRowHasAttendanceColumns(raw);
+  const majimboActiveColumnFromRpc = portalPublicDashboardRowHasMajimboActiveColumn(raw);
   const counts = rowToCounts(raw as Record<string, unknown>);
-  return { counts, error: null, attendanceColumnsFromRpc };
+  return { counts, error: null, attendanceColumnsFromRpc, majimboActiveColumnFromRpc };
 }

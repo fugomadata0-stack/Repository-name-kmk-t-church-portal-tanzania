@@ -10,8 +10,8 @@ import {
   Users,
 } from "lucide-react";
 import { emptyDashboardKpiSnapshot, type DashboardKpiSnapshot } from "../../services/dashboardKpiAggregatesService";
-import { formatMoneyTz } from "../../lib/money";
-import { safeKpiValue } from "../../lib/portalHardening/safeDisplay";
+import { formatMoneyTzOrDash } from "../../lib/money";
+import { safeHint, safeKpiValue, safePercentLabel } from "../../lib/portalHardening/safeDisplay";
 import { PremiumKPICard } from "./PremiumKPICard";
 
 type Props = {
@@ -19,11 +19,6 @@ type Props = {
   moduleKey: string;
   submodule?: string;
 };
-
-function pct(n: number | null | undefined): string {
-  if (n == null || Number.isNaN(n)) return "—";
-  return `${n >= 0 ? "+" : ""}${n.toFixed(1)}%`;
-}
 
 /** KPI za kiwango cha juu — chanzo kimoja (dashibodi / Supabase). */
 export function PortalIntelligenceKpiStrip({ kpi, moduleKey }: Props) {
@@ -35,20 +30,20 @@ export function PortalIntelligenceKpiStrip({ kpi, moduleKey }: Props) {
       { title: "Matawi", value: safeKpiValue(snap.matawiCount), hint: `${safeKpiValue(snap.matawiActiveCount, "0")} hai`, icon: <Church className="h-4 w-4" /> },
       { title: "Majimbo", value: safeKpiValue(snap.majimboCount), hint: "Majimbo yaliyosajiliwa", icon: <Building2 className="h-4 w-4" /> },
       { title: "Dayosisi", value: safeKpiValue(snap.dayosisiCount), hint: "Ngazi ya dayosisi", icon: <Building2 className="h-4 w-4" /> },
-      { title: "Sadaka Leo", value: formatMoneyTz(snap.mapatoLeoTotal), hint: "Mapato ya leo", icon: <HandCoins className="h-4 w-4" /> },
-      { title: "Zaka Wiki", value: formatMoneyTz(snap.mapatoWikiTotal), hint: "Wiki hii", icon: <Coins className="h-4 w-4" /> },
-      { title: "Mapato Mwezi", value: formatMoneyTz(snap.mapatoMweziTotal), hint: "Mwezi huu", icon: <TrendingUp className="h-4 w-4" /> },
-      { title: "Matumizi Mwezi", value: formatMoneyTz(snap.matumiziFedhaMwezi), hint: "Fedha", icon: <Coins className="h-4 w-4" /> },
+      { title: "Sadaka Leo", value: formatMoneyTzOrDash(snap.mapatoLeoTotal), hint: "Mapato ya leo", icon: <HandCoins className="h-4 w-4" /> },
+      { title: "Zaka Wiki", value: formatMoneyTzOrDash(snap.mapatoWikiTotal), hint: "Wiki hii", icon: <Coins className="h-4 w-4" /> },
+      { title: "Mapato Mwezi", value: formatMoneyTzOrDash(snap.mapatoMweziTotal), hint: "Mwezi huu", icon: <TrendingUp className="h-4 w-4" /> },
+      { title: "Matumizi Mwezi", value: formatMoneyTzOrDash(snap.matumiziFedhaMwezi), hint: "Fedha", icon: <Coins className="h-4 w-4" /> },
       { title: "Rekodi Zinazosubiri", value: safeKpiValue(snap.pendingRecordsCrossModule), hint: "Ngazi zote", icon: <Activity className="h-4 w-4" /> },
       { title: "Afya ya Mfumo", value: Object.keys(snap.failedKpis ?? {}).length ? "Angalia" : "Nzuri", hint: "Usawazishaji KPI", icon: <Shield className="h-4 w-4" /> },
       { title: "Mahudhurio Mwezi", value: safeKpiValue(snap.attendanceMonthCount), hint: `Wageni ${safeKpiValue(snap.attendanceVisitorsMonth, "0")}`, icon: <Users className="h-4 w-4" /> },
       { title: "Mahudhurio Wiki", value: safeKpiValue(snap.attendanceWeekCount), hint: "Vikao wiki", icon: <Activity className="h-4 w-4" /> },
       { title: "Bajeti dhidi ya Halisi", value: safeKpiValue(snap.budgetedVsActualLabel), hint: "Mwezi", icon: <TrendingUp className="h-4 w-4" /> },
-      { title: "Uhakiki Mapato", value: safeKpiValue(snap.pendingVerificationCount), hint: formatMoneyTz(snap.pendingVerificationSum), icon: <Shield className="h-4 w-4" /> },
+      { title: "Uhakiki Mapato", value: safeKpiValue(snap.pendingVerificationCount), hint: formatMoneyTzOrDash(snap.pendingVerificationSum), icon: <Shield className="h-4 w-4" /> },
       { title: "Viongozi Hai", value: safeKpiValue(snap.viongoziActiveCount), hint: `${safeKpiValue(snap.viongoziPendingCount, "0")} inasubiri`, icon: <Users className="h-4 w-4" /> },
-      { title: "Ukuaji Mapato", value: pct(snap.growthVsLastMonthPercent), hint: snap.growthVsLastMonthLabel, icon: <TrendingUp className="h-4 w-4" /> },
-      { title: "Mfuko Maalum", value: formatMoneyTz(snap.restrictedFundBalance), hint: "Salio", icon: <Coins className="h-4 w-4" /> },
-      { title: "Haijachapishwa", value: safeKpiValue(snap.unpostedCollectionsCount), hint: formatMoneyTz(snap.unpostedCollectionsSum), icon: <HandCoins className="h-4 w-4" /> },
+      { title: "Ukuaji Mapato", value: safePercentLabel(snap.growthVsLastMonthPercent), hint: safeHint(snap.growthVsLastMonthLabel), icon: <TrendingUp className="h-4 w-4" /> },
+      { title: "Mfuko Maalum", value: formatMoneyTzOrDash(snap.restrictedFundBalance), hint: "Salio", icon: <Coins className="h-4 w-4" /> },
+      { title: "Haijachapishwa", value: safeKpiValue(snap.unpostedCollectionsCount), hint: formatMoneyTzOrDash(snap.unpostedCollectionsSum), icon: <HandCoins className="h-4 w-4" /> },
       { title: "Sajili Inasubiri", value: safeKpiValue(snap.matawiRegistryPendingReviewCount), hint: "Matawi", icon: <Church className="h-4 w-4" /> },
       { title: "Mahudhurio Leo", value: safeKpiValue(snap.attendanceTodayCount), hint: "Vikao leo", icon: <Activity className="h-4 w-4" /> },
     ];

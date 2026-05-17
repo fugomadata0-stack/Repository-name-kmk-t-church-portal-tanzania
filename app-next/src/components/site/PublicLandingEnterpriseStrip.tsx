@@ -31,20 +31,43 @@ const FLOW_STEPS = [
 ] as const;
 
 type PulseStats = {
+  dayosisi: number | null;
+  majimbo: number | null;
+  majimboActive: number | null;
+  showMajimboActive: boolean;
   matawi: number | null;
   waumini: number | null;
-  dayosisi: number | null;
   loading: boolean;
 };
 
-function PulseMetric({ label, value, loading }: { label: string; value: number | null; loading: boolean }) {
+function PulseMetric({
+  label,
+  value,
+  loading,
+  activeValue,
+}: {
+  label: string;
+  value: number | null;
+  loading: boolean;
+  activeValue?: number | null;
+}) {
   const animated = useCountUp(value, { enabled: !loading && value != null });
+  const showActive =
+    !loading &&
+    activeValue != null &&
+    typeof activeValue === "number" &&
+    Number.isFinite(activeValue);
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center backdrop-blur-sm">
+    <div className="cursor-default rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-center backdrop-blur-sm">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
       <p className="mt-0.5 font-kmkt-display text-xl font-black tabular-nums text-white">
         {loading ? "…" : value == null ? "—" : animated.toLocaleString("sw-TZ")}
       </p>
+      {showActive ? (
+        <p className="mt-0.5 text-[9px] font-medium text-emerald-300/90">
+          {activeValue.toLocaleString("sw-TZ")} hai
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -120,10 +143,16 @@ export function PublicLandingEnterpriseStrip({ stats, liveAt }: { stats: PulseSt
               )}
             </motion.div>
           </motion.div>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+            <PulseMetric label="Dayosisi" value={stats.dayosisi} loading={stats.loading} />
+            <PulseMetric
+              label="Majimbo"
+              value={stats.majimbo}
+              loading={stats.loading}
+              activeValue={stats.showMajimboActive ? stats.majimboActive : null}
+            />
             <PulseMetric label="Matawi" value={stats.matawi} loading={stats.loading} />
             <PulseMetric label="Waumini" value={stats.waumini} loading={stats.loading} />
-            <PulseMetric label="Dayosisi" value={stats.dayosisi} loading={stats.loading} />
           </div>
         </div>
       </motion.div>
@@ -207,9 +236,11 @@ export function PublicLandingEnterpriseStrip({ stats, liveAt }: { stats: PulseSt
         {FLOW_STEPS.map((step) => (
           <motion.div
             key={step.n}
-            whileHover={{ y: -3 }}
-            transition={{ type: "spring", stiffness: 400, damping: 22 }}
-            className="rounded-2xl border border-sky-400/30 bg-gradient-to-br from-sky-500/10 to-[#061633] p-4 shadow-md"
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.35 }}
+            className="cursor-default rounded-2xl border border-sky-400/30 bg-gradient-to-br from-sky-500/10 to-[#061633] p-4 shadow-md"
           >
             <div className="flex items-center justify-between">
               <span className="font-kmkt-display text-2xl font-black text-sky-400/80">{step.n}</span>

@@ -272,7 +272,7 @@ export function EventsPanel(props: { submodule?: string; highlightRecordId?: str
         </div>
       </motion.header>
 
-      <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
+      <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} onRetry={() => void load()} />
       <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-3">
         <label className="grid min-w-[220px] flex-1 gap-1 text-xs font-semibold text-slate-700">
           Tafuta

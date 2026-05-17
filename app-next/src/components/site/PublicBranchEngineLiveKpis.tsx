@@ -32,7 +32,7 @@ function slugKpi(title: string): string {
   return title.trim().toLowerCase().replace(/\s+/g, "-");
 }
 
-/** KPI za injini — nje ya portal, ngazi zinabofya (KMK(T), Dayosisi, Jimbo, Tawi). */
+/** KPI za injini — nje ya portal; kadi statiki, ngazi zinachaguliwa kwa tab. */
 export function PublicBranchEngineLiveKpis() {
   const [kpis, setKpis] = useState<MatawiDdKpis | null>(null);
   const [activeTab, setActiveTab] = useState<NgaziTab>("kmkt");
@@ -109,7 +109,7 @@ export function PublicBranchEngineLiveKpis() {
     >
       <DashboardHero
         title="📊 Takwimu za Ngazi (live)"
-        subtitle="Bofya KMK(T), Dayosisi, Jimbo au Tawi. Mahudhurio: leo · wiki · mwezi · mwaka. Salio (si Saldo)."
+        subtitle="Chagua ngazi: KMK(T), Dayosisi, Jimbo au Tawi. Mahudhurio: leo · wiki · mwezi · mwaka. Salio (si Saldo)."
         liveAt={liveAt}
         actions={
           <a
@@ -166,9 +166,7 @@ export function PublicBranchEngineLiveKpis() {
                 value={value}
                 hint={hint}
                 index={i}
-                onClick={() => {
-                  document.getElementById("login-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
+                static
               />
             ))}
       </div>

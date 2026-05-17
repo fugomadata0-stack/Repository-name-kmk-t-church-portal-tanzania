@@ -170,7 +170,7 @@ export function VideoLibraryPanel(props: { highlightRecordId?: string | null }) 
         </div>
       </header>
 
-      <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
+      <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} onRetry={() => void load()} />
       <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-3">
         <label className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-2 top-2.5 h-3.5 w-3.5 text-slate-400" />
