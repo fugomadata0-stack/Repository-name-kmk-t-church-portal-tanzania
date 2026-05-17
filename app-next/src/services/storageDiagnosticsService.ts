@@ -1,11 +1,15 @@
-import { REQUIRED_MEDIA_BUCKETS, checkRequiredMediaBuckets, checkSupabaseMediaLink } from "./mediaHealthService";
+import type { StorageBucketHealthRow, StorageBucketHealthStatus } from "../lib/storageBucketProbe";
+import { checkStorageBucketsSummary } from "../lib/storageBucketProbe";
+import { ALL_STORAGE_BUCKET_NAMES } from "../lib/storageBuckets";
 import { getCachedAuthUserEmail, getCachedSession } from "../lib/authSessionCache";
 import { getSupabaseProjectOrigin, validateSupabaseEnv } from "../lib/supabase";
+import { checkSupabaseMediaLink } from "./mediaHealthService";
 
 export type StorageDiagnosticRow = {
   id: string;
   label: string;
   ok: boolean;
+  status: StorageBucketHealthStatus | "ok" | "warn";
   message: string;
   hint?: string;
 };
@@ -22,6 +26,7 @@ export type StorageDiagnosticsSnapshot = {
   api_message: string;
   buckets_ok: boolean;
   missing_buckets: string[];
+  bucket_rows: StorageBucketHealthRow[];
   rows: StorageDiagnosticRow[];
 };
 
@@ -35,23 +40,22 @@ export async function fetchStorageDiagnostics(): Promise<StorageDiagnosticsSnaps
     id: "env",
     label: "Mazingira (VITE_SUPABASE_*)",
     ok: env.ok,
-    message: env.ok ? "URL na funguo ya anon/publishable zime sanidiwa." : env.message,
+    status: env.ok ? "ok" : "warn",
+    message: env.ok ? "URL na funguo ya anon/publishable zimesanidiwa." : env.message,
     hint: env.ok ? undefined : "Weka app-next/.env.local au Vercel Environment Variables, kisha build/deploy upya.",
   });
 
-  let authSignedIn = false;
-  let authEmail: string | null = null;
-
   const cached = getCachedSession();
-  authSignedIn = Boolean(cached);
-  authEmail = getCachedAuthUserEmail();
+  const authSignedIn = Boolean(cached);
+  const authEmail = getCachedAuthUserEmail();
 
   rows.push({
     id: "auth",
     label: "Kikao cha mtumiaji",
     ok: authSignedIn,
-    message: authSignedIn ? `Umeingia kama ${authEmail ?? "mtumiaji"}.` : "Huna kikao — upakiaji unahitaji kuingia.",
-    hint: authSignedIn ? undefined : "Ingia kwenye portal kisha jaribu upakiaji tena.",
+    status: authSignedIn ? "ok" : "warn",
+    message: authSignedIn ? `Umeingia kama ${authEmail ?? "mtumiaji"}.` : "Huna kikao — baadhi ya buckets za faragha zinaweza kuonekana tu baada ya kuingia.",
+    hint: authSignedIn ? undefined : "Ingia kwenye portal kisha kagua tena.",
   });
 
   const link = await checkSupabaseMediaLink();
@@ -59,19 +63,26 @@ export async function fetchStorageDiagnostics(): Promise<StorageDiagnosticsSnaps
     id: "api",
     label: "Muunganisho wa API",
     ok: link.ok,
+    status: link.ok ? "ok" : "warn",
     message: link.message,
     hint: link.ok ? undefined : "Angalia URL ya mradi, funguo, na mtandao.",
   });
 
-  const buckets = await checkRequiredMediaBuckets();
+  const buckets = await checkStorageBucketsSummary(ALL_STORAGE_BUCKET_NAMES);
+  const healthyCount = buckets.rows.filter((b) => b.status === "healthy").length;
+  const setupCount = buckets.rows.filter((b) => b.status === "needs_setup").length;
+
   rows.push({
     id: "buckets",
-    label: "Buckets za media",
+    label: "Buckets za storage",
     ok: buckets.ok,
+    status: buckets.ok ? "ok" : setupCount > 0 ? "warn" : "warn",
     message: buckets.ok
-      ? `Buckets ${REQUIRED_MEDIA_BUCKETS.length} ziko tayari.`
-      : `Buckets zinakosekana: ${buckets.missing.join(", ")}`,
-    hint: buckets.ok ? undefined : "Endesha migrations za Supabase (storage buckets).",
+      ? `Buckets ${healthyCount}/${ALL_STORAGE_BUCKET_NAMES.length} ziko tayari.`
+      : setupCount > 0
+        ? `Buckets ${setupCount} zinahitaji usanidi kwenye Supabase.`
+        : "Angalia orodha ya buckets hapa chini.",
+    hint: buckets.ok ? undefined : "Endesha migrations za storage (npm run db:push:safe kutoka app-next).",
   });
 
   return {
@@ -86,6 +97,7 @@ export async function fetchStorageDiagnostics(): Promise<StorageDiagnosticsSnaps
     api_message: link.message,
     buckets_ok: buckets.ok,
     missing_buckets: buckets.missing,
+    bucket_rows: buckets.rows,
     rows,
   };
 }

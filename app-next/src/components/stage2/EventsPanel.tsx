@@ -22,7 +22,6 @@ import { ConfirmModal } from "../common/ConfirmModal";
 import { GlassPanel, MotionCard } from "./Stage2Motion";
 import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { exportRowsToExcel, exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
-import { checkSupabaseMediaLink } from "../../services/mediaHealthService";
 
 const ACCEPT_POSTER = "image/jpeg,image/png,image/webp,image/gif";
 const POSTER_MAX_BYTES = 6 * 1024 * 1024;
@@ -55,7 +54,6 @@ export function EventsPanel(props: { submodule?: string; highlightRecordId?: str
   const [delId, setDelId] = useState<string | null>(null);
   const [delBusy, setDelBusy] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [linkStatus, setLinkStatus] = useState<string>("");
 
   const load = useCallback(async () => {
     if (!getSupabase()) {
@@ -80,12 +78,6 @@ export function EventsPanel(props: { submodule?: string; highlightRecordId?: str
   useEffect(() => {
     void load();
   }, [load]);
-  useEffect(() => {
-    void (async () => {
-      const st = await checkSupabaseMediaLink();
-      setLinkStatus(st.message);
-    })();
-  }, []);
 
   const sorted = useMemo(() => {
     const list = [...rows]
@@ -281,7 +273,6 @@ export function EventsPanel(props: { submodule?: string; highlightRecordId?: str
       </motion.header>
 
       <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
-      {linkStatus ? <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">{linkStatus}</div> : null}
       <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-3">
         <label className="grid min-w-[220px] flex-1 gap-1 text-xs font-semibold text-slate-700">
           Tafuta

@@ -3,7 +3,6 @@ import { SupabaseListFeedback } from "../common/SupabaseListFeedback";
 import { PremiumTable } from "../common/PremiumTable";
 import { EnterpriseDocumentUpload } from "../common/EnterpriseDocumentUpload";
 import { DocumentPreviewModal } from "../common/DocumentPreviewModal";
-import { StorageDiagnosticsPanel } from "../common/StorageDiagnosticsPanel";
 import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
 import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
@@ -516,7 +515,6 @@ export function ChurchDocumentsPanel(props: { highlightRecordId?: string | null 
 
   return (
     <div className="space-y-3">
-      <StorageDiagnosticsPanel compact />
       <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
       <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-lg">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">

@@ -1,4 +1,5 @@
 import type { PostgrestError } from "@supabase/supabase-js";
+import { isStorageBucketNotFoundError } from "./storageBucketProbe";
 
 /** Ramani ya nambari za kawaida za Postgres / PostgREST kwa maelezo kwa Kiswahili */
 const CODE_HINTS: Record<string, string> = {
@@ -155,10 +156,10 @@ export function formatStorageError(
     return `[${context}] Hitilafu ya mtandao wakati wa upakiaji. Jaribu tena.`;
   }
   const parts: string[] = [`[${context}]`, m];
-  if (low.includes("bucket") && low.includes("not found")) {
-    parts.push("Bucket haipo — endesha migrations za Supabase (storage buckets).");
+  if (isStorageBucketNotFoundError(err)) {
+    parts.push("Hifadhi ya faili haijasanidiwa kwenye mradi — wasiliana na msimamizi (db:push:safe).");
   } else if (low.includes("bucket")) {
-    parts.push("Hakikisha bucket ipo na mipangilio ya MIME/ukubwa inalingana na faili.");
+    parts.push("Angalia ruhusa za storage na mipangilio ya MIME/ukubwa kwa faili hili.");
   }
   if (low.includes("empty") && low.includes("body")) {
     parts.push("Seva ya Storage haikurudisha maelezo — jaribu tena au angalia muunganisho.");

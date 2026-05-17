@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePortal } from "../../context/PortalContext";
 import { EnterpriseImageUpload } from "../common/EnterpriseImageUpload";
-import { StorageDiagnosticsPanel } from "../common/StorageDiagnosticsPanel";
 import { getSupabase } from "../../lib/supabaseClient";
 import {
   ensureDeveloperProfileSeed,
@@ -116,7 +115,6 @@ export function DeveloperProfilePanel() {
               onSuccess={() => pushToast("Picha imehifadhiwa kwenye developer-photos.", "success")}
               onError={(msg) => reportError(new Error(msg), "Developer — picha")}
             />
-            <StorageDiagnosticsPanel compact />
           </div>
           <div className="grid gap-3">
             <label className="grid gap-1 text-xs font-medium text-slate-700">

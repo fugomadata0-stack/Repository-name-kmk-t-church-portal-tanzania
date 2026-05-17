@@ -21,7 +21,6 @@ import { ConfirmModal } from "../common/ConfirmModal";
 import { GlassPanel, MotionCard } from "./Stage2Motion";
 import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { exportRowsToExcel, exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
-import { checkRequiredMediaBuckets } from "../../services/mediaHealthService";
 const IMAGE_MAX_BYTES = mbToBytes(UPLOAD_LIMITS_MB.images);
 
 export function GalleryPanel(props: { highlightRecordId?: string | null }) {
@@ -41,7 +40,6 @@ export function GalleryPanel(props: { highlightRecordId?: string | null }) {
   const [file, setFile] = useState<File | null>(null);
   const [catFilter, setCatFilter] = useState("ALL");
   const [query, setQuery] = useState("");
-  const [missingBuckets, setMissingBuckets] = useState<string[]>([]);
   const [delId, setDelId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -68,12 +66,6 @@ export function GalleryPanel(props: { highlightRecordId?: string | null }) {
   useEffect(() => {
     void load();
   }, [load]);
-  useEffect(() => {
-    void (async () => {
-      const health = await checkRequiredMediaBuckets();
-      setMissingBuckets(health.missing);
-    })();
-  }, []);
 
   const categories = useMemo(() => {
     const s = new Set<string>();
@@ -182,12 +174,6 @@ export function GalleryPanel(props: { highlightRecordId?: string | null }) {
       </header>
 
       <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
-      {missingBuckets.length > 0 ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-          Buckets hazipo: {missingBuckets.join(", ")}
-        </div>
-      ) : null}
-
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200/80 bg-white/90 p-3 backdrop-blur-sm">
         <Grid3x3 className="h-4 w-4" style={{ color: STAGE2_COLORS.navy }} />
         <span className="text-sm font-semibold text-slate-700">Kategoria:</span>

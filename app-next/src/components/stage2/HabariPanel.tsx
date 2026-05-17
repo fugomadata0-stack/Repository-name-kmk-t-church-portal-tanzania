@@ -21,7 +21,6 @@ import { ConfirmModal } from "../common/ConfirmModal";
 import { GlassPanel, MotionCard } from "./Stage2Motion";
 import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { exportRowsToExcel, exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
-import { checkSupabaseMediaLink } from "../../services/mediaHealthService";
 const IMAGE_MAX_BYTES = 6 * 1024 * 1024;
 
 export function HabariPanel(props: { highlightRecordId?: string | null }) {
@@ -51,7 +50,6 @@ export function HabariPanel(props: { highlightRecordId?: string | null }) {
   const [imgFile, setImgFile] = useState<File | null>(null);
   const [delId, setDelId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [linkStatus, setLinkStatus] = useState<string>("");
 
   const load = useCallback(async () => {
     if (!getSupabase()) {
@@ -76,12 +74,6 @@ export function HabariPanel(props: { highlightRecordId?: string | null }) {
   useEffect(() => {
     void load();
   }, [load]);
-  useEffect(() => {
-    void (async () => {
-      const st = await checkSupabaseMediaLink();
-      setLinkStatus(st.message);
-    })();
-  }, []);
 
   const filtered = rows.filter((r) => {
     if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
@@ -201,7 +193,6 @@ export function HabariPanel(props: { highlightRecordId?: string | null }) {
       </header>
 
       <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
-      {linkStatus ? <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">{linkStatus}</div> : null}
       <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-3">
         <label className="grid min-w-[220px] flex-1 gap-1 text-xs font-semibold text-slate-700">
           Tafuta

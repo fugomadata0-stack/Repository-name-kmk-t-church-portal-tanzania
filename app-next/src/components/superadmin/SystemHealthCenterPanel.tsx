@@ -7,6 +7,7 @@ import { exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
 import { KMT_PORTAL_RELOAD_METRICS_EVENT } from "../../lib/portalEvents";
 import { resolveSystemAlert } from "../../services/alertsService";
 import { HAIJAPATIKANA_DATA_SW } from "../../lib/supabaseUiMessages";
+import { StorageDiagnosticsPanel } from "../common/StorageDiagnosticsPanel";
 
 function badgeClass(status: HealthBadgeStatus): string {
   if (status === "healthy") return "bg-emerald-100 text-emerald-800 border-emerald-200";
@@ -299,6 +300,8 @@ export function SystemHealthCenterPanel() {
         </div>
         <p className="mt-3 text-xs text-blue-100">Last checked at: {fmtDate(snapshot.checked_at)}</p>
       </section>
+
+      <StorageDiagnosticsPanel showBucketGrid />
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {healthCards.map((card) => {

@@ -1,17 +1,21 @@
-import { ALL_STORAGE_BUCKET_NAMES } from "../lib/storageBuckets";
+import { ALL_STORAGE_BUCKET_NAMES, MEDIA_MODULE_BUCKET_NAMES } from "../lib/storageBuckets";
+import { checkStorageBucketsSummary } from "../lib/storageBucketProbe";
 import { formatPostgrestError, isMissingTableError } from "../lib/supabaseErrors";
-import { getSupabase } from "../lib/supabase";
+import { getSupabase } from "../lib/supabaseClient";
 
+/** @deprecated Tumia ALL_STORAGE_BUCKET_NAMES kutoka storageBuckets */
 export const REQUIRED_MEDIA_BUCKETS = ALL_STORAGE_BUCKET_NAMES;
 
-export async function checkRequiredMediaBuckets(): Promise<{ ok: boolean; missing: string[] }> {
-  const c = getSupabase();
-  if (!c) return { ok: false, missing: [...REQUIRED_MEDIA_BUCKETS] };
-  const { data, error } = await c.storage.listBuckets();
-  if (error) return { ok: false, missing: [...REQUIRED_MEDIA_BUCKETS] };
-  const have = new Set((data ?? []).map((b) => b.name));
-  const missing = REQUIRED_MEDIA_BUCKETS.filter((b) => !have.has(b));
-  return { ok: missing.length === 0, missing };
+/**
+ * Kagua buckets zilizobainishwa — si listBuckets() (false-negative kwa anon key).
+ */
+export async function checkRequiredMediaBuckets(buckets?: readonly string[]) {
+  return checkStorageBucketsSummary(buckets ?? ALL_STORAGE_BUCKET_NAMES);
+}
+
+/** Kagua buckets za moduli ya media pekee (gallery, video, audio, events). */
+export async function checkMediaModuleBuckets() {
+  return checkStorageBucketsSummary(MEDIA_MODULE_BUCKET_NAMES);
 }
 
 export async function checkSupabaseMediaLink(): Promise<{ ok: boolean; message: string }> {

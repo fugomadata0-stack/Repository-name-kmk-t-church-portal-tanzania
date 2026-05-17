@@ -22,7 +22,6 @@ import { ConfirmModal } from "../common/ConfirmModal";
 import { GlassPanel, MotionCard } from "./Stage2Motion";
 import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 import { exportRowsToExcel, exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
-import { checkRequiredMediaBuckets } from "../../services/mediaHealthService";
 const IMAGE_MAX_BYTES = mbToBytes(UPLOAD_LIMITS_MB.images);
 
 export function VideoLibraryPanel(props: { highlightRecordId?: string | null }) {
@@ -41,7 +40,6 @@ export function VideoLibraryPanel(props: { highlightRecordId?: string | null }) 
   const [videoUrl, setVideoUrl] = useState("");
   const [thumbFile, setThumbFile] = useState<File | null>(null);
   const [query, setQuery] = useState("");
-  const [missingBuckets, setMissingBuckets] = useState<string[]>([]);
   const [delId, setDelId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -68,12 +66,6 @@ export function VideoLibraryPanel(props: { highlightRecordId?: string | null }) 
   useEffect(() => {
     void load();
   }, [load]);
-  useEffect(() => {
-    void (async () => {
-      const health = await checkRequiredMediaBuckets();
-      setMissingBuckets(health.missing);
-    })();
-  }, []);
   const filteredRows = rows.filter((r) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
@@ -179,11 +171,6 @@ export function VideoLibraryPanel(props: { highlightRecordId?: string | null }) 
       </header>
 
       <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
-      {missingBuckets.length > 0 ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">
-          Buckets hazipo: {missingBuckets.join(", ")}
-        </div>
-      ) : null}
       <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-3">
         <label className="relative min-w-[220px] flex-1">
           <Search className="pointer-events-none absolute left-2 top-2.5 h-3.5 w-3.5 text-slate-400" />
