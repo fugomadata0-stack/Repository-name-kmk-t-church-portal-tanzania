@@ -196,7 +196,7 @@ export async function uploadLeadershipCvObject(
   leaderId: string,
   folder: "photo" | "signature" | "cv" | "cert" | "attach",
   file: File
-): Promise<{ path: string }> {
+): Promise<{ path: string; publicUrl: string }> {
   if (!isLeaderUuid(leaderId)) throw new Error("Kitambulisho cha kiongozi si sahihi.");
   const c = getSupabase();
   if (!c) throw new Error("Supabase haijasanidiwa.");
@@ -207,7 +207,7 @@ export async function uploadLeadershipCvObject(
   });
   if (guard) throw new Error(guard);
   const path = buildSafeStoragePath(`${leaderId}/${folder}`, file.name);
-  await enterpriseStorageUpload({
+  const { publicUrl } = await enterpriseStorageUpload({
     bucket: LEADERSHIP_CV_STORAGE_BUCKET,
     file,
     path,
@@ -215,7 +215,7 @@ export async function uploadLeadershipCvObject(
     upsert: true,
     optimizeImage: true,
   });
-  return { path };
+  return { path, publicUrl };
 }
 
 export type LeadershipCvProfileDraft = Omit<

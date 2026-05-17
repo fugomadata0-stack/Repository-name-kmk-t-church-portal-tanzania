@@ -1,3 +1,9 @@
+import {
+  cleanPayload,
+  logLeadershipProfileSaveDebug,
+  logSupabaseLeadershipSaveError,
+} from "../lib/leadershipProfileSaveDebug";
+import { isOfficialNationalLeader } from "../lib/officialNationalLeader";
 import { formatPostgrestError } from "../lib/supabaseErrors";
 import { getSupabase } from "../lib/supabaseClient";
 import { unwrapList, unwrapOrThrow } from "../lib/supabaseResult";
@@ -223,6 +229,39 @@ const OFFICIAL_LOCKED_IDENTITY_COLUMNS = [
   "official_locked",
 ] as const;
 
+/** Sehemu zinazoruhusiwa kwenye church_viongozi kwa viongozi rasmi waliofungwa. */
+const OFFICIAL_LOCKED_MEDIA_COLUMNS = [
+  "photo_url",
+  "signature_url",
+  "biography",
+  "education_summary",
+  "theology_training",
+  "professional_skills",
+  "certificates_summary",
+  "ministry_gifts",
+  "ministry_experience",
+  "internal_notes",
+  "notes",
+  "address",
+  "mkoa",
+  "wilaya",
+  "kata",
+  "gender",
+  "date_of_birth",
+  "start_date",
+  "end_date",
+  "appointment_date",
+  "updated_at",
+] as const;
+
+function pickOfficialLockedMediaPatch(payload: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  for (const col of OFFICIAL_LOCKED_MEDIA_COLUMNS) {
+    if (col in payload && payload[col] !== undefined) out[col] = payload[col];
+  }
+  return out;
+}
+
 export function stripOfficialLockedIdentityFields(payload: Record<string, unknown>): Record<string, unknown> {
   const next = { ...payload };
   for (const col of OFFICIAL_LOCKED_IDENTITY_COLUMNS) delete next[col];
@@ -366,14 +405,43 @@ export async function upsertKiongozi(row: Partial<KiongoziRecord> & { jina: stri
   };
 
   if (row.id && isViongoziUuid(row.id)) {
-    const officialLocked = row.official_locked === true || (await fetchOfficialLockedFlag(row.id));
-    const updatePayload = officialLocked ? stripOfficialLockedIdentityFields(payload) : payload;
-    if (!Object.keys(updatePayload).length) {
-      const res = await c.from("church_viongozi").select(sEmb()).eq("id", row.id).single();
-      const data = unwrapOrThrow(res, "church_viongozi.fetch");
+    const officialLocked =
+      isOfficialNationalLeader(row) || (await fetchOfficialLockedFlag(row.id));
+
+    if (officialLocked) {
+      const mediaPatch = pickOfficialLockedMediaPatch(payload);
+      logLeadershipProfileSaveDebug("viongozi_official_locked_update", {
+        table: "church_viongozi",
+        leaderId: row.id,
+        finalPayload: mediaPatch,
+        strippedIdentity: true,
+      });
+      if (Object.keys(mediaPatch).length > 1) {
+        let res = await c.from("church_viongozi").update(mediaPatch).eq("id", row.id).select(sEmb()).single();
+        const fallback = stripUnknownChurchViongoziColumns(
+          mediaPatch,
+          (res as { error?: { message?: string } })?.error?.message,
+        );
+        if (fallback !== mediaPatch) {
+          res = await c.from("church_viongozi").update(fallback).eq("id", row.id).select(sEmb()).single();
+        }
+        if (res.error) {
+          logSupabaseLeadershipSaveError("church_viongozi", res.error, mediaPatch);
+          const combined = formatPostgrestError(res.error, "church_viongozi.update");
+          if (isOfficialLeadershipLockError(combined)) {
+            throw new Error(officialLeadershipLockUserMessage());
+          }
+          unwrapOrThrow(res, "church_viongozi.update");
+        }
+        if (res.data) return mapViongoziRow(res.data as unknown as Record<string, unknown>);
+      }
+      const fetchRes = await c.from("church_viongozi").select(sEmb()).eq("id", row.id).single();
+      const data = unwrapOrThrow(fetchRes, "church_viongozi.fetch");
       return mapViongoziRow(data as unknown as Record<string, unknown>);
     }
-    const runLockedSafe = async (clean: Record<string, unknown>) => {
+
+    const updatePayload = payload;
+    const runUpdate = async (clean: Record<string, unknown>) => {
       let res = await c.from("church_viongozi").update(clean).eq("id", row.id).select(sEmb()).single();
       const fallback = stripUnknownChurchViongoziColumns(clean, (res as { error?: { message?: string } })?.error?.message);
       if (fallback !== clean) {
@@ -381,12 +449,11 @@ export async function upsertKiongozi(row: Partial<KiongoziRecord> & { jina: stri
       }
       return res;
     };
-    const res = await runLockedSafe(updatePayload);
+    const finalPayload = cleanPayload(updatePayload);
+    logLeadershipProfileSaveDebug("viongozi_update", { table: "church_viongozi", leaderId: row.id, finalPayload });
+    const res = await runUpdate(finalPayload);
     if (res.error) {
-      const combined = formatPostgrestError(res.error, "church_viongozi.update");
-      if (isOfficialLeadershipLockError(combined)) {
-        throw new Error(officialLeadershipLockUserMessage());
-      }
+      logSupabaseLeadershipSaveError("church_viongozi", res.error, finalPayload);
       unwrapOrThrow(res, "church_viongozi.update");
     }
     const data = res.data;

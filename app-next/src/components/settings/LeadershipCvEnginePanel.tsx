@@ -18,6 +18,9 @@ import {
   uploadLeadershipCvObject,
 } from "../../services/leadershipCvEngineService";
 import { readLeadershipCredentialPrefill, clearLeadershipCredentialPrefill } from "../../lib/leadershipCredentialPrefill";
+import { assessLeadershipCvSave } from "../../lib/leadershipCvValidation";
+import { logLeadershipProfileSaveDebug } from "../../lib/leadershipProfileSaveDebug";
+import { isOfficialNationalLeader } from "../../lib/officialNationalLeader";
 import {
   patchOfficialLockedViongoziMedia,
   syncViongoziLeaderMediaToNationalProfile,
@@ -381,25 +384,59 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
     return rows;
   }, [leaders, nameQ, levelFilter, cvQ, cvHitIds]);
 
+  const cvSaveAssessment = useMemo(() => {
+    if (!leader) return { ok: false, errors: ["Chagua kiongozi."] };
+    return assessLeadershipCvSave(leader, {
+      profile: profile ?? emptyProfile(leader.id),
+      experience,
+      education,
+      certificates,
+      skills,
+      attachments,
+    });
+  }, [leader, profile, experience, education, certificates, skills, attachments]);
+
   async function onSave() {
     if (!props.canEdit || !leader) return;
+    const bundle: LeadershipCvBundle = {
+      profile: profile ?? emptyProfile(leader.id),
+      experience,
+      education,
+      certificates,
+      skills,
+      attachments,
+    };
+    const assessment = assessLeadershipCvSave(leader, bundle);
+    if (!assessment.ok) {
+      pushToast(assessment.errors[0] ?? "Taarifa hazijakamilika.", "error");
+      return;
+    }
+
     setBusy(true);
     try {
-      const bundle: LeadershipCvBundle = {
-        profile: profile ?? emptyProfile(leader.id),
-        experience,
-        education,
-        certificates,
-        skills,
-        attachments,
+      const officialLocked = isOfficialNationalLeader(leader);
+      const mediaLeader: KiongoziRecord = {
+        ...leader,
+        biography: bundle.profile?.biography?.trim() || leader.biography,
+        photo_url: leader.photo_url,
+        signature_url: leader.signature_url,
       };
 
-      const officialLocked =
-        Boolean(leader.official_locked) || Boolean(leader.official_lock_key?.trim());
+      logLeadershipProfileSaveDebug("cv_panel_save_start", {
+        leaderId: leader.id,
+        officialLocked,
+        rawFormValues: { leader, profile: bundle.profile },
+        files: {
+          photoFile: "(storage path only — never sent to DB)",
+          profile_photo_storage_path: bundle.profile?.profile_photo_storage_path,
+          signature_storage_path: bundle.profile?.signature_storage_path,
+        },
+      });
+
       if (officialLocked) {
         await saveLeadershipCvBundle(leader.id, bundle);
-        await patchOfficialLockedViongoziMedia(leader);
-        await syncViongoziLeaderMediaToNationalProfile(leader);
+        await patchOfficialLockedViongoziMedia(mediaLeader);
+        await syncViongoziLeaderMediaToNationalProfile(mediaLeader);
         pushToast("Wasifu wa CV umehifadhiwa (viongozi rasmi wa taifa).", "success");
       } else {
         await upsertKiongozi({
@@ -556,13 +593,15 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
   ) {
     if (!props.canEdit || !leader || !file) return;
     try {
-      const { path } = await uploadLeadershipCvObject(leader.id, kind === "attach" ? "attach" : kind, file);
+      const { path, publicUrl } = await uploadLeadershipCvObject(leader.id, kind === "attach" ? "attach" : kind, file);
       if (kind === "photo") {
         setProfile((prev) => ({ ...(prev ?? emptyProfile(leader.id)), profile_photo_storage_path: path }));
+        if (publicUrl) setLeader((prev) => (prev ? { ...prev, photo_url: publicUrl } : prev));
         const signed = await signLeadershipCvPath(path);
         setPreviewPhoto(signed ? await toDataUrl(signed) : null);
       } else if (kind === "signature") {
         setProfile((prev) => ({ ...(prev ?? emptyProfile(leader.id)), signature_storage_path: path }));
+        if (publicUrl) setLeader((prev) => (prev ? { ...prev, signature_url: publicUrl } : prev));
         const signed = await signLeadershipCvPath(path);
         setPreviewSig(signed ? await toDataUrl(signed) : null);
       } else if (kind === "cv") {
@@ -725,9 +764,10 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
                   </button>
                   <button
                     type="button"
-                    disabled={!props.canEdit || busy}
+                    disabled={!props.canEdit || busy || !cvSaveAssessment.ok}
+                    title={!cvSaveAssessment.ok ? cvSaveAssessment.errors[0] : undefined}
                     onClick={() => void onSave()}
-                    className="rounded-xl bg-[#0B1F3A] px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                    className="rounded-xl bg-[#0B1F3A] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {busy ? "Inahifadhi…" : "Hifadhi wasifu"}
                   </button>

@@ -1,5 +1,10 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { logNationalLeadershipSaveAttempt, logNationalLeadershipSaveResult } from "../lib/nationalLeadershipDiagnostics";
+import {
+  cleanPayload,
+  logLeadershipProfileSaveDebug,
+  logSupabaseLeadershipSaveError,
+} from "../lib/leadershipProfileSaveDebug";
 import { assertNationalLeadershipSavable } from "../lib/nationalLeadershipValidation";
 import { syncNationalProfileMediaToChurchViongozi } from "../lib/nationalLeadershipSync";
 import { dispatchPortalReloadMetrics } from "../lib/portalEvents";
@@ -208,7 +213,8 @@ export async function upsertNationalLeadershipProfile(row: NationalLeadershipPro
   assertNationalLeadershipSavable(cleanedRow);
   logNationalLeadershipSaveAttempt("validate_ok", cleanedRow);
 
-  const payload = stripUndefined({
+  const payload = cleanPayload(
+    stripUndefined({
     role_key: cleanedRow.role_key,
     display_title_sw: t(cleanedRow.display_title_sw),
     display_title_en: t(cleanedRow.display_title_en),
@@ -235,12 +241,24 @@ export async function upsertNationalLeadershipProfile(row: NationalLeadershipPro
     term_years: term,
     is_visible: cleanedRow.is_visible,
     sort_order: sortOrder,
-  } as Record<string, unknown>);
+    }) as Record<string, unknown>,
+  );
 
   logNationalLeadershipSaveAttempt("upsert_payload", cleanedRow, { keys: Object.keys(payload) });
+  logLeadershipProfileSaveDebug("national_leadership_upsert", {
+    table: "national_leadership_profiles",
+    rawFormValues: cleanedRow,
+    finalPayload: payload,
+    files: {
+      profile_photo_url: cleanedRow.profile_photo_url,
+      signature_url: cleanedRow.signature_url,
+      stamp: "(master settings / leadership_profile_extended — si kwenye jedwali hili)",
+    },
+  });
 
   const res = await client.from("national_leadership_profiles").upsert(payload, { onConflict: "role_key" }).select("*").single();
   if (res.error) {
+    logSupabaseLeadershipSaveError("national_leadership_profiles", res.error, payload);
     const msg = formatPostgrestError(res.error, "national_leadership_profiles.upsert");
     logNationalLeadershipSaveResult("upsert", false, { code: res.error.code, message: msg });
     throw new Error(formatNationalLeadershipSaveError(new Error(msg)));

@@ -108,7 +108,15 @@ import {
   upsertIncomeLine,
   upsertIncomeSource,
 } from "../services/incomeModuleService";
-import { deleteKiongozi, isViongoziUuid, upsertKiongozi } from "../services/viongoziService";
+import { isOfficialNationalLeader } from "../lib/officialNationalLeader";
+import { patchOfficialLockedViongoziMedia } from "../lib/nationalLeadershipSync";
+import {
+  deleteKiongozi,
+  isChurchViongoziOfficialLocked,
+  isViongoziUuid,
+  mapViongoziRow,
+  upsertKiongozi,
+} from "../services/viongoziService";
 import {
   deleteChurchJimbo,
   deleteChurchTawi,
@@ -729,10 +737,33 @@ export function ModulePage(props: Props) {
         return;
       }
       try {
-        const saved = await upsertKiongozi(merged);
         const updating = typeof editing?.id === "string" && isViongoziUuid(editing.id);
+        const officialLocked =
+          updating &&
+          (isOfficialNationalLeader(merged) ||
+            (await isChurchViongoziOfficialLocked(merged.id!, merged.official_locked)));
+
+        let saved: KiongoziRecord;
+        if (officialLocked) {
+          await patchOfficialLockedViongoziMedia(merged);
+          const fetchRes = await getSupabase()
+            ?.from("church_viongozi")
+            .select("*, dayosisi ( jina ), church_jimbo ( jina ), church_tawi ( jina )")
+            .eq("id", merged.id)
+            .single();
+          if (fetchRes?.error || !fetchRes?.data) {
+            throw new Error("Imeshindwa kuthibitisha uhifadhi wa kiongozi rasmi.");
+          }
+          saved = mapViongoziRow(fetchRes.data as Record<string, unknown>);
+          pushToast(
+            "Wasifu/media umehifadhiwa. Jina, cheo na simu — badilisha kwenye Mipangilio → Uongozi wa Kitaifa.",
+            "success",
+          );
+        } else {
+          saved = await upsertKiongozi(merged);
+          if (getSupabase()) pushToast("Kiongozi amehifadhiwa.", "success");
+        }
         props.setViongozi((prev) => (updating ? prev.map((x) => (x.id === editing.id ? saved : x)) : [saved, ...prev]));
-        if (getSupabase()) pushToast("Kiongozi amehifadhiwa.", "success");
         emitCrud(updating ? "update" : "create", saved.id, props.submodule);
         setEditing(null);
       } catch (err) {
