@@ -220,6 +220,9 @@ export function getPortalExcelFormSpec(moduleKey: string, submodule: string): Po
         { key: "currency", label: "Currency" },
         { key: "status", label: "Status" },
         { key: "branchCenter", label: "Branch / Church Center" },
+        { key: "dayosisi_id", label: "Dayosisi (UUID au jina)" },
+        { key: "jimbo_id", label: "Jimbo (UUID au jina)" },
+        { key: "tawi_id", label: "Tawi (UUID au jina)" },
         { key: "remarks", label: "Remarks / Maelezo" },
       ],
       [
@@ -227,6 +230,7 @@ export function getPortalExcelFormSpec(moduleKey: string, submodule: string): Po
         ["Aina ya Mapato: Cash, Bank, Mobile Money, In-kind, Transfer."],
         ["Frequency: Daily, Weekly, Monthly, Quarterly, Annual, One-time."],
         ["Budgeted? / Restricted Fund?: Yes au No."],
+        ["Dayosisi_id / Jimbo_id / Tawi_id: lazima kwa usambazaji sahihi wa remittance (Tawi → Jimbo → Dayosisi → KMK(T))."],
       ]
     );
   }
@@ -291,10 +295,13 @@ export function buildChurchMemberExcelBundle(mode: "list" | "baptism" | "status"
       { key: "baptism_date", label: "Tarehe ya ubatizo (yyyy-mm-dd)" },
       { key: "baptism_place", label: "Mahali pa ubatizo" },
       { key: "is_baptized", label: "Amebatizwa (Ndiyo / Hapana)" },
-      { key: "member_number", label: "Nambari ya usajili" },
+        { key: "member_number", label: "Nambari ya usajili" },
+      { key: "ministry_segment", label: "Chama (none, ke, me, jvkmkt, jwkmkt)" },
       { key: "dayosisi_id", label: "Dayosisi (jina, code au UUID)" },
-      { key: "jimbo_name", label: "Jimbo" },
-      { key: "tawi_name", label: "Tawi (maandishi)" },
+      { key: "jimbo_id", label: "Jimbo (jina au UUID)" },
+      { key: "tawi_id", label: "Tawi (jina au UUID)" },
+      { key: "jimbo_name", label: "Jimbo (maandishi — mbadala)" },
+      { key: "tawi_name", label: "Tawi (maandishi — mbadala)" },
       { key: "jumuiya_name", label: "Jumuiya" },
       { key: "idara_name", label: "Idara" },
       { key: "huduma_name", label: "Huduma" },
@@ -307,6 +314,8 @@ export function buildChurchMemberExcelBundle(mode: "list" | "baptism" | "status"
       ["Familia: andika jina lililo kwenye orodha ya familia, au UUID wa familia.", "Dayosisi: jina, code, au UUID — kama ilivyo kwenye Muundo."],
       ["Hali ya uanachama: active, visitor, transferred, deceased, suspended (au maneno kama «Mgeni» kwa visitor)."],
       ["Amebatizwa: Ndiyo, Hapana, true, false, 1, 0."],
+      ["Chama / ministry_segment: none, ke, me, jvkmkt, jwkmkt (au chama)."],
+      ["Jimbo_id / Tawi_id: andika UUID au jina lililo kwenye Muundo — kwa usahihi wa takwimu."],
       ["Habarini za karibu (SMS) hazitumwi kiotomatiki wakati wa pakia wingi."],
     ],
   };

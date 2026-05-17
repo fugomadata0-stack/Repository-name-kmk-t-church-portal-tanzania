@@ -51,10 +51,12 @@ export function NotificationBell({ onOpenFullPage }: Props) {
   }, [canView, reportError]);
 
   useEffect(() => {
+    if (!open || !canView) return;
     void refresh();
-  }, [refresh]);
+  }, [open, canView, refresh]);
 
   useEffect(() => {
+    if (!open) return;
     if (!isSupabaseRealtimeEnabled()) return;
     if (!authInitialized || !authUser || !getSupabase() || !canView) return;
     const client = getSupabase()!;
@@ -66,7 +68,7 @@ export function NotificationBell({ onOpenFullPage }: Props) {
     return () => {
       void client.removeChannel(channel);
     };
-  }, [canView, refresh, authInitialized, authUser]);
+  }, [open, canView, refresh, authInitialized, authUser]);
 
   useEffect(() => {
     if (!open) return;

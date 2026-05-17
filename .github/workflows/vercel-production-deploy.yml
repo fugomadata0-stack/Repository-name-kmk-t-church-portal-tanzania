@@ -1,0 +1,72 @@
+# Production deploy kwa Vercel (inapendekezwa wakati CLI ya ndani inashindwa kwa TLS/proxy).
+# Weka GitHub Secrets: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID,
+# VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY (mradi halisi: tjtsrirwdssocaplsfql).
+
+name: Vercel Production Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "app-next/**"
+      - "vercel.json"
+      - ".github/workflows/vercel-production-deploy.yml"
+
+concurrency:
+  group: vercel-prod-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app-next
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      VITE_SUPABASE_REALTIME_ENABLED: ${{ vars.VITE_SUPABASE_REALTIME_ENABLED || 'true' }}
+      VITE_PUBLIC_SITE_ORIGIN: https://v0-church-portal-tanzania.vercel.app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: app-next/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Supabase env diagnostics
+        run: node scripts/ci-env-check.mjs
+        env:
+          CI: true
+          GITHUB_ACTIONS: true
+
+      - name: Validate (tsc + lint)
+        run: npm run validate
+
+      - name: Production build
+        run: npm run build
+
+      - name: Deploy to Vercel (production)
+        uses: amondnet/vercel-action@v25
+        id: vercel
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: app-next
+          vercel-args: "--prod"
+
+      - name: Deployment summary
+        run: |
+          echo "## Vercel production deploy" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: ${{ steps.vercel.outputs.preview-url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Supabase URL set: $([ -n \"$VITE_SUPABASE_URL\" ] && echo yes || echo no)" >> "$GITHUB_STEP_SUMMARY"

@@ -9,7 +9,17 @@ export type ExecutiveMenuItem = {
 };
 
 export const EXECUTIVE_TOP_MENU: ExecutiveMenuItem[] = [
-  { id: "dashboard", label: "Dashibodi", icon: "📊", moduleKey: "dashboard" },
+  {
+    id: "dashboard",
+    label: "Dashibodi",
+    icon: "📊",
+    moduleKey: "dashboard",
+    children: [
+      { label: "Injini ya Ngazi", submodule: "Injini ya Ngazi — Executive" },
+      { label: "Kituo cha Amri", submodule: "Kituo cha Amri (Internal)" },
+      { label: "Vibali", submodule: "Vibali vinavyosubiri" },
+    ],
+  },
   {
     id: "matawi",
     label: "Matawi",
@@ -70,8 +80,21 @@ export const EXECUTIVE_TOP_MENU: ExecutiveMenuItem[] = [
     id: "ripoti",
     label: "Ripoti",
     icon: "📑",
-    moduleKey: "analytics",
-    submodule: "Ripoti & Chuja",
+    moduleKey: "ripoti",
+    submodule: "Finance Reports",
+    children: [
+      { label: "Ripoti za Fedha", submodule: "Finance Reports" },
+      { label: "Print & PDF Master", submodule: "Print & PDF Master" },
+      { label: "KPI Executive", submodule: "KPI Executive (Ngazi)" },
+      { label: "Ripoti Phase 1", submodule: "Ripoti Phase 1 (PDF)" },
+    ],
+  },
+  {
+    id: "approvals",
+    label: "Vibali",
+    icon: "✅",
+    moduleKey: "dashboard",
+    submodule: "Vibali vinavyosubiri",
   },
   {
     id: "barua",
@@ -82,7 +105,20 @@ export const EXECUTIVE_TOP_MENU: ExecutiveMenuItem[] = [
   },
   { id: "notifications", label: "Arifa", icon: "🔔", moduleKey: "notifications", submodule: "Zote" },
   { id: "analytics", label: "Analytics", icon: "📈", moduleKey: "analytics", submodule: "Dashibodi" },
-  { id: "leadership", label: "Viongozi", icon: "👔", moduleKey: "viongozi" },
+  {
+    id: "leadership",
+    label: "Viongozi",
+    icon: "👔",
+    moduleKey: "viongozi",
+    submodule: "Cheti & CV — Injini ya Ngazi Kuu",
+  },
+  {
+    id: "projects",
+    label: "Miradi",
+    icon: "🏗️",
+    moduleKey: "taasisi",
+    submodule: "Miradi na Taasisi",
+  },
   {
     id: "export",
     label: "Export",

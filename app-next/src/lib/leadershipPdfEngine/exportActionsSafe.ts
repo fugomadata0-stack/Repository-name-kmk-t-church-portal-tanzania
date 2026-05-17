@@ -30,7 +30,9 @@ export function safeDownloadLeadershipPdf(doc: jsPDF, filename: string): PdfExpo
 
 export function safePrintLeadershipPdf(doc: jsPDF): PdfExportResult {
   try {
-    printLeadershipPdf(doc);
+    if (!printLeadershipPdf(doc)) {
+      return { ok: false, message: "Dirisha la chapisho limezuiwa. Ruhusu popups au pakua PDF kisha chapisha." };
+    }
     return { ok: true };
   } catch (e) {
     return fail("print", e);

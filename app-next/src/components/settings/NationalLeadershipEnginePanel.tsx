@@ -3,10 +3,13 @@ import { Crown, Eye, FileDown, Link2, Loader2, Plus, RefreshCw, Save, Trash2 } f
 import { usePortal } from "../../context/PortalContext";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import { uploadNationalLeadershipAsset } from "../../lib/nationalLeadershipUpload";
-import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { downloadNationalLeadershipExecutiveCertificate } from "../../lib/nationalLeadershipCertificatePdf";
 import { fetchUrlAsPdfImageDataUrl } from "../../lib/pdfInstitutional";
-import { fetchMasterSettingsOptional, readMasterSettingsCache, validateEmail } from "../../services/masterSettingsService";
+import { fetchMasterSettingsOptional, readMasterSettingsCache } from "../../services/masterSettingsService";
+import {
+  assessNationalLeadershipProfile,
+  isNationalLeadershipProfileComplete,
+} from "../../lib/nationalLeadershipValidation";
 import {
   fetchNationalLeadershipProfilesOptionalResult,
   nationalLeadershipDisplayTitle,
@@ -28,7 +31,6 @@ const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp";
 const PDF_ACCEPT = "application/pdf,.pdf";
 const MAX_IMAGE = 20 * 1024 * 1024;
 const MAX_PDF = 24 * 1024 * 1024;
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const REALTIME_DEBOUNCE_MS = 480;
 
 const ROLE_KEYS: NationalLeadershipRoleKey[] = ["askofu_mkuu", "katibu_mkuu", "naibu_katibu_mkuu", "mhasibu_mkuu"];
@@ -78,15 +80,6 @@ function mergeLoaded(rows: NationalLeadershipProfileRow[]): Record<NationalLeade
     out[key] = map.get(key) ?? emptyRole(key, i + 1);
   });
   return out;
-}
-
-function validateLeadershipRow(row: NationalLeadershipProfileRow): string | null {
-  const em = row.email.trim();
-  if (em && !validateEmail(em)) return "Barua pepe ya kiongozi si sahihi.";
-  if (row.start_date && !DATE_RE.test(row.start_date)) return "Tarehe ya kuanza: tumia umbizo YYYY-MM-DD au acha tupu.";
-  if (row.end_date && !DATE_RE.test(row.end_date)) return "Tarehe ya mwisho: tumia umbizo YYYY-MM-DD au acha tupu.";
-  if (row.start_date && row.end_date && row.start_date > row.end_date) return "Tarehe ya mwisho haiwezi kuwa kabla ya tarehe ya kuanza.";
-  return null;
 }
 
 function formatSwTz(iso?: string): string {
@@ -168,9 +161,9 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
   async function save(role: NationalLeadershipRoleKey) {
     if (!canEdit || !state) return;
     const row = state[role];
-    const err = validateLeadershipRow(row);
-    if (err) {
-      pushToast(err, "error");
+    const assessment = assessNationalLeadershipProfile(row);
+    if (!assessment.ok) {
+      pushToast(assessment.errors[0] ?? "Taarifa za wasifu hazijakamilika.", "error");
       return;
     }
     const defaults = emptyRole(role, row.sort_order);
@@ -184,8 +177,10 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
     setSavingRole(role);
     try {
       const saved = await upsertNationalLeadershipProfile(cleaned);
+      if (!isNationalLeadershipProfileComplete(saved)) {
+        throw new Error("Uhifadhi haukukamilika — thibitisha picha, saini na wasifu.");
+      }
       patch(role, saved);
-      dispatchPortalReloadMetrics();
       void logAudit("national_leadership_upsert", "national_leadership_profiles", role, {
         role_key: role,
         visible: saved.is_visible,
@@ -193,7 +188,6 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
       pushToast("Rekodi ya uongozi wa kitaifa imehifadhiwa.", "success");
     } catch (e) {
       reportError(e, "National Leadership — hifadhi");
-      pushToast("Imeshindwa kuhifadhi. Angalia muunganisho na ruhusa.", "error");
     } finally {
       setSavingRole(null);
     }
@@ -272,9 +266,11 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
       if (kind === "photo") patch(role, { profile_photo_url: url });
       else if (kind === "signature") patch(role, { signature_url: url });
       else patch(role, { cv_pdf_url: url });
-      pushToast("Faili imepakiwa.", "success");
+      pushToast("Faili imepakiwa — bonyeza «Hifadhi nafasi hii» ili kuhifadhi kwenye database.", "success");
     } catch (e) {
+      const msg = e instanceof Error ? e.message : "Upakiaji umeshindwa.";
       reportError(e, "National Leadership — upload");
+      pushToast(msg, "error");
     } finally {
       setUploadKey(null);
     }
@@ -385,7 +381,10 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
       />
 
       <div className="space-y-5">
-        {orderedCards.map((row) => (
+        {orderedCards.map((row) => {
+          const complete = isNationalLeadershipProfileComplete(row);
+          const assessment = assessNationalLeadershipProfile(row);
+          return (
           <article
             key={row.role_key}
             className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5"
@@ -446,6 +445,11 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
             </div>
 
             <div className="mt-4 space-y-4">
+            {!complete && canEdit ? (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950" role="status">
+                <strong>Inakosekana:</strong> {assessment.errors[0] ?? "Jaza jina, wasifu, picha, saini na simu kabla ya kuhifadhi."}
+              </p>
+            ) : null}
             <NatLeadFormSection title="Taarifa za msingi / Jina na cheo rasmi">
             <div className="grid gap-3 md:grid-cols-2">
               <Field
@@ -680,10 +684,11 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
                 </p>
               <button
                 type="button"
-                disabled={!canEdit || savingRole === row.role_key}
+                disabled={!canEdit || savingRole === row.role_key || !complete}
                 aria-busy={savingRole === row.role_key}
+                title={!complete ? assessment.errors[0] : undefined}
                 onClick={() => void save(row.role_key)}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0B1F3A] px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-[#123C69] disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#0B1F3A] px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-[#123C69] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {savingRole === row.role_key ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
                 Hifadhi nafasi hii
@@ -691,7 +696,8 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
               </div>
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
       <LeadershipDocumentPreviewModal
         open={!!previewRow}

@@ -12,7 +12,9 @@ import { nationalLeadershipDisplayTitle } from "../../services/nationalLeadershi
 import { recordCredentialIssueOptional } from "../../services/leadershipCredentialsEngineService";
 import { buildAdvancedLeadershipPdf } from "../leadershipPdfEngine/buildAdvancedPdf";
 import { credentialKindToAdvanced } from "../leadershipPdfEngine/types";
-import { downloadLeadershipPdf } from "../leadershipPdfEngine/exportActions";
+import { resolveChurchLogoDataUrl } from "../churchPdfBranding";
+import { fetchUrlAsPdfImageDataUrl } from "../pdfInstitutional";
+import { safeDownloadLeadershipPdf } from "../leadershipPdfEngine/exportActionsSafe";
 import type { BuiltLeadershipPdf } from "../leadershipPdfEngine/types";
 import type { CredentialDocumentKind, CredentialGenerateOpts, UnifiedLeaderRef } from "./types";
 import { resolveHierarchyLevelFromLeader } from "./resolveLevel";
@@ -34,6 +36,17 @@ function serialFor(ref: UnifiedLeaderRef, kind: CredentialDocumentKind): string 
         ? "ID"
         : "CHT";
   return formatLeadershipCredentialSerial(prefix, ref.leader.id);
+}
+
+async function resolveCredentialLogoDataUrl(opts?: CredentialGenerateOpts): Promise<string | undefined> {
+  const direct = opts?.logoDataUrl?.trim();
+  if (direct?.startsWith("data:")) return direct;
+  const url = direct || opts?.logoUrl?.trim() || opts?.autoFill?.logoUrl?.trim();
+  if (url) {
+    const fromUrl = await fetchUrlAsPdfImageDataUrl(url);
+    if (fromUrl) return fromUrl;
+  }
+  return (await resolveChurchLogoDataUrl()) ?? undefined;
 }
 
 function metaFor(ref: UnifiedLeaderRef): { hierarchy: string; title: string; sourceId: string } {
@@ -67,7 +80,7 @@ export async function buildLeadershipCredentialPdf(
   const fill = opts?.autoFill ?? null;
   const base = portalOrigin(opts);
   const serial = serialFor(ref, kind);
-  const logoDataUrl = opts?.logoDataUrl ?? fill?.logoUrl ?? undefined;
+  const logoDataUrl = await resolveCredentialLogoDataUrl(opts);
   const photoDataUrl = opts?.photoDataUrl ?? fill?.photoDataUrl ?? undefined;
   const signatureDataUrl = opts?.signatureDataUrl ?? fill?.signatureDataUrl ?? undefined;
 
@@ -108,9 +121,10 @@ export async function generateLeadershipCredential(
 
   if (ref.source === "national_leadership") {
     const verifyUrl = `${base}/verify-leadership?national=${encodeURIComponent(ref.row.role_key)}`;
+    const logoDataUrl = await resolveCredentialLogoDataUrl(opts);
     await downloadNationalLeadershipExecutiveCertificate(ref.row, {
       portalBaseUrl: base,
-      logoDataUrl: opts?.logoDataUrl ?? undefined,
+      logoDataUrl,
     });
     if (opts?.recordIssue !== false) {
       await recordCredentialIssueOptional({
@@ -132,7 +146,7 @@ export async function generateLeadershipCredential(
 
   const built = await buildLeadershipCredentialPdf(ref, kind, opts);
   if (built) {
-    downloadLeadershipPdf(built.doc, built.filename);
+    safeDownloadLeadershipPdf(built.doc, built.filename);
   }
 
   if (opts?.recordIssue !== false) {

@@ -4,6 +4,7 @@ import {
   formatTawiBranchCredentialSerial,
   mergeKmktInstitutionBlock,
 } from "./kmktExecutiveInstitution";
+import { resolveChurchLogoDataUrl } from "./churchPdfBranding";
 import { fetchUrlAsPdfImageDataUrl, fitPdfLinesToWidth, normalizePdfReadableText } from "./pdfInstitutional";
 import {
   CERT,
@@ -96,8 +97,7 @@ export async function downloadTawiBranchCertificatePdf(tawi: TawiRecord, opts?: 
   decorate();
 
   const logo =
-    (opts?.logoDataUrl?.trim() ? opts.logoDataUrl : null) ||
-    (await fetchUrlAsPdfImageDataUrl(`${base}/pwa-192.png`));
+    (opts?.logoDataUrl?.trim() ? opts.logoDataUrl : null) || (await resolveChurchLogoDataUrl());
 
   const qr = verifyUrl
     ? await fetchUrlAsPdfImageDataUrl(

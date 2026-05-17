@@ -13,6 +13,11 @@ import {
   KMKT_HEADQUARTERS_TAWI_NAME,
   KMKT_SIX_DAYOSISI,
 } from "./kmktSixDayosisiCanonical";
+import {
+  PORTAL_SUPPORT_EMAIL,
+  PORTAL_SUPPORT_PHONE,
+  PORTAL_SUPPORT_PHONE_DISPLAY,
+} from "../config/contactConfig";
 
 export type { KmktDayosisiCanon, KmktDayosisiLeadership, KmktJimboRolloutStatus } from "./kmktSixDayosisiCanonical";
 export {
@@ -31,11 +36,12 @@ export const KMKT_POSTAL_ADDRESS = "S.L.P 317, MUSOMA — MARA, TANZANIA";
 export const KMKT_HEADQUARTERS = "MUSOMA — MARA";
 export const KMKT_REGION = "Mara";
 export const KMKT_DISTRICT = "Musoma";
-export const KMKT_OFFICE_EMAIL = "mennonitekiinjilikmkt@gmail.com";
-export const KMKT_OFFICE_PHONE = "0755927252";
-export const KMKT_OFFICE_PHONE_RAW = KMKT_OFFICE_PHONE;
-export const KMKT_OFFICE_PHONE_DISPLAY = "0755 927 252";
-export const KMKT_WHATSAPP = "0755927252";
+
+export const KMKT_OFFICE_EMAIL = PORTAL_SUPPORT_EMAIL;
+export const KMKT_OFFICE_PHONE = PORTAL_SUPPORT_PHONE;
+export const KMKT_OFFICE_PHONE_RAW = PORTAL_SUPPORT_PHONE;
+export const KMKT_OFFICE_PHONE_DISPLAY = PORTAL_SUPPORT_PHONE_DISPLAY;
+export const KMKT_WHATSAPP = PORTAL_SUPPORT_PHONE;
 
 export const KMKT_VISION =
   "Kuwa kanisa linaloongoza kwa Injili, umoja, na huduma endelevu kwa jamii na taifa.";

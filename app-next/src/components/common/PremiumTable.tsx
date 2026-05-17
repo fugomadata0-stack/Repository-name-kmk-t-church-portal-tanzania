@@ -71,6 +71,8 @@ interface Props<T extends { id: string; status?: string }> {
   deleteConfirmMessage?: string;
   /** Vitendo vya ziada kwa kila safu (mf. PDF/Excel ya rekodi moja). */
   renderRowActionExtras?: (row: T) => ReactNode;
+  /** Moduli ya portal kwa ufuatiliaji wa export/print (audit_logs). */
+  auditModuleKey?: string;
 }
 
 type SortDir = "asc" | "desc";
@@ -109,8 +111,9 @@ export function PremiumTable<T extends { id: string; status?: string }>({
   deleteConfirmTitle,
   deleteConfirmMessage,
   renderRowActionExtras,
+  auditModuleKey,
 }: Props<T>) {
-  const { reportError, pushToast, authUser } = usePortal();
+  const { reportError, pushToast, authUser, logAudit } = usePortal();
   const importInputRef = useRef<HTMLInputElement>(null);
   const csvImportInputRef = useRef<HTMLInputElement>(null);
   const [importBusy, setImportBusy] = useState(false);
@@ -170,11 +173,6 @@ export function PremiumTable<T extends { id: string; status?: string }>({
     return safeArray(rows).filter((r) => {
       if (statusFilter !== "ALL" && String((r as any).status ?? "") !== statusFilter) return false;
       if (!qq) return true;
-      try {
-        if (safeIncludes(JSON.stringify(r), qq)) return true;
-      } catch {
-        /* safu yenye circular ref au thamani zisizo serializable */
-      }
       return columns.some((c) => safeIncludes((r as Record<string, unknown>)[String(c.key)], qq));
     });
   }, [debouncedQ, rows, statusFilter, columns]);
@@ -275,6 +273,10 @@ export function PremiumTable<T extends { id: string; status?: string }>({
       ...exportColumns.map((c) => exportCellValue(row, c)),
     ]);
     await exportRowsToExcel(baseName, headers, body as (string | number)[][]);
+    void logAudit("table_export_excel", baseName, String(sorted.length), { title, rows: sorted.length }, {
+      module: auditModuleKey ?? "general",
+      category: "export",
+    });
   }
 
   async function downloadBlankTemplate() {
@@ -395,6 +397,10 @@ export function PremiumTable<T extends { id: string; status?: string }>({
       ...exportColumns.map((c) => exportCellValue(row, c)),
     ]);
     await exportTableToPdf(title, baseName, headers, body as (string | number)[][]);
+    void logAudit("table_export_pdf", baseName, String(sorted.length), { title, rows: sorted.length }, {
+      module: auditModuleKey ?? "general",
+      category: "export",
+    });
   }
 
   function printTable() {
@@ -404,6 +410,10 @@ export function PremiumTable<T extends { id: string; status?: string }>({
       ...exportColumns.map((c) => exportCellValue(row, c)),
     ]);
     openPrintableTable(title, headers, body as (string | number)[][]);
+    void logAudit("table_print", baseName, String(sorted.length), { title, rows: sorted.length }, {
+      module: auditModuleKey ?? "general",
+      category: "export",
+    });
   }
 
   function detailCellValue(value: unknown): string | number {

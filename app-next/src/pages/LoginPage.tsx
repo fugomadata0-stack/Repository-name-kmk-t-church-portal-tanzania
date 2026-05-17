@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Bell,
@@ -18,10 +18,11 @@ import {
 import { usePortal } from "../context/PortalContext";
 import { getSupabase, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
 import { HAIJAPATIKANA_DATA_SW } from "../lib/supabaseUiMessages";
-import { fetchPortalPublicDashboardCounts } from "../services/portalPublicDashboardService";
+import { fetchPortalPublicDashboardCountsCached } from "../lib/portalPublicDashboardCache";
 import { fetchMasterSettingsOptional, readMasterSettingsCache } from "../services/masterSettingsService";
 import { fetchChurchIdentityOptional } from "../services/settingsTablesService";
 import { ResponsiveLazyImage } from "../components/common/ResponsiveLazyImage";
+import { MaintenanceBanner } from "../components/layout/MaintenanceBanner";
 import { PublicBranchEngineLiveKpis } from "../components/site/PublicBranchEngineLiveKpis";
 import { NationalLeadershipShowcase } from "../components/site/NationalLeadershipShowcase";
 import { PublicLandingFaithFooter } from "../components/site/PublicLandingFaithFooter";
@@ -30,7 +31,23 @@ import { PublicLandingModulesSection } from "../components/site/PublicLandingMod
 import { PublicLandingContentHub } from "../components/site/PublicLandingContentHub";
 import { PublicLandingSecurityHub } from "../components/site/PublicLandingSecurityHub";
 import { PublicLandingNoticeHost } from "../components/site/PublicLandingNoticeHost";
+import { PublicLandingAnnouncementsBand } from "../components/site/PublicLandingAnnouncementsBand";
+import { PublicLandingGallerySection } from "../components/site/PublicLandingGallerySection";
+import { PublicLandingProjectsSection } from "../components/site/PublicLandingProjectsSection";
+import { PublicLandingMediaCenter } from "../components/site/PublicLandingMediaCenter";
+import { LoginAuthCard } from "../components/auth/LoginAuthCard";
+import { PublicExecutiveKpiStrip } from "../components/site/PublicExecutiveKpiStrip";
 import { usePublicLandingNotices } from "../hooks/usePublicLandingNotices";
+import { useSiteDocumentMeta } from "../hooks/useSiteDocumentMeta";
+import {
+  fetchPublicLandingContent,
+  parseSiteSettingsGalleryItems,
+  type PublicAudioRow,
+  type PublicGalleryRow,
+  type PublicNationalLeaderRow,
+  type PublicProjectRow,
+  type PublicVideoRow,
+} from "../services/publicLandingService";
 
 const HERO_IMAGE_CANDIDATES = [
   [
@@ -164,25 +181,28 @@ function normalizeHexColor(value: string | null | undefined, fallback: string): 
 }
 
 export function LoginPage() {
-  const { signInWithEmailPassword, authBusy, supabaseReady } = usePortal();
+  const { site, supabaseReady } = usePortal();
+  useSiteDocumentMeta(site);
   const { notices, pushNotice, dismissNotice } = usePublicLandingNotices();
   const didNotifyPublicLoad = useRef(false);
   const lastKpiNoticeAt = useRef(0);
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [localError, setLocalError] = useState("");
 
   const [hero, setHero] = useState<HeroState>({ src: HERO_IMAGE_CANDIDATES[0][0], idx: 0, variant: 0 });
   const [heroMissing, setHeroMissing] = useState(false);
   const [publicLoadError, setPublicLoadError] = useState("");
   const [publicStatsLoading, setPublicStatsLoading] = useState(true);
 
-  const [news, setNews] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
+  const [news, setNews] = useState<Array<{ id: string; title: string; created_at: string; summary?: string; featured?: boolean }>>([]);
   const [events, setEvents] = useState<Array<{ id: string; title: string; event_date: string; location: string }>>([]);
   const [documents, setDocuments] = useState<Array<{ id: string; title: string; category: string; created_at: string }>>([]);
   const [liveNow, setLiveNow] = useState<Array<{ id: string; title: string; stream_url: string }>>([]);
   const [sermons, setSermons] = useState<Array<{ id: string; title: string; preacher: string; date: string }>>([]);
+  const [galleryItems, setGalleryItems] = useState<PublicGalleryRow[]>([]);
+  const [projects, setProjects] = useState<PublicProjectRow[]>([]);
+  const [videos, setVideos] = useState<PublicVideoRow[]>([]);
+  const [audios, setAudios] = useState<PublicAudioRow[]>([]);
+  const [publicLeaders, setPublicLeaders] = useState<PublicNationalLeaderRow[]>([]);
+  const [projectsActiveCount, setProjectsActiveCount] = useState<number | null>(null);
   const [logoBroken, setLogoBroken] = useState(false);
   const [logoVariant, setLogoVariant] = useState(0);
 
@@ -280,8 +300,7 @@ export function LoginPage() {
   }, []);
 
   useEffect(() => {
-    const c = getSupabase();
-    if (!c || !supabaseReady) {
+    if (!getSupabase() || !supabaseReady) {
       setPublicStatsLoading(false);
       return;
     }
@@ -310,43 +329,29 @@ export function LoginPage() {
 
     void (async () => {
       try {
-        const [
-          newsRes,
-          eventsRes,
-          docsRes,
-          liveRes,
-          sermonsRes,
-          publicCountsPack,
-        ] = await Promise.all([
-          c.from("news_posts").select("id,title,created_at").eq("status", "published").eq("is_public", true).order("created_at", { ascending: false }).limit(4),
-          c.from("events").select("id,title,event_date,location").eq("is_public", true).in("status", ["upcoming", "ongoing"]).order("event_date", { ascending: true }).limit(4),
-          c.from("documents").select("id,title,category,created_at").order("created_at", { ascending: false }).limit(4),
-          c.from("live_streams").select("id,title,stream_url").eq("is_public", true).eq("is_live", true).limit(1),
-          c.from("sermons").select("id,title,preacher,date").order("date", { ascending: false }).limit(4),
-          fetchPortalPublicDashboardCounts(),
-        ]);
-
+        const pack = await fetchPublicLandingContent();
         if (cancelled) return;
 
-        const listErrors = [
-          newsRes.error,
-          eventsRes.error,
-          docsRes.error,
-          liveRes.error,
-          sermonsRes.error,
-          publicCountsPack.error,
-        ].filter(Boolean);
+        setNews(pack.news);
+        setEvents(pack.events);
+        setDocuments(pack.documents);
+        setLiveNow(pack.liveNow);
+        setSermons(pack.sermons);
+        setGalleryItems(pack.gallery);
+        setProjects(pack.projects);
+        setVideos(pack.videos);
+        setAudios(pack.audios);
+        setPublicLeaders(pack.leaders);
 
-        if (listErrors.length > 0) {
-          if (listErrors.some((e) => hasPermissionOrRlsError(e))) {
-            setPublicLoadError(
-              listErrors.length === 6
-                ? "Data ya umma haipatikani kwa sasa — sera za usalama (RLS) au mwongozo wa mwandishi wa DB."
-                : "Baadhi ya takwimu au orodha hazijaonyeshwa — RLS au muunganisho."
-            );
-          } else if (listErrors.some((e) => hasUnauthorizedError(e))) {
+        const publicCountsPack = pack.counts;
+        const countsErr = publicCountsPack.error;
+
+        if (countsErr) {
+          if (hasPermissionOrRlsError(countsErr)) {
+            setPublicLoadError("Baadhi ya takwimu hazijaonyeshwa — RLS au muunganisho.");
+          } else if (hasUnauthorizedError(countsErr)) {
             setPublicLoadError("Muunganisho wa mfumo si thabiti (angalia variable za Supabase kwenye seva).");
-          } else if (listErrors.some((e) => hasMigrationNotReadyError(e))) {
+          } else if (hasMigrationNotReadyError(countsErr)) {
             setPublicLoadError("Seva ya data haijakamilisha migrations zinazohitajika.");
           } else {
             setPublicLoadError(`${HAIJAPATIKANA_DATA_SW}: taarifa za umma hazijapakuliwa. Jaribu tena.`);
@@ -354,14 +359,6 @@ export function LoginPage() {
         } else {
           setPublicLoadError("");
         }
-
-        setNews(((newsRes.error ? [] : newsRes.data) ?? []) as Array<{ id: string; title: string; created_at: string }>);
-        setEvents(((eventsRes.error ? [] : eventsRes.data) ?? []) as Array<{ id: string; title: string; event_date: string; location: string }>);
-        setDocuments(((docsRes.error ? [] : docsRes.data) ?? []) as Array<{ id: string; title: string; category: string; created_at: string }>);
-        setLiveNow(((liveRes.error ? [] : liveRes.data) ?? []) as Array<{ id: string; title: string; stream_url: string }>);
-        setSermons(((sermonsRes.error ? [] : sermonsRes.data) ?? []) as Array<{ id: string; title: string; preacher: string; date: string }>);
-
-        const countsErr = publicCountsPack.error;
         const countsRow = publicCountsPack.counts;
         const attendanceRpcOk = publicCountsPack.attendanceColumnsFromRpc;
         const majimboActiveRpcOk = publicCountsPack.majimboActiveColumnFromRpc;
@@ -412,16 +409,15 @@ export function LoginPage() {
         });
         if (!cancelled) {
           setPublicLiveAt(new Date().toISOString());
-          const nNews = ((newsRes.error ? [] : newsRes.data) ?? []).length;
-          const nEvents = ((eventsRes.error ? [] : eventsRes.data) ?? []).length;
-          const nDocs = ((docsRes.error ? [] : docsRes.data) ?? []).length;
-          const nSermons = ((sermonsRes.error ? [] : sermonsRes.data) ?? []).length;
+          setProjectsActiveCount(
+            typeof countsRow?.projectsActive === "number" ? countsRow.projectsActive : null,
+          );
           if (!didNotifyPublicLoad.current) {
             didNotifyPublicLoad.current = true;
             pushNotice({
               title: "Taarifa za umma",
               level: "success",
-              message: `Imepakiwa: ${nNews} habari · ${nEvents} matukio · ${nDocs} nyaraka · ${nSermons} mahubiri.`,
+              message: `Imepakiwa: ${pack.news.length} habari · ${pack.events.length} matukio · ${pack.gallery.length} picha · ${pack.projects.length} miradi.`,
             });
           }
         }
@@ -481,7 +477,7 @@ export function LoginPage() {
     if (!client || !supabaseReady) return;
     try {
       const { counts, error, attendanceColumnsFromRpc, majimboActiveColumnFromRpc } =
-        await fetchPortalPublicDashboardCounts();
+        await fetchPortalPublicDashboardCountsCached();
       if (error) {
         setStatQueryFailed({
           dayosisi: true,
@@ -618,18 +614,6 @@ export function LoginPage() {
     [pushNotice, scrollToLoginCard],
   );
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLocalError("");
-    const em = email.trim();
-    if (!em || !password) {
-      setLocalError("Ingiza barua pepe na nenosiri.");
-      return;
-    }
-    const err = await signInWithEmailPassword(em, password);
-    if (err) setLocalError(err);
-  }
-
   const theme = {
     primary: normalizeHexColor(branding.colors.primary, "#0B1F3A"),
     secondary: normalizeHexColor(branding.colors.secondary, "#123C69"),
@@ -668,6 +652,19 @@ export function LoginPage() {
   const showAttendanceMigrationHint =
     !publicStatsLoading && statQueryFailed.attendanceSessionsToday && !statQueryFailed.dayosisi;
 
+  const mergedGallery = useMemo(() => {
+    const siteItems = parseSiteSettingsGalleryItems(site.gallery);
+    const seen = new Set<string>();
+    const out: PublicGalleryRow[] = [];
+    for (const item of [...siteItems, ...galleryItems]) {
+      const key = item.image_url.trim();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push(item);
+    }
+    return out.slice(0, 16);
+  }, [site.gallery, galleryItems]);
+
   return (
     <div className="login-premium font-kmkt-sans relative min-h-screen overflow-x-hidden bg-[#030712] text-slate-100">
       <div
@@ -694,17 +691,20 @@ export function LoginPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
-            <a
-              href="#public-engine-kpis"
-              className="rounded-lg border border-emerald-400/45 bg-emerald-600/20 px-2.5 py-1.5 text-xs font-semibold text-emerald-50 shadow-sm transition duration-200 hover:bg-emerald-500/30 sm:text-sm"
-            >
-              KPI
+            <a href="#public-announcements" className="hidden rounded-lg border border-amber-400/45 bg-amber-600/20 px-2 py-1.5 text-xs font-semibold text-amber-50 sm:inline">
+              Matangazo
             </a>
-            <a
-              href="#modules-overview"
-              className="rounded-lg border border-sky-400/45 bg-sky-600/20 px-2.5 py-1.5 text-xs font-semibold text-sky-50 shadow-sm transition duration-200 hover:bg-sky-500/30 sm:text-sm"
-            >
-              Moduli
+            <a href="#public-stats" className="rounded-lg border border-emerald-400/45 bg-emerald-600/20 px-2.5 py-1.5 text-xs font-semibold text-emerald-50 shadow-sm transition duration-200 hover:bg-emerald-500/30 sm:text-sm">
+              Takwimu
+            </a>
+            <a href="#public-gallery" className="hidden rounded-lg border border-violet-400/45 bg-violet-600/20 px-2 py-1.5 text-xs font-semibold text-violet-50 sm:inline">
+              Gallery
+            </a>
+            <a href="#public-media" className="hidden rounded-lg border border-sky-400/45 bg-sky-600/20 px-2 py-1.5 text-xs font-semibold text-sky-50 sm:inline">
+              Media
+            </a>
+            <a href="#national-leaders-title" className="hidden rounded-lg border border-rose-400/45 bg-rose-600/20 px-2 py-1.5 text-xs font-semibold text-rose-50 md:inline">
+              Viongozi
             </a>
             <a
               href="/auth/signup-request"
@@ -722,6 +722,8 @@ export function LoginPage() {
           </div>
         </div>
       </nav>
+
+      <MaintenanceBanner site={site} />
 
       <section className="relative z-10 overflow-hidden">
         {!heroMissing ? (
@@ -833,50 +835,9 @@ export function LoginPage() {
             <h2 className="font-kmkt-display text-center text-xl font-bold tracking-tight text-[#0a1628]">Ingia kwenye KMK(T) Portal</h2>
             <p className="mt-1 text-center text-xs text-slate-600">Mfumo Mkuu wa Kidigitali wa Kanisa la Mennonite la Kiinjili Tanzania</p>
 
-            <form className="mt-5 space-y-3" onSubmit={onSubmit}>
-              <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Barua pepe
-                <input
-                  type="email"
-                  autoComplete="username"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-inner shadow-slate-200/60 focus:border-[#123C69] focus:outline-none focus:ring-2 focus:ring-[#123C69]/35"
-                  placeholder=""
-                />
-              </label>
-              <label className="grid gap-1 text-sm font-medium text-slate-700">
-                Nenosiri
-                <input
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-inner shadow-slate-200/60 focus:border-[#123C69] focus:outline-none focus:ring-2 focus:ring-[#123C69]/35"
-                />
-              </label>
-
-              {localError ? <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">{localError}</p> : null}
-              {!supabaseReady ? <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">Imeshindikana kuwasiliana na seva ya mfumo.</p> : null}
-
-              <button
-                type="submit"
-                disabled={authBusy || !supabaseReady}
-                className="w-full rounded-xl py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                style={{ background: `linear-gradient(90deg, ${theme.primary}, ${theme.secondary})` }}
-              >
-                {authBusy ? "Inaingia..." : "Ingia"}
-              </button>
-
-              <div className="flex items-center justify-between gap-2 text-xs">
-                <a className="font-semibold text-[#0B1F3A] underline decoration-[#D4AF37]/70" href="/auth/signup-request">
-                  Omba Akaunti
-                </a>
-                <a className="font-medium text-slate-600 underline" href="mailto:support@kmkt.or.tz?subject=KMKT%20Password%20Reset">
-                  Umesahau nenosiri?
-                </a>
-              </div>
-            </form>
+            <div className="mt-5">
+              <LoginAuthCard theme={theme} />
+            </div>
           </div>
         </div>
       </section>
@@ -965,9 +926,21 @@ export function LoginPage() {
         ) : null}
       </section>
 
+      <PublicLandingAnnouncementsBand news={news} loading={publicContentLoading} />
+
+      <PublicExecutiveKpiStrip />
+
       <PublicBranchEngineLiveKpis />
 
-      <NationalLeadershipShowcase />
+      <PublicLandingGallerySection items={mergedGallery} loading={publicContentLoading} />
+
+      <NationalLeadershipShowcase leaders={publicLeaders.length > 0 ? publicLeaders : undefined} />
+
+      <PublicLandingProjectsSection
+        projects={projects}
+        projectsActiveCount={projectsActiveCount}
+        loading={publicContentLoading}
+      />
 
       <PublicLandingEnterpriseStrip
         stats={{
@@ -989,6 +962,15 @@ export function LoginPage() {
         events={events}
         documents={documents}
         liveNow={liveNow}
+        sermons={sermons}
+        loading={publicContentLoading}
+        hideMedia
+      />
+
+      <PublicLandingMediaCenter
+        liveNow={liveNow}
+        videos={videos}
+        audios={audios}
         sermons={sermons}
         loading={publicContentLoading}
       />

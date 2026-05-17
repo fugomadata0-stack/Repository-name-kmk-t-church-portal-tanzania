@@ -1,6 +1,7 @@
 import { formatPostgrestError } from "../lib/supabaseErrors";
 import { getSupabase } from "../lib/supabaseClient";
 import { unwrapList, unwrapOrThrow } from "../lib/supabaseResult";
+import { parseMinistrySegment } from "../lib/membershipIntelligence";
 import type { ChurchFamilyRecord, ChurchMemberRecord, DayosisiRecord, MembershipStatusDb, Status } from "../types";
 
 const UUID_RE =
@@ -80,6 +81,9 @@ export function mapMemberRow(row: Record<string, unknown>): ChurchMemberRecord {
     is_baptized: Boolean(row.is_baptized),
     member_number: row.member_number != null ? String(row.member_number) : null,
     dayosisi_id: row.dayosisi_id ? String(row.dayosisi_id) : null,
+    jimbo_id: row.jimbo_id ? String(row.jimbo_id) : null,
+    tawi_id: row.tawi_id ? String(row.tawi_id) : null,
+    ministry_segment: parseMinistrySegment(row.ministry_segment),
     jimbo_name: row.jimbo_name ? String(row.jimbo_name) : null,
     tawi_name: row.tawi_name != null ? String(row.tawi_name) : null,
     jumuiya_name: row.jumuiya_name ? String(row.jumuiya_name) : null,
@@ -198,6 +202,9 @@ export async function upsertChurchMember(
     is_baptized: row.is_baptized ?? false,
     member_number: row.member_number?.trim() ? row.member_number.trim() : null,
     dayosisi_id: row.dayosisi_id || null,
+    jimbo_id: row.jimbo_id && isPersistedUuid(String(row.jimbo_id)) ? String(row.jimbo_id) : null,
+    tawi_id: row.tawi_id && isPersistedUuid(String(row.tawi_id)) ? String(row.tawi_id) : null,
+    ministry_segment: row.ministry_segment ? parseMinistrySegment(row.ministry_segment) : "none",
     jimbo_name: row.jimbo_name?.trim() || null,
     tawi_name: row.tawi_name?.trim() || null,
     jumuiya_name: row.jumuiya_name?.trim() || null,

@@ -15,6 +15,10 @@ export const INAPAKIA_SW = "Inapakia…";
 export const DASHBOARD_KPI_LOAD_ERROR_SW =
   "Imeshindikana kupakua taarifa za dashibodi kutoka Supabase. Tafadhali jaribu tena.";
 
+/** Seva/mtandao umechelewa — onyesha maudhui ya msingio, si spinner ya milele. */
+export const PORTAL_SLOW_NETWORK_SW =
+  "Muunganisho unachelewa. Sehemu za portal zinaonyeshwa kwa muhtasari — jaribu kuonyesha upya baada ya muda mfupi.";
+
 /**
  * Hesabu / KPI isiyopatikana (hitilafu ya swala, RLS, mtandao) — si 0 bandia.
  * Tumia kwenye kadi za dashibodi na strip ya umma ili ujumbe uwe thabiti.

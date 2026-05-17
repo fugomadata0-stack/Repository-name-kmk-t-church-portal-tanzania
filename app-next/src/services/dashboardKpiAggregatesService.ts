@@ -38,7 +38,9 @@ import {
   todayIsoInPortalTz,
   weekMondaySundayIsoPortalTz,
 } from "../lib/tzDates";
-import { fetchPortalPublicDashboardCounts } from "./portalPublicDashboardService";
+import { fetchExecutiveKpiDashboard } from "./executiveKpiDashboardService";
+import { fetchPortalPublicDashboardCountsCached } from "../lib/portalPublicDashboardCache";
+import type { PortalPublicDashboardCounts } from "./portalPublicDashboardService";
 
 export type DashboardKpiAggregatesOptions = {
   /**
@@ -318,6 +320,81 @@ function safeUnwrapRows<T = Record<string, unknown>>(result: unknown, context: K
     if (import.meta.env.DEV) console.warn(`[${context.queryPurpose}]`, error);
     return [];
   }
+}
+
+/** Chanzo cha haraka kwa login: RPC 1–2 badala ya ~70 maombi ya PostgREST. */
+export async function fetchDashboardKpiBootSnapshot(
+  opts?: DashboardKpiAggregatesOptions,
+): Promise<DashboardKpiSnapshot> {
+  const c = getSupabase();
+  if (!c) return emptyDashboardKpiSnapshot();
+
+  const alignPublic = Boolean(opts?.alignCoreCountsWithPublicRpc);
+  const [execSettled, pubSettled] = await Promise.allSettled([
+    fetchExecutiveKpiDashboard("kmkt", null),
+    alignPublic ? fetchPortalPublicDashboardCountsCached() : Promise.resolve(null),
+  ]);
+
+  const exec =
+    execSettled.status === "fulfilled"
+      ? execSettled.value
+      : null;
+  const pub =
+    pubSettled.status === "fulfilled" && pubSettled.value && typeof pubSettled.value === "object"
+      ? pubSettled.value
+      : null;
+  const pubCounts: PortalPublicDashboardCounts | null = pub?.counts ?? null;
+
+  const snap = emptyDashboardKpiSnapshot();
+
+  if (pubCounts) {
+    snap.dayosisiCount = pubCounts.dayosisi;
+    snap.majimboCount = pubCounts.majimbo;
+    snap.matawiCount = pubCounts.matawi;
+    snap.matawiActiveCount = pubCounts.matawiActive;
+    snap.matawiPendingStatusCount = pubCounts.matawiPending;
+    snap.matawiRegistryVerifiedCount = pubCounts.matawiRegistryVerified;
+    snap.matawiRegistryPendingReviewCount = pubCounts.matawiRegistryPendingReview;
+    snap.viongoziCount = pubCounts.viongozi;
+    snap.documentsCount = pubCounts.nyaraka;
+    if (pub?.attendanceColumnsFromRpc) {
+      snap.attendanceTodayCount = pubCounts.attendanceSessionsToday;
+      snap.attendanceMonthCount = pubCounts.attendanceSessionsMonth;
+      snap.attendanceVisitorsMonth = pubCounts.attendanceVisitorsMonth;
+      snap.publicDashboardCountsAttendanceColumnsMissing = false;
+    } else {
+      snap.publicDashboardCountsAttendanceColumnsMissing = true;
+    }
+  }
+
+  if (exec && !exec.error) {
+    snap.mapatoMweziTotal = exec.finance.incomeTotal;
+    snap.mapatoIncomeMwezi = exec.finance.incomeTotal;
+    snap.matumiziFedhaMwezi = exec.finance.expenseTotal;
+    snap.mapatoFedhaMweziMapato = exec.finance.incomeTotal;
+    snap.pendingRecordsCrossModule = exec.approvals.totalPending;
+    snap.pendingVerificationCount = exec.uploads.pendingVerification;
+    snap.attendanceTodayCount = exec.attendance.sessionsToday || snap.attendanceTodayCount;
+    snap.attendanceMonthCount = exec.attendance.sessionsMonth || snap.attendanceMonthCount;
+    snap.attendanceVisitorsMonth = exec.attendance.visitorsMonth || snap.attendanceVisitorsMonth;
+    snap.growthVsLastMonthLabel = "—";
+    snap.budgetedVsActualLabel = "—";
+    if (exec.byType.length) {
+      snap.mapatoKwaKategoriaMwezi = exec.byType.map((r) => ({
+        label: r.label,
+        amount: r.income,
+      }));
+    }
+  }
+
+  if (execSettled.status === "rejected" && import.meta.env.DEV) {
+    console.warn("[Dashboard KPI boot] executive RPC", execSettled.reason);
+  }
+  if (pubSettled.status === "rejected" && import.meta.env.DEV) {
+    console.warn("[Dashboard KPI boot] public counts", pubSettled.reason);
+  }
+
+  return snap;
 }
 
 export async function fetchDashboardKpiAggregates(opts?: DashboardKpiAggregatesOptions): Promise<DashboardKpiSnapshot> {
@@ -855,7 +932,7 @@ export async function fetchDashboardKpiAggregates(opts?: DashboardKpiAggregatesO
     };
 
     if (opts?.alignCoreCountsWithPublicRpc) {
-      const { counts: pub, error: pubErr, attendanceColumnsFromRpc } = await fetchPortalPublicDashboardCounts();
+      const { counts: pub, error: pubErr, attendanceColumnsFromRpc } = await fetchPortalPublicDashboardCountsCached();
       if (pub && !pubErr) {
         snapshot.publicDashboardCountsAttendanceColumnsMissing = !attendanceColumnsFromRpc;
         snapshot.dayosisiCount = pub.dayosisi;

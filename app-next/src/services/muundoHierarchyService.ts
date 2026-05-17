@@ -70,6 +70,14 @@ export function resolveJimboId(label: string, majimbo: JimboRecord[]): string | 
   return j && isPersistedUuid(j.id) ? j.id : null;
 }
 
+export function resolveTawiId(label: string, matawi: TawiRecord[]): string | null {
+  const raw = label.trim();
+  if (isPersistedUuid(raw)) return raw;
+  const t = raw.toLowerCase();
+  const tw = matawi.find((x) => x.jina.trim().toLowerCase() === t);
+  return tw && isPersistedUuid(tw.id) ? tw.id : null;
+}
+
 export function mapJimboRow(row: Record<string, unknown>): JimboRecord {
   const embed = row.dayosisi as { jina?: string } | null | undefined;
   const dayosisiLabel =

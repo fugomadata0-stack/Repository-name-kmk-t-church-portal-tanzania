@@ -1,9 +1,17 @@
 import { modules } from "../data/portalModules";
 import { coerceMuundoSubmodule } from "./branchEngineRoute";
 import { MASTER_BRANCH_ENGINE_SUBMODULE } from "./masterBranchEngineHub";
+import {
+  DASHBOARD_COMMAND_CENTER_SUBMODULE,
+  DASHBOARD_EXECUTIVE_SUBMODULE,
+  DASHBOARD_PENDING_APPROVALS_SUBMODULE,
+} from "./internalPortalConfig";
 
-/** Submodule ya foleni ya vibali — tumia kwenye URL na arifa (thamani ya kisasa). */
-export const DASHBOARD_PENDING_APPROVALS_SUBMODULE = "Vibali vinavyosubiri";
+export {
+  DASHBOARD_COMMAND_CENTER_SUBMODULE,
+  DASHBOARD_EXECUTIVE_SUBMODULE,
+  DASHBOARD_PENDING_APPROVALS_SUBMODULE,
+};
 
 /** Majina ya zamani (Kiingereza / dashibodi ya awali) → injini mpya. */
 export const DASHBOARD_SUBMODULE_LEGACY_TO_SW: Record<string, string> = {
@@ -11,12 +19,13 @@ export const DASHBOARD_SUBMODULE_LEGACY_TO_SW: Record<string, string> = {
   "KPI Cards": "Injini ya Ngazi — Executive",
   Alerts: "Injini ya Ngazi — Executive",
   "Recent Activity": "Injini ya Ngazi — Executive",
-  "Pending Approvals": "Injini ya Ngazi — Executive",
-  Muhtasari: "Injini ya Ngazi — Executive",
-  "Kadi za KPI": "Injini ya Ngazi — Executive",
-  Arifa: "Injini ya Ngazi — Executive",
-  "Shughuli za hivi karibuni": "Injini ya Ngazi — Executive",
-  "Vibali vinavyosubiri": "Injini ya Ngazi — Executive",
+  "Pending Approvals": DASHBOARD_PENDING_APPROVALS_SUBMODULE,
+  Muhtasari: DASHBOARD_EXECUTIVE_SUBMODULE,
+  "Kadi za KPI": DASHBOARD_EXECUTIVE_SUBMODULE,
+  Arifa: DASHBOARD_EXECUTIVE_SUBMODULE,
+  "Shughuli za hivi karibuni": DASHBOARD_EXECUTIVE_SUBMODULE,
+  "Vibali vinavyosubiri": DASHBOARD_PENDING_APPROVALS_SUBMODULE,
+  "Kituo cha Amri": DASHBOARD_COMMAND_CENTER_SUBMODULE,
 };
 
 const DASHBOARD_LEGACY_LOWER = (() => {

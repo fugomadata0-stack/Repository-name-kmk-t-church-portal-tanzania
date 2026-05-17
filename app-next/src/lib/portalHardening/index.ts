@@ -10,3 +10,4 @@ export {
 } from "./safeDisplay";
 export { userFacingQueryError } from "./userFacingError";
 export { coalesceRealtimeCallback } from "./realtimeCoalesce";
+export { dashboardKpiFingerprint } from "./kpiSnapshotFingerprint";

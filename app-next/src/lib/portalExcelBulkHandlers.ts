@@ -5,12 +5,17 @@ import {
   upsertChurchTawi,
   resolveDayosisiId,
   resolveJimboId,
+  resolveTawiId,
   isPersistedUuid,
 } from "../services/muundoHierarchyService";
+import { fetchCascadeOptions } from "../services/churchStructureService";
+import { fetchDayosisi } from "../services/dayosisiService";
+import { enrichIncomeLineGeo } from "./incomeGeoResolve";
 import { upsertKiongozi, isViongoziUuid } from "../services/viongoziService";
 import { upsertFinanceEntry } from "../services/financeEntriesService";
 import { upsertIncomeSource, upsertIncomeLine, isIncomeUuid } from "../services/incomeModuleService";
 import { upsertDomainEntity, isDomainEntityUuid } from "../services/domainModuleService";
+import { parseMinistrySegment } from "./membershipIntelligence";
 import { upsertChurchMember, upsertChurchFamily, isPersistedUuid as isMemberUuid } from "../services/wauminiService";
 import { getSupabase } from "./supabaseClient";
 import { parseMoneyTz } from "./money";
@@ -359,6 +364,29 @@ export async function bulkImportMapatoIncome(
 ): Promise<{ ok: number; fail: number }> {
   let ok = 0;
   let fail = 0;
+  const cascade = await fetchCascadeOptions().catch(() => ({
+    dayosisi: [],
+    majimbo: [],
+    matawi: [],
+    idara: [],
+    huduma: [],
+    taasisi: [],
+    jumuiya: [],
+  }));
+  const majimboPool = cascade.majimbo.map((m) => ({
+    id: m.id,
+    jina: m.name,
+    dayosisi: "",
+    status: "Active" as const,
+  }));
+  const matawiPool = cascade.matawi.map((m) => ({
+    id: m.id,
+    jina: m.name,
+    jimbo: "",
+    jimbo_id: m.parent_id ?? undefined,
+    status: "Active" as const,
+  }));
+  const dayosisiList = await fetchDayosisi().catch(() => [] as DayosisiRecord[]);
   for (const r of rows) {
     try {
       if (!getSupabase()) throw new Error("Supabase inahitajika.");
@@ -387,9 +415,13 @@ export async function bulkImportMapatoIncome(
         status: asStatus(r.status),
         branchCenter: t(r.branchCenter),
         remarks: t(r.remarks),
+        dayosisi_id: resolveDayosisiId(t(r.dayosisi_id), dayosisiList),
+        jimbo_id: resolveJimboId(t(r.jimbo_id) || t(r.jimbo_name), majimboPool as never),
+        tawi_id: resolveTawiId(t(r.tawi_id) || t(r.tawi_name), matawiPool as never),
       };
       if (!merged.incomeCode || !merged.sourceName) throw new Error("Income code na chanzo vinahitajika.");
-      const saved = await upsertIncomeLine(merged);
+      const enriched = await enrichIncomeLineGeo(merged);
+      const saved = await upsertIncomeLine(enriched);
       const updating = Boolean(id && isIncomeUuid(id));
       setLines((prev) => (updating ? prev.map((x) => (x.id === saved.id ? saved : x)) : [saved, ...prev]));
       emit(updating ? "update" : "create", saved.id);
@@ -456,6 +488,28 @@ export async function bulkImportChurchMembers(
   if (!getSupabase()) {
     return { ok: 0, fail: rows.length };
   }
+  const cascade = await fetchCascadeOptions().catch(() => ({
+    dayosisi: [],
+    majimbo: [],
+    matawi: [],
+    idara: [],
+    huduma: [],
+    taasisi: [],
+    jumuiya: [],
+  }));
+  const majimboPool = cascade.majimbo.map((m) => ({
+    id: m.id,
+    jina: m.name,
+    dayosisi: "",
+    status: "Active" as const,
+  }));
+  const matawiPool = cascade.matawi.map((m) => ({
+    id: m.id,
+    jina: m.name,
+    jimbo: "",
+    jimbo_id: m.parent_id ?? undefined,
+    status: "Active" as const,
+  }));
   for (const r of rows) {
     try {
       const first_name = t(r.first_name);
@@ -464,6 +518,10 @@ export async function bulkImportChurchMembers(
       const id = t(r.id);
       const family_id = resolveFamilyLookup(t(r.family_name), ctx.families);
       const dayosisi_id = resolveDayosisiId(t(r.dayosisi_id), ctx.dayosisiList);
+      const jimbo_id =
+        resolveJimboId(t(r.jimbo_id) || t(r.jimbo_name), majimboPool as never) ?? (t(r.jimbo_id) || null);
+      const tawi_id =
+        resolveTawiId(t(r.tawi_id) || t(r.tawi_name), matawiPool as never) ?? (t(r.tawi_id) || null);
       const gender = parseGenderCell(r.gender) ?? "";
       const merged = {
         ...(id && isMemberUuid(id) ? { id } : {}),
@@ -480,7 +538,10 @@ export async function bulkImportChurchMembers(
         is_baptized: parseYesNoCell(r.is_baptized),
         member_number: t(r.member_number) || null,
         dayosisi_id,
+        jimbo_id: jimbo_id && isMemberUuid(jimbo_id) ? jimbo_id : null,
+        tawi_id: tawi_id && isMemberUuid(tawi_id) ? tawi_id : null,
         tawi_name: t(r.tawi_name) || null,
+        ministry_segment: parseMinistrySegment(r.ministry_segment ?? r.chama),
         notes: t(r.notes) || null,
       };
       const saved = await upsertChurchMember(merged);

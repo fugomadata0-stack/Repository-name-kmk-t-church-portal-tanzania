@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { memo, useCallback, useMemo, useState } from "react";
+import { PortalKpiRowSkeleton } from "../common/PortalSkeleton";
 import { modules } from "../../data/portalModules";
 import {
   ENTERPRISE_COMMAND_MODULES,
@@ -31,7 +31,7 @@ type LevelCard = {
   items: { label: string; value: string }[];
 };
 
-export function EnterpriseCommandPanel({
+function EnterpriseCommandPanelInner({
   canViewModule,
   kpiLive,
   kpiRefreshing = false,
@@ -167,21 +167,17 @@ export function EnterpriseCommandPanel({
   return (
     <div className="space-y-6">
       <section className="rounded-[32px] border border-[#dbe7f5] bg-gradient-to-br from-white to-[#f8fbff] p-4 shadow-[0_24px_60px_rgba(15,23,42,.12)] sm:p-5">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-wrap items-start justify-between gap-3"
-        >
-          <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
             <h2 className="text-xl font-black text-[#0B1F3A] sm:text-2xl">KMK(T) — Moduli za Mfumo</h2>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-600">
               Baada ya kuingia, moduli zinabofya hapa kwanza. Chagua moduli kuona sub-modules na sehemu za kujaza taarifa; KPI za ngazi ziko chini.
             </p>
-          </motion.div>
+          </div>
           <span className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">
             Moduli kwanza · KPI chini
           </span>
-        </motion.div>
+        </div>
 
         <div className="mt-5 grid grid-cols-6 gap-3 md:grid-cols-12 md:gap-3.5">
           {visibleEnterprise.map((mod) => (
@@ -214,10 +210,10 @@ export function EnterpriseCommandPanel({
         {activeMod ? (
           <section className="mt-5 rounded-[28px] border border-[#dbe7f5] bg-white p-4 shadow-lg sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <motion.div>
+              <div>
                 <h3 className="text-lg font-black text-[#0B1F3A]">{activeMod.label}</h3>
                 <p className="mt-1 text-sm text-slate-600">{activeMod.description}</p>
-              </motion.div>
+              </div>
               <button
                 type="button"
                 onClick={openFullModule}
@@ -226,15 +222,10 @@ export function EnterpriseCommandPanel({
                 Fungua moduli kamili
               </button>
             </div>
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-            >
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {activeMod.submodules.map((sub) => (
-                <motion.div
+                <div
                   key={sub}
-                  layout
                   className="rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-white p-3.5 shadow-sm"
                 >
                   <h4 className="text-sm font-bold text-[#0B1F3A]">{sub}</h4>
@@ -245,9 +236,9 @@ export function EnterpriseCommandPanel({
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
                     placeholder={`Andika taarifa za ${sub}...`}
                   />
-                </motion.div>
+                </div>
               ))}
-            </motion.div>
+            </div>
           </section>
         ) : null}
       </section>
@@ -267,15 +258,16 @@ export function EnterpriseCommandPanel({
               disabled={kpiRefreshing}
               className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-[#0B1F3A] hover:bg-slate-50 disabled:opacity-60"
             >
-              {kpiRefreshing ? "Inasasisha…" : "🔄 Onyesha upya KPI"}
+              🔄 Onyesha upya KPI
             </button>
           ) : null}
         </div>
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-4 grid gap-4 sm:grid-cols-2"
-        >
+        {kpiRefreshing ? (
+          <div className="mt-4">
+            <PortalKpiRowSkeleton count={4} />
+          </div>
+        ) : (
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {levelCards.map((card) => (
             <article
               key={card.key}
@@ -316,7 +308,8 @@ export function EnterpriseCommandPanel({
               </div>
             </article>
           ))}
-        </motion.div>
+        </div>
+        )}
       </section>
 
       <section className="rounded-[32px] border border-emerald-900/20 bg-gradient-to-br from-[#052e16] via-[#14532d] to-[#16a34a] p-4 text-white shadow-[0_24px_60px_rgba(20,83,45,.26)] sm:p-5">
@@ -324,23 +317,16 @@ export function EnterpriseCommandPanel({
         <p className="mt-2 text-sm text-emerald-100/90">
           Aina zaidi ya 20 za michango/fedha (preset + kategoria kutoka Supabase). Thamani za mwezi huu zinaonyesha mapato yaliyokubaliwa.
         </p>
-        <motion.div
-          layout
-          className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"
-        >
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
           {financeItems.map((item) => (
-            <motion.div
-              key={item.key}
-              layout
-              className="rounded-2xl border border-white/15 bg-white/10 p-3 backdrop-blur-sm"
-            >
+            <div key={item.key} className="rounded-2xl border border-white/15 bg-white/10 p-3">
               <span className="block text-[11px] font-bold uppercase tracking-wide text-emerald-100/80">
                 {item.label}
               </span>
               <strong className="mt-1 block text-lg font-black tabular-nums">{fmtTz(item.amount)}</strong>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
@@ -370,3 +356,5 @@ export function EnterpriseCommandPanel({
     </div>
   );
 }
+
+export const EnterpriseCommandPanel = memo(EnterpriseCommandPanelInner);

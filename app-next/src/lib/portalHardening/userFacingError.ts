@@ -1,3 +1,4 @@
+import { mapRlsOrPermissionError } from "../enterpriseRbac";
 import { SUPABASE_QUERY_ERROR_SW } from "../supabaseUiMessages";
 
 const TECHNICAL_PATTERNS =
@@ -7,6 +8,9 @@ const TECHNICAL_PATTERNS =
 export function userFacingQueryError(raw: string | null | undefined): string {
   const t = String(raw ?? "").trim();
   if (!t || /^undefined$|^null$|^nan$/i.test(t)) return SUPABASE_QUERY_ERROR_SW;
+  if (/permission denied|row-level security|rls|42501|pgrst301/i.test(t)) {
+    return mapRlsOrPermissionError(t);
+  }
   if (t.length > 180 || TECHNICAL_PATTERNS.test(t)) return SUPABASE_QUERY_ERROR_SW;
   return t;
 }

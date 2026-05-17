@@ -12,6 +12,7 @@ import {
 } from "../../services/domainModuleService";
 import type { DomainEntityRecord } from "../../types";
 import { ModalScrollLayer } from "../common/ModalScrollLayer";
+import { TanzaniaLocationFields } from "../common/TanzaniaLocationFields";
 import { buildDomainEntityExcelBundle } from "../../lib/excelModuleFormSpecs";
 import { bulkImportDomainEntities } from "../../lib/portalExcelBulkHandlers";
 import {
@@ -452,22 +453,18 @@ export function DomainEntitiesPanel({
                     Parent level
                     <input name="parent_level" defaultValue={String((editing.extra?.parent_level as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
                   </label>
-                  <label className="grid gap-1 text-xs">
-                    Mkoa
-                    <input name="mkoa" defaultValue={String((editing.extra?.mkoa as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
-                  </label>
-                  <label className="grid gap-1 text-xs">
-                    Wilaya
-                    <input name="wilaya" defaultValue={String((editing.extra?.wilaya as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
-                  </label>
-                  <label className="grid gap-1 text-xs">
-                    Kata/Mtaa
-                    <input name="kata_mtaa" defaultValue={String((editing.extra?.kata_mtaa as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
-                  </label>
-                  <label className="grid gap-1 text-xs">
-                    Kijiji/Mtaa
-                    <input name="kijiji_mtaa" defaultValue={String((editing.extra?.kijiji_mtaa as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />
-                  </label>
+                  <div className="md:col-span-2">
+                    <TanzaniaLocationFields
+                      formMode
+                      defaultValue={{
+                        mkoa: String((editing.extra?.mkoa as string) ?? ""),
+                        wilaya: String((editing.extra?.wilaya as string) ?? ""),
+                        kata: String((editing.extra?.kata_mtaa as string) ?? ""),
+                        mtaa: String((editing.extra?.kijiji_mtaa as string) ?? ""),
+                      }}
+                      names={{ mkoa: "mkoa", wilaya: "wilaya", kata: "kata_mtaa", mtaa: "kijiji_mtaa" }}
+                    />
+                  </div>
                   <label className="grid gap-1 text-xs">
                     Anwani kamili
                     <input name="address" defaultValue={String((editing.extra?.address as string) ?? "")} className="rounded-lg border px-3 py-2 text-sm" />

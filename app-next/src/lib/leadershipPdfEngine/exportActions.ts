@@ -10,14 +10,14 @@ export function downloadLeadershipPdf(doc: jsPDF, filename: string): void {
   doc.save(suggestedFilename(filename.replace(/\.pdf$/i, "")));
 }
 
-/** Chapisha — dirisha jipya na print (print-perfect A4). */
-export function printLeadershipPdf(doc: jsPDF): void {
+/** Chapisha — dirisha jipya na print (print-perfect A4). Rudisha false ikiwa popup imezuiwa. */
+export function printLeadershipPdf(doc: jsPDF): boolean {
   const blob = doc.output("blob");
   const url = URL.createObjectURL(blob);
   const w = window.open(url, "_blank", "noopener,noreferrer");
   if (!w) {
     URL.revokeObjectURL(url);
-    return;
+    return false;
   }
   w.addEventListener("load", () => {
     try {
@@ -27,6 +27,7 @@ export function printLeadershipPdf(doc: jsPDF): void {
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     }
   });
+  return true;
 }
 
 /** Shiriki (Web Share API) au pakua kama fallback. */

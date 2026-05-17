@@ -6,6 +6,7 @@ import { MichangoIncomeEngineShell } from "../components/executive/MichangoIncom
 import { SajiliMuundoPanel } from "../components/muundo/SajiliMuundoPanel";
 import { MatawiRecordFields, MATAWI_FORM_FIELD_KEYS } from "../components/muundo/MatawiRecordFields";
 import { ModalScrollLayer } from "../components/common/ModalScrollLayer";
+import { TanzaniaLocationFields } from "../components/common/TanzaniaLocationFields";
 import { ModuleHeader } from "../components/common/ModuleHeader";
 import { PremiumTable } from "../components/common/PremiumTable";
 import { ErrorBoundary } from "../components/common/ErrorBoundary";
@@ -15,6 +16,7 @@ import {
   AIAssistantPanel,
   AidManagementPanel,
   AnalyticsDashboardPanel,
+  ExecutiveKpiDashboardPanel,
   AttendancePanel,
   AudioLibraryPanel,
   BrandingTablePanel,
@@ -23,11 +25,19 @@ import {
   ChurchFamiliesPanel,
   ChurchIdentitySettingsPanel,
   ChurchMembersPanel,
+  ChurchProjectsPanel,
   ChurchSchoolLogsPanel,
+  ContributionFormsEnginePanel,
+  FinanceDistributionLedgerPanel,
+  MembershipIntelligenceEngine,
+  Phase1ReportsHubPanel,
+  PrintPdfMasterEnginePanel,
+  InternalAdvancedReportsPanel,
   CommunicationsPanel,
   DeveloperProfilePanel,
   DomainEntitiesPanel,
   EventsPanel,
+  EnterpriseUploadCenterPanel,
   FileManagerPanel,
   GalleryPanel,
   GenericModuleView,
@@ -44,6 +54,7 @@ import {
   PortalDirectoryPanel,
   RegistrationRequestsPanel,
   SecurityMatrixPanel,
+  EnterpriseRbacPanel,
   SecurityRolesPanel,
   SecuritySessionsPanel,
   SeoPublicSettingsPanel,
@@ -107,6 +118,7 @@ import {
   upsertChurchTawi,
 } from "../services/muundoHierarchyService";
 import { fetchCascadeOptions } from "../services/churchStructureService";
+import { StructureCascadeSelector } from "../components/common/StructureCascadeSelector";
 import {
   fetchCommitteeGroups,
   fetchLeadershipCategories,
@@ -193,6 +205,7 @@ interface Props {
   canNavigateBack?: boolean;
   /** KPI za dashibodi — chanzo kimoja cha takwimu kwa moduli pana. */
   kpiLive?: DashboardKpiSnapshot;
+  kpiRefreshing?: boolean;
   layoutMode?: PortalLayoutMode;
 }
 
@@ -305,7 +318,6 @@ const DOMAIN_ENTITY_MODULE_KEYS = [
   "matukio",
   "machapisho",
   "nyaraka",
-  "ripoti",
   "communications",
   "super_admin",
 ] as const;
@@ -1051,11 +1063,20 @@ export function ModulePage(props: Props) {
     if (props.moduleKey === "audio_library") {
       return <AudioLibraryPanel highlightRecordId={props.highlightRecordId} />;
     }
+    if (props.moduleKey === "file_manager" && props.submodule === "Upload Center (Engine)") {
+      return <EnterpriseUploadCenterPanel />;
+    }
     if (props.moduleKey === "file_manager") {
       return <FileManagerPanel />;
     }
     if (props.moduleKey === "live_stream") {
       return <LiveStreamPanel submodule={props.submodule} />;
+    }
+    if (
+      (props.moduleKey === "analytics" || props.moduleKey === "ripoti") &&
+      (props.submodule ?? "").trim() === "KPI Executive (Ngazi)"
+    ) {
+      return <ExecutiveKpiDashboardPanel />;
     }
     if (props.moduleKey === "analytics") {
       const ripoti = (props.submodule ?? "").trim().toLowerCase().includes("ripoti");
@@ -1173,6 +1194,9 @@ export function ModulePage(props: Props) {
         />
       );
     }
+    if (props.moduleKey === "waumini" && props.submodule === "Takwimu za Uanachama") {
+      return <MembershipIntelligenceEngine />;
+    }
     if (props.moduleKey === "usalama" && props.submodule === "Users") {
       return <PortalDirectoryPanel />;
     }
@@ -1181,6 +1205,9 @@ export function ModulePage(props: Props) {
     }
     if (props.moduleKey === "usalama" && props.submodule === "Permissions") {
       return <SecurityMatrixPanel />;
+    }
+    if (props.moduleKey === "usalama" && props.submodule === "Enterprise RBAC") {
+      return <EnterpriseRbacPanel />;
     }
     if (props.moduleKey === "usalama" && props.submodule === "Sessions") {
       return <SecuritySessionsPanel />;
@@ -1199,6 +1226,12 @@ export function ModulePage(props: Props) {
     }
     if (props.moduleKey === "fedha" && props.submodule === "Audit Trail") {
       return <ChurchAuditLogPanel contextLabel="Fedha — uchunguzi wa nyumba" />;
+    }
+    if (props.moduleKey === "fedha" && props.submodule === "Usambazaji & Remittance") {
+      return <FinanceDistributionLedgerPanel />;
+    }
+    if (props.moduleKey === "mapato_income" && props.submodule === "Fomu za Michango (Engine)") {
+      return <ContributionFormsEnginePanel />;
     }
     if (props.moduleKey === "muundo" && props.submodule === "Sajili Muundo") {
       return (
@@ -1253,6 +1286,18 @@ export function ModulePage(props: Props) {
           onCrudSuccess={props.onCrudSuccess}
         />
       );
+    }
+    if (props.moduleKey === "taasisi" && props.submodule === "Miradi na Taasisi") {
+      return <ChurchProjectsPanel />;
+    }
+    if (props.moduleKey === "ripoti" && props.submodule === "Print & PDF Master") {
+      return <PrintPdfMasterEnginePanel />;
+    }
+    if (props.moduleKey === "ripoti" && props.submodule === "Ripoti Phase 1 (PDF)") {
+      return <Phase1ReportsHubPanel />;
+    }
+    if (props.moduleKey === "ripoti") {
+      return <InternalAdvancedReportsPanel submodule={props.submodule ?? "Finance Reports"} />;
     }
     if (DOMAIN_ENTITY_MODULE_KEYS.includes(props.moduleKey as (typeof DOMAIN_ENTITY_MODULE_KEYS)[number])) {
       return (
@@ -2677,6 +2722,7 @@ export function ModulePage(props: Props) {
             kpi={props.kpiLive}
             moduleKey={props.moduleKey}
             submodule={props.submodule}
+            refreshing={props.kpiRefreshing}
           />
         ) : undefined
       }
@@ -3023,6 +3069,30 @@ function MapatoIncomeFields({
 }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(String(initial?.sourceId ?? ""));
+  const [structure, setStructure] = useState<{
+    dayosisi: ChurchStructureEntity[];
+    majimbo: ChurchStructureEntity[];
+    matawi: ChurchStructureEntity[];
+  }>({ dayosisi: [], majimbo: [], matawi: [] });
+  const [cascade, setCascade] = useState({
+    dayosisi_id: initial?.dayosisi_id ?? "",
+    jimbo_id: initial?.jimbo_id ?? "",
+    tawi_id: initial?.tawi_id ?? "",
+  });
+
+  useEffect(() => {
+    void fetchCascadeOptions().then((o) => {
+      setStructure({ dayosisi: o.dayosisi, majimbo: o.majimbo, matawi: o.matawi });
+    });
+  }, []);
+
+  useEffect(() => {
+    setCascade({
+      dayosisi_id: initial?.dayosisi_id ?? "",
+      jimbo_id: initial?.jimbo_id ?? "",
+      tawi_id: initial?.tawi_id ?? "",
+    });
+  }, [initial?.id, initial?.dayosisi_id, initial?.jimbo_id, initial?.tawi_id]);
   const selectedSource = useMemo(
     () => incomeSources.find((s) => s.id === selectedId) ?? null,
     [incomeSources, selectedId]
@@ -3094,6 +3164,23 @@ function MapatoIncomeFields({
       />
       <Field label="Sub-Category" name="subCategory" defaultValue={initial?.subCategory ?? ""} required={false} />
       <Field label="Ngazi ya Kanisa" name="churchLevel" defaultValue={initial?.churchLevel ?? ""} required={false} />
+      <div className="md:col-span-2 rounded-lg border border-emerald-200/80 bg-emerald-50/50 p-3">
+        <p className="mb-2 text-xs font-semibold text-emerald-900">Mahali pa ukusanyaji (geo) — lazima kwa remittance sahihi</p>
+        <StructureCascadeSelector
+          options={structure}
+          value={cascade}
+          onChange={(next) =>
+            setCascade({
+              dayosisi_id: next.dayosisi_id ?? "",
+              jimbo_id: next.jimbo_id ?? "",
+              tawi_id: next.tawi_id ?? "",
+            })
+          }
+        />
+        <input type="hidden" name="dayosisi_id" value={cascade.dayosisi_id} />
+        <input type="hidden" name="jimbo_id" value={cascade.jimbo_id} />
+        <input type="hidden" name="tawi_id" value={cascade.tawi_id} />
+      </div>
       <Field label="Aina ya Mapato" name="incomeType" defaultValue={initial?.incomeType ?? "Mapato Halisi"} />
       <Field
         key={`frequency-${selectedId || "none"}`}
@@ -3394,18 +3481,18 @@ function ViongoziRecordFields({
             WhatsApp
             <input name="whatsapp" defaultValue={initial?.whatsapp ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
           </label>
-          <label className="grid gap-1 text-xs">
-            Mkoa
-            <input name="mkoa" defaultValue={initial?.mkoa ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
-          </label>
-          <label className="grid gap-1 text-xs">
-            Wilaya
-            <input name="wilaya" defaultValue={initial?.wilaya ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
-          </label>
-          <label className="grid gap-1 text-xs">
-            Kata
-            <input name="kata" defaultValue={initial?.kata ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
-          </label>
+          <div className="md:col-span-2">
+            <TanzaniaLocationFields
+              formMode
+              defaultValue={{
+                mkoa: initial?.mkoa ?? "",
+                wilaya: initial?.wilaya ?? "",
+                kata: initial?.kata ?? "",
+              }}
+              names={{ mkoa: "mkoa", wilaya: "wilaya", kata: "kata" }}
+              showMtaa={false}
+            />
+          </div>
           <label className="grid gap-1 text-xs md:col-span-2">
             Anwani
             <input name="address" defaultValue={initial?.address ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
@@ -3635,6 +3722,9 @@ function RecordModal({
               "currency",
               "status",
               "branchCenter",
+              "dayosisi_id",
+              "jimbo_id",
+              "tawi_id",
               "remarks",
             ]) {
               payload[k] = fd.get(k);

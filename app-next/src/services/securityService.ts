@@ -148,12 +148,24 @@ export async function createPortalRole(row: {
  * Jedwali la matrix kutoka DB; moduli zisizo na safu bado zijazwa kwa can_* = false
  * (si data ya dashibodi — ni chaguomsingi salama la ruhusa ili gridi isivunjike).
  */
+const matrixByRoleCache = new Map<string, { at: number; rows: PortalModuleMatrixRow[] }>();
+const MATRIX_CACHE_TTL_MS = 60_000;
+
+export function invalidateMatrixCacheForRole(roleKey?: string): void {
+  if (roleKey) matrixByRoleCache.delete(roleKey);
+  else matrixByRoleCache.clear();
+}
+
 export async function fetchMatrixForRole(roleKey: string): Promise<PortalModuleMatrixRow[]> {
+  const cached = matrixByRoleCache.get(roleKey);
+  if (cached && Date.now() - cached.at < MATRIX_CACHE_TTL_MS) {
+    return cached.rows;
+  }
   const c = clientOrThrow();
   const res = await c.from("portal_module_matrix").select("*").eq("role_key", roleKey);
   const rows = unwrapList(res, "portal_module_matrix.list") as PortalModuleMatrixRow[];
   const byMod = new Map(rows.map((r) => [r.module_key, r]));
-  return PORTAL_MODULE_KEYS.map((mk) => {
+  const merged = PORTAL_MODULE_KEYS.map((mk) => {
     const x = byMod.get(mk);
     if (x) return x;
     return {
@@ -174,6 +186,8 @@ export async function fetchMatrixForRole(roleKey: string): Promise<PortalModuleM
       updated_at: new Date().toISOString(),
     };
   });
+  matrixByRoleCache.set(roleKey, { at: Date.now(), rows: merged });
+  return merged;
 }
 
 export async function upsertMatrixRows(rows: PortalModuleMatrixRow[]): Promise<void> {
@@ -198,6 +212,9 @@ export async function upsertMatrixRows(rows: PortalModuleMatrixRow[]): Promise<v
   }));
   const { error } = await c.from("portal_module_matrix").upsert(payload, { onConflict: "role_key,module_key" });
   if (error) throw new Error(formatPostgrestError(error, "portal_module_matrix.upsert"));
+  for (const roleKey of new Set(rows.map((r) => r.role_key))) {
+    invalidateMatrixCacheForRole(roleKey);
+  }
 }
 
 export async function fetchDirectoryProfiles(): Promise<PortalDirectoryProfile[]> {

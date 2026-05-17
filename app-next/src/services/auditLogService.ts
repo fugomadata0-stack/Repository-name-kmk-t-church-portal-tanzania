@@ -1,3 +1,8 @@
+import {
+  formatAuditTimestamp,
+  inferAuditActionCategory,
+  type AuditActionCategory,
+} from "../lib/enterpriseAudit";
 import { enterpriseStorageUpload, PORTAL_DOCUMENT_FILE_GUARD } from "../lib/enterpriseStorageUpload";
 import { STORAGE_BUCKETS } from "../lib/storageBuckets";
 import { buildSafeStoragePath } from "../lib/storageUpload";
@@ -5,10 +10,13 @@ import { getSupabase } from "../lib/supabase";
 import { formatPostgrestError } from "../lib/supabaseErrors";
 import { unwrapList } from "../lib/supabaseResult";
 
+export type { AuditActionCategory };
+
 export type AuditLogRecord = {
   id: string;
   audit_uuid?: string;
   action: string;
+  action_category?: AuditActionCategory | null;
   module: string;
   entity: string;
   entity_type: string;
@@ -33,6 +41,7 @@ export type AuditLogRecord = {
 export type AuditActionInput = {
   module: string;
   action: string;
+  action_category?: AuditActionCategory | null;
   entity_type?: string;
   entity_id?: string | null;
   entity_name?: string | null;
@@ -82,6 +91,13 @@ function mapRow(r: Record<string, unknown>): AuditLogRecord {
     id: String(r.id),
     audit_uuid: typeof r.audit_uuid === "string" ? r.audit_uuid : undefined,
     action: String(r.action ?? ""),
+    action_category: (() => {
+      const raw = r.action_category;
+      if (typeof raw === "string" && raw.trim()) {
+        return raw as AuditActionCategory;
+      }
+      return inferAuditActionCategory(String(r.action ?? ""));
+    })(),
     module: String(r.module ?? "general"),
     entity: String(r.entity ?? ""),
     entity_type: String(r.entity_type ?? r.entity ?? ""),
@@ -109,12 +125,16 @@ export type AuditLogTableRow = {
   id: string;
   module: string;
   action: string;
+  action_category: AuditActionCategory;
   entity_type: string;
   entity_name: string;
   performed_by_name: string;
   role_key: string;
   entity: string;
   entity_id: string;
+  /** ISO-8601 — tumia kwa kuchuja na kupanga */
+  created_at_iso: string;
+  /** Maonyesho ya watumiaji (sw-TZ) */
   created_at: string;
   status: "success" | "failed";
   notes_short: string;
@@ -128,17 +148,21 @@ export type AuditLogTableRow = {
 };
 
 export function toTableRows(records: AuditLogRecord[]): AuditLogTableRow[] {
-  return records.map((r) => ({
+  return records.map((r) => {
+    const iso = r.created_at?.trim() || "";
+    return {
     id: r.id,
     module: r.module || "general",
     action: r.action,
+    action_category: r.action_category ?? inferAuditActionCategory(r.action),
     entity_type: r.entity_type || "—",
     entity_name: r.entity_name || "—",
     performed_by_name: r.performed_by_name || "Haijulikani",
     role_key: r.role_key || "—",
     entity: r.entity || "—",
     entity_id: r.entity_id || "—",
-    created_at: r.created_at ? new Date(r.created_at).toLocaleString("sw-TZ") : "—",
+    created_at_iso: iso,
+    created_at: formatAuditTimestamp(iso || null),
     status: r.status,
     notes_short:
       r.notes && r.notes.length > 80 ? `${r.notes.slice(0, 80)}…` : r.notes || "—",
@@ -148,7 +172,74 @@ export function toTableRows(records: AuditLogRecord[]): AuditLogTableRow[] {
     new_values: r.new_values,
     attachment_url: r.attachment_url,
     file_label: r.file_label,
-  }));
+  };
+  });
+}
+
+export type AuditDashboardSummary = {
+  since: string;
+  days: number;
+  total: number;
+  failed: number;
+  by_category: { category: string; count: number }[];
+  by_module: { module: string; count: number }[];
+  by_day: { day: string; total: number }[];
+  top_users: { name: string; count: number }[];
+};
+
+export async function fetchAuditDashboardSummary(days = 30): Promise<AuditDashboardSummary | null> {
+  const client = getSupabase();
+  if (!client) return null;
+  try {
+    const { data, error } = await client.rpc("portal_audit_dashboard_summary", { p_days: days });
+    if (error) {
+      if (/does not exist|42883/i.test(error.message ?? "")) return null;
+      throw new Error(formatPostgrestError(error, "portal_audit_dashboard_summary"));
+    }
+    const raw = (data ?? {}) as Record<string, unknown>;
+    if (typeof raw.error === "string") return null;
+    return {
+      since: String(raw.since ?? ""),
+      days: Number(raw.days ?? days),
+      total: Number(raw.total ?? 0),
+      failed: Number(raw.failed ?? 0),
+      by_category: Array.isArray(raw.by_category)
+        ? (raw.by_category as { category?: string; count?: number }[]).map((x) => ({
+            category: String(x.category ?? "other"),
+            count: Number(x.count ?? 0),
+          }))
+        : [],
+      by_module: Array.isArray(raw.by_module)
+        ? (raw.by_module as { module?: string; count?: number }[]).map((x) => ({
+            module: String(x.module ?? "general"),
+            count: Number(x.count ?? 0),
+          }))
+        : [],
+      by_day: Array.isArray(raw.by_day)
+        ? (raw.by_day as { day?: string; total?: number }[]).map((x) => ({
+            day: String(x.day ?? ""),
+            total: Number(x.total ?? 0),
+          }))
+        : [],
+      top_users: Array.isArray(raw.top_users)
+        ? (raw.top_users as { name?: string; count?: number }[]).map((x) => ({
+            name: String(x.name ?? "Haijulikani"),
+            count: Number(x.count ?? 0),
+          }))
+        : [],
+    };
+  } catch (e) {
+    console.warn("fetchAuditDashboardSummary:", e);
+    return null;
+  }
+}
+
+/** Typed helper for standard audit categories (create/update/delete/approve/upload/export/download). */
+export async function logAuditEvent(input: AuditActionInput & { action_category: AuditActionCategory }): Promise<void> {
+  await logAuditAction({
+    ...input,
+    action_category: input.action_category ?? inferAuditActionCategory(input.action),
+  });
 }
 
 export async function fetchAuditLogs(limit = 500): Promise<AuditLogRecord[]> {
@@ -172,6 +263,7 @@ export async function logAuditAction(input: AuditActionInput): Promise<void> {
       if (!message) return rawPayload;
       const lower = message.toLowerCase();
       const knownColumns = [
+        "action_category",
         "entity_type",
         "entity_name",
         "performed_by_user_id",
@@ -191,9 +283,11 @@ export async function logAuditAction(input: AuditActionInput): Promise<void> {
       for (const col of missing) delete next[col];
       return next;
     };
+    const category = input.action_category ?? inferAuditActionCategory(input.action);
     const payload: Record<string, unknown> = {
       module: input.module.trim() || "general",
       action: input.action.trim(),
+      action_category: category,
       entity: input.entity_type?.trim() || "general",
       entity_type: input.entity_type?.trim() || "general",
       entity_id: input.entity_id?.trim() || null,
@@ -244,8 +338,9 @@ export async function insertChurchAuditEntry(payload: {
     if (payload.attachment_url) meta.attachment_url = payload.attachment_url;
     if (payload.file_label) meta.file_label = payload.file_label;
     await logAuditAction({
-      module: "audit",
+      module: "usalama",
       action: payload.action.trim(),
+      action_category: inferAuditActionCategory(payload.action),
       entity_type: payload.entity?.trim() || "church_audit",
       entity_id: payload.entity_id?.trim() || null,
       message: "Ingizo la log kwa mkono",

@@ -92,6 +92,7 @@ export function PublicLandingContentHub({
   liveNow,
   sermons,
   loading,
+  hideMedia = false,
 }: {
   news: NewsRow[];
   events: EventRow[];
@@ -99,6 +100,8 @@ export function PublicLandingContentHub({
   liveNow: LiveRow[];
   sermons: SermonRow[];
   loading?: boolean;
+  /** Tumia PublicLandingMediaCenter badala ya paneli ya media hapa. */
+  hideMedia?: boolean;
 }) {
   const tNews = CONTENT_PANEL_THEMES.news;
   const tEvents = CONTENT_PANEL_THEMES.events;
@@ -107,7 +110,8 @@ export function PublicLandingContentHub({
 
   return (
     <section
-      className="relative z-10 mx-auto grid w-full max-w-7xl gap-4 px-4 pb-8 lg:grid-cols-2"
+      id="public-content"
+      className="relative z-10 mx-auto grid w-full max-w-[min(100%,96rem)] scroll-mt-24 gap-4 px-3 pb-8 sm:px-6 lg:grid-cols-2 lg:px-8"
       aria-label="Taarifa za umma"
     >
       <ContentPanel theme={tNews} title="Habari Mpya" icon={Newspaper} count={news.length} loading={loading} emptyText="Hakuna taarifa bado">
@@ -133,36 +137,38 @@ export function PublicLandingContentHub({
         ))}
       </ContentPanel>
 
-      <ContentPanel
-        theme={tMedia}
-        title="Media Highlights & Livestream"
-        icon={Video}
-        count={liveNow.length + sermons.length}
-        loading={loading}
-        emptyText="Hakuna taarifa bado"
-      >
-        {liveNow.length === 0 ? (
-          <p className="text-sm text-slate-400">Hakuna livestream ya moja kwa moja kwa sasa</p>
-        ) : (
-          liveNow.map((lv) =>
-            lv.stream_url ? (
-              <a key={lv.id} href={lv.stream_url} target="_blank" rel="noreferrer" className="block">
-                <ItemRow theme={tMedia} title={`LIVE • ${lv.title}`} meta="Bofya kutazama" highlight />
-              </a>
-            ) : (
-              <ItemRow key={lv.id} theme={tMedia} title={`LIVE • ${lv.title}`} meta="Inaendelea" highlight />
-            ),
-          )
-        )}
-        {sermons.slice(0, 3).map((s) => (
-          <ItemRow
-            key={s.id}
-            theme={tMedia}
-            title={s.title}
-            meta={`${s.preacher || "Mhudumu"} • ${formatDateSafe(s.date)}`}
-          />
-        ))}
-      </ContentPanel>
+      {!hideMedia ? (
+        <ContentPanel
+          theme={tMedia}
+          title="Media Highlights & Livestream"
+          icon={Video}
+          count={liveNow.length + sermons.length}
+          loading={loading}
+          emptyText="Hakuna taarifa bado"
+        >
+          {liveNow.length === 0 ? (
+            <p className="text-sm text-slate-400">Hakuna livestream ya moja kwa moja kwa sasa</p>
+          ) : (
+            liveNow.map((lv) =>
+              lv.stream_url ? (
+                <a key={lv.id} href={lv.stream_url} target="_blank" rel="noreferrer" className="block">
+                  <ItemRow theme={tMedia} title={`LIVE • ${lv.title}`} meta="Bofya kutazama" highlight />
+                </a>
+              ) : (
+                <ItemRow key={lv.id} theme={tMedia} title={`LIVE • ${lv.title}`} meta="Inaendelea" highlight />
+              ),
+            )
+          )}
+          {sermons.slice(0, 3).map((s) => (
+            <ItemRow
+              key={s.id}
+              theme={tMedia}
+              title={s.title}
+              meta={`${s.preacher || "Mhudumu"} • ${formatDateSafe(s.date)}`}
+            />
+          ))}
+        </ContentPanel>
+      ) : null}
     </section>
   );
 }

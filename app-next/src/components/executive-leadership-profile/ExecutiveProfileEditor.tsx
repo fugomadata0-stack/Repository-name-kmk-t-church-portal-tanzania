@@ -11,6 +11,7 @@ import {
   selectedKeysFromEducationRows,
 } from "../../lib/executiveLeadershipProfile/educationCatalogMap";
 import type { LeadershipCvBundle } from "../../types";
+import { TanzaniaLocationFields } from "../common/TanzaniaLocationFields";
 import { EducationCatalogSelect } from "./EducationCatalogSelect";
 import { LeadershipDocumentUploadCenter, type LeadershipUploadKind } from "../executive/LeadershipDocumentUploadCenter";
 import { LeadershipApprovalTimeline } from "../leadership-credentials/LeadershipApprovalTimeline";
@@ -310,24 +311,20 @@ export function ExecutiveProfileEditor({
                 className="mt-1 w-full rounded-lg border px-2 py-1.5 text-sm"
               />
             </label>
-            <label className="block">
-              <span className="text-[11px] font-semibold text-slate-600">Mkoa</span>
-              <input
-                value={draft.mkoa}
+            <div className="sm:col-span-2">
+              <TanzaniaLocationFields
                 disabled={!canEdit}
-                onChange={(e) => patch("mkoa", e.target.value)}
-                className="mt-1 w-full rounded-lg border px-2 py-1.5 text-sm"
+                showMtaa={false}
+                showKata={false}
+                value={{ mkoa: draft.mkoa, wilaya: draft.wilaya, kata: "" }}
+                onChange={(v) => {
+                  patch("mkoa", v.mkoa);
+                  patch("wilaya", v.wilaya);
+                }}
+                labelClassName="block text-[11px] font-semibold text-slate-600"
+                inputClassName="mt-1 w-full rounded-lg border px-2 py-1.5 text-sm"
               />
-            </label>
-            <label className="block">
-              <span className="text-[11px] font-semibold text-slate-600">Wilaya</span>
-              <input
-                value={draft.wilaya}
-                disabled={!canEdit}
-                onChange={(e) => patch("wilaya", e.target.value)}
-                className="mt-1 w-full rounded-lg border px-2 py-1.5 text-sm"
-              />
-            </label>
+            </div>
           </div>
         </section>
 

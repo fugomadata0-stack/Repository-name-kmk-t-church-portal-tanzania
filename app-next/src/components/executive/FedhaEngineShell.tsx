@@ -1,5 +1,4 @@
 import { useMemo, type ReactNode } from "react";
-import { motion } from "framer-motion";
 import {
   ArrowDownCircle,
   ArrowRight,
@@ -140,11 +139,7 @@ export function FedhaEngineShell({
         }
       />
 
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="grid w-full min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4"
-      >
+      <div className="grid w-full min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4">
         {cards.map((c, i) => (
           <PremiumKPICard
             key={c.title}
@@ -153,10 +148,11 @@ export function FedhaEngineShell({
             hint={c.hint}
             icon={c.icon}
             index={i}
+            static
             live={Boolean(kpiLive)}
           />
         ))}
-      </motion.div>
+      </div>
 
       {children}
     </div>

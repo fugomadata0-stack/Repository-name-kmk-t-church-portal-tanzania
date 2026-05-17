@@ -7,7 +7,10 @@ import { usePortal } from "../../context/PortalContext";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { validateSelectedFile } from "../../lib/fileUploadGuard";
+import type { AuditActionCategory } from "../../lib/enterpriseAudit";
+import { AUDIT_CATEGORY_LABELS } from "../../lib/enterpriseAudit";
 import { fetchAuditLogs, insertChurchAuditEntry, toTableRows, uploadAuditAttachment, type AuditLogTableRow } from "../../services/auditLogService";
+import { EnterpriseAuditActivityDashboard } from "./EnterpriseAuditActivityDashboard";
 import { fetchAccessEvents } from "../../services/securityService";
 import { matrixCanSubmitManualAuditLog, matrixCanViewAuditLogs } from "../../utils/matrixPermissions";
 import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
@@ -18,7 +21,7 @@ const AUDIT_ACTION_PRESETS = ["tawi_registry_verification"] as const;
 const AUDIT_ENTITY_TYPE_PRESETS = ["church_tawi"] as const;
 
 export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string }) {
-  const { pushToast, reportError, matrixByModule } = usePortal();
+  const { pushToast, reportError, matrixByModule, logAudit } = usePortal();
   const [rows, setRows] = useState<AuditLogTableRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
@@ -35,6 +38,8 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
   const [entityTypeFilter, setEntityTypeFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<AuditActionCategory | "all">("all");
+  const [dashboardDays, setDashboardDays] = useState(30);
   const canView = matrixCanViewAuditLogs(matrixByModule);
   const canAdd = matrixCanSubmitManualAuditLog(matrixByModule);
 
@@ -73,16 +78,20 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
       if (roleFilter !== "all" && r.role_key !== roleFilter) return false;
       if (statusFilter !== "all" && r.status !== statusFilter) return false;
       if (entityTypeFilter !== "all" && r.entity_type !== entityTypeFilter) return false;
+      if (categoryFilter !== "all" && r.action_category !== categoryFilter) return false;
       if (dateFrom || dateTo) {
-        const d = new Date(r.created_at);
+        const iso = r.created_at_iso;
+        if (!iso) return false;
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return false;
         if (dateFrom && d < new Date(`${dateFrom}T00:00:00`)) return false;
-        if (dateTo && d > new Date(`${dateTo}T23:59:59`)) return false;
+        if (dateTo && d > new Date(`${dateTo}T23:59:59.999`)) return false;
       }
       if (!q) return true;
       return [r.module, r.action, r.performed_by_name, r.role_key, r.entity_type, r.entity_name, r.entity_id, r.message, r.notes_full]
         .some((v) => String(v).toLowerCase().includes(q));
     });
-  }, [rows, search, moduleFilter, actionFilter, userFilter, roleFilter, statusFilter, entityTypeFilter, dateFrom, dateTo]);
+  }, [rows, search, moduleFilter, actionFilter, userFilter, roleFilter, statusFilter, entityTypeFilter, categoryFilter, dateFrom, dateTo]);
 
   const moduleOptions = useMemo(() => {
     const s = new Set(rows.map((r) => r.module));
@@ -112,6 +121,7 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
     setEntityTypeFilter("all");
     setDateFrom("");
     setDateTo("");
+    setCategoryFilter("all");
     pushToast("Vichujio vimesafishwa.", "success");
   }, [pushToast]);
 
@@ -136,7 +146,11 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
     const wb = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(wb, ws, "Audit Trail");
     xlsx.writeFile(wb, `KMKT_Audit_Trail_${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }, [filteredRows]);
+    void logAudit("audit_trail_export_excel", "audit_logs", String(filteredRows.length), undefined, {
+      module: "usalama",
+      category: "export",
+    });
+  }, [filteredRows, logAudit]);
 
   const exportPdf = useCallback(async () => {
     await exportTableToPdf(
@@ -150,7 +164,11 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
           "Audit Trail hutumika kuthibitisha uwajibikaji wa watumiaji, kulinda uadilifu wa mfumo na kusaidia uchunguzi wa kiutawala au kiusalama.",
       }
     );
-  }, [filteredRows]);
+    void logAudit("audit_trail_export_pdf", "audit_logs", String(filteredRows.length), undefined, {
+      module: "usalama",
+      category: "export",
+    });
+  }, [filteredRows, logAudit]);
 
   const printView = useCallback(() => {
     openPrintableTable(
@@ -161,7 +179,11 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
         subtitle: "Ufuatiliaji rasmi wa usalama, mabadiliko na matukio muhimu ndani ya KMT Portal.",
       }
     );
-  }, [filteredRows]);
+    void logAudit("audit_trail_print", "audit_logs", String(filteredRows.length), undefined, {
+      module: "usalama",
+      category: "export",
+    });
+  }, [filteredRows, logAudit]);
 
   async function onSubmitManual(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -228,6 +250,27 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
         </p>
       </header>
 
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-slate-700">Dashibodi ya shughuli</p>
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          Siku
+          <select
+            value={dashboardDays}
+            onChange={(e) => setDashboardDays(Number(e.target.value))}
+            className="rounded-lg border border-slate-200 px-2 py-1"
+          >
+            <option value={7}>7</option>
+            <option value={30}>30</option>
+            <option value={90}>90</option>
+          </select>
+        </label>
+      </div>
+      <EnterpriseAuditActivityDashboard
+        days={dashboardDays}
+        selectedCategory={categoryFilter}
+        onCategorySelect={setCategoryFilter}
+      />
+
       <SupabaseListFeedback loading={loading} loadError={loadError} isEmpty={rows.length === 0} />
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Chujio haraka</p>
@@ -291,6 +334,12 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
           { key: "performed_by_name", label: "User", sortable: true },
           { key: "role_key", label: "Role", sortable: true },
           { key: "module", label: "Module", sortable: true },
+          {
+            key: "action_category",
+            label: "Aina",
+            sortable: true,
+            render: (r) => AUDIT_CATEGORY_LABELS[r.action_category]?.sw ?? r.action_category,
+          },
           { key: "action", label: "Action", sortable: true },
           { key: "entity_type", label: "Entity Type", sortable: true },
           { key: "entity_name", label: "Entity", sortable: true },
@@ -302,6 +351,7 @@ export function ChurchAuditLogPanel({ contextLabel }: { contextLabel?: string })
         canEdit={false}
         canDelete={false}
         exportBasename="Church_Audit_Log"
+        auditModuleKey="usalama"
         isLoading={loading}
       />
       {!canAdd ? <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">Huna ruhusa ya kufanya kitendo hiki.</p> : null}

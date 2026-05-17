@@ -21,6 +21,8 @@
     "validate": "run-s build:tsc lint",
     "ci:env-check": "node scripts/ci-env-check.mjs",
     "deploy:vercel:prod": "node scripts/vercel-prod.cjs",
+    "verify:production": "node scripts/verify-production-site.mjs",
+    "verify:production": "node scripts/verify-production-site.mjs",
     "icons:pwa": "node scripts/generate-pwa-pngs.mjs",
     "db:push:safe": "npx supabase db push --include-all --yes --workdir ..",
     "db:push:branch-engine": "npx supabase db push --yes --workdir ..",

@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { EXECUTIVE_TOP_MENU, type ExecutiveMenuItem } from "../../data/executiveMenuConfig";
 import { coerceSubmoduleForModule } from "../../lib/dashboardSubmodules";
@@ -22,7 +21,7 @@ interface Props {
   onNavigate: (moduleKey: string, submodule: string) => void;
 }
 
-export function ExecutiveMenuBar({ activeModule, activeSubmodule, canViewModule, onNavigate }: Props) {
+function ExecutiveMenuBarInner({ activeModule, activeSubmodule, canViewModule, onNavigate }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const barRef = useRef<HTMLDivElement>(null);
 
@@ -41,11 +40,14 @@ export function ExecutiveMenuBar({ activeModule, activeSubmodule, canViewModule,
     [activeModule, activeSubmodule],
   );
 
-  const navigateItem = (item: ExecutiveMenuItem, submodule?: string) => {
-    const sm = submodule ?? item.submodule ?? "";
-    onNavigate(item.moduleKey, sm);
-    setOpenId(null);
-  };
+  const navigateItem = useCallback(
+    (item: ExecutiveMenuItem, submodule?: string) => {
+      const sm = submodule ?? item.submodule ?? "";
+      onNavigate(item.moduleKey, sm);
+      setOpenId(null);
+    },
+    [onNavigate],
+  );
 
   useEffect(() => {
     const onDoc = (e: MouseEvent) => {
@@ -58,15 +60,8 @@ export function ExecutiveMenuBar({ activeModule, activeSubmodule, canViewModule,
   if (visibleItems.length === 0) return null;
 
   return (
-    <nav
-      ref={barRef}
-      aria-label="Menyu kuu ya kiwango cha juu"
-      className="shrink-0 border-b border-[#D4AF37]/30 bg-gradient-to-r from-[#061633] via-[#0f2744] to-[#061633] shadow-md"
-    >
-      <motion.div
-        className="flex items-center gap-1.5 overflow-x-auto overscroll-x-contain px-2 py-1.5 [-webkit-overflow-scrolling:touch] sm:gap-2 sm:px-3"
-        layout
-      >
+    <nav ref={barRef} aria-label="Menyu kuu ya kiwango cha juu" className="portal-chrome-menu">
+      <div className="portal-chrome-menu__track">
         {visibleItems.map((item, index) => {
           const active = isActive(item);
           const hasChildren = Boolean(item.children?.length);
@@ -74,54 +69,52 @@ export function ExecutiveMenuBar({ activeModule, activeSubmodule, canViewModule,
           const frame = MENU_FRAME_TONES[index % MENU_FRAME_TONES.length];
 
           return (
-            <motion.div key={item.id} className="relative shrink-0" layout>
+            <div key={item.id} className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => {
                   if (hasChildren) setOpenId(open ? null : item.id);
                   else navigateItem(item);
                 }}
-                className={`flex items-center gap-1 whitespace-nowrap rounded-lg border px-2.5 py-2 text-[11px] font-semibold transition-all duration-200 ease-out sm:px-3 sm:text-xs ${
-                  frame
-                } ${
-                  active
-                    ? "ring-2 ring-amber-300/90 ring-offset-1 ring-offset-[#0f2744] brightness-110"
-                    : "active:scale-[0.97]"
+                className={`portal-chrome-menu__btn flex items-center gap-1 whitespace-nowrap rounded-lg border px-2.5 py-2 text-[11px] font-semibold sm:px-3 sm:text-xs ${frame} ${
+                  active ? "ring-2 ring-amber-300/90 ring-offset-1 ring-offset-[#0f2744] brightness-110" : ""
                 }`}
                 aria-expanded={hasChildren ? open : undefined}
                 aria-haspopup={hasChildren ? "menu" : undefined}
               >
                 <span aria-hidden>{item.icon}</span>
                 {item.label}
-                {hasChildren ? <ChevronDown className={`h-3 w-3 transition ${open ? "rotate-180" : ""}`} /> : null}
-              </button>
-              <AnimatePresence>
-                {hasChildren && open ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    className="absolute left-0 top-full z-50 mt-1 min-w-[12rem] rounded-xl border border-white/15 bg-[#0f2744]/98 py-1 shadow-xl backdrop-blur-md"
-                    role="menu"
-                  >
-                    {item.children!.map((child) => (
-                      <button
-                        key={child.submodule}
-                        type="button"
-                        role="menuitem"
-                        className="block w-full px-3 py-2 text-left text-xs text-blue-50 transition hover:bg-amber-400/15 hover:text-amber-100"
-                        onClick={() => navigateItem(item, child.submodule)}
-                      >
-                        {child.label}
-                      </button>
-                    ))}
-                  </motion.div>
+                {hasChildren ? (
+                  <ChevronDown className={`h-3 w-3 shrink-0 transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
                 ) : null}
-              </AnimatePresence>
-            </motion.div>
+              </button>
+              {hasChildren ? (
+                <div
+                  role="menu"
+                  className={`portal-chrome-menu__dropdown absolute left-0 top-full z-50 mt-1 min-w-[12rem] rounded-xl border border-white/15 bg-[#0f2744] py-1 shadow-lg ${
+                    open ? "visible opacity-100" : "pointer-events-none invisible opacity-0"
+                  }`}
+                  aria-hidden={!open}
+                >
+                  {item.children!.map((child) => (
+                    <button
+                      key={child.submodule}
+                      type="button"
+                      role="menuitem"
+                      className="block w-full px-3 py-2 text-left text-xs text-blue-50 transition-colors hover:bg-amber-400/15 hover:text-amber-100"
+                      onClick={() => navigateItem(item, child.submodule)}
+                    >
+                      {child.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           );
         })}
-      </motion.div>
+      </div>
     </nav>
   );
 }
+
+export const ExecutiveMenuBar = memo(ExecutiveMenuBarInner);

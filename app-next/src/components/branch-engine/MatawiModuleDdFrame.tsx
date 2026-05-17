@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Cloud, ExternalLink, Loader2 } from "lucide-react";
+import { Cloud, ExternalLink } from "lucide-react";
+import { PORTAL_LOAD_TIMEOUTS } from "../../lib/portalLoadTimeouts";
 import { usePortal } from "../../context/PortalContext";
 import { mergeDashboardIntoMatawiDdKpis, snapshotToMatawiDdKpis } from "../../lib/matawiBranchEngineKpiMapper";
 import type { DashboardKpiSnapshot } from "../../services/dashboardKpiAggregatesService";
-import { fetchPortalPublicDashboardCounts } from "../../services/portalPublicDashboardService";
+import { fetchPortalPublicDashboardCountsCached } from "../../lib/portalPublicDashboardCache";
 import { fetchMahudhurioForBranchScope } from "../../lib/branchEngineKpiContext";
+import { dashboardKpiFingerprint } from "../../lib/portalHardening/kpiSnapshotFingerprint";
 import { buildMatawiDdStructure } from "../../lib/matawiBranchEngineStructure";
 import { enrichWorkspaceFromSupabase } from "../../lib/matawiBranchEnginePrefill";
 import { syncBranchEngineModuleToSupabase } from "../../services/matawiBranchEngineSyncService";
@@ -55,6 +57,8 @@ interface Props {
   initialModuleId?: string;
   /** KPI za dashibodi kuu — chanzo kimoja cha takwimu kwa iframe. */
   kpiLive?: DashboardKpiSnapshot | null;
+  /** Ikiwa false, iframe na workspace hazipaki hadi dashboard iwe tayari. */
+  mountEnabled?: boolean;
 }
 
 type IframeMessage = {
@@ -86,11 +90,12 @@ export function MatawiModuleDdFrame({
   initialEntityId = "",
   initialModuleId = "",
   kpiLive = null,
+  mountEnabled = true,
 }: Props) {
   const { authUser, authInitialized, portalProfile, pushToast, reportError } = usePortal();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [, setSyncing] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingSaveRef = useRef<{
@@ -102,6 +107,7 @@ export function MatawiModuleDdFrame({
   } | null>(null);
   const pendingReadyRef = useRef<IframeMessage | null>(null);
   const kpiRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastPushedKpiFingerprintRef = useRef("");
   const workspaceReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [activeScope, setActiveScope] = useState<MasterBranchScope>(initialScope);
   const [activeEntityId, setActiveEntityId] = useState(initialEntityId);
@@ -148,6 +154,12 @@ export function MatawiModuleDdFrame({
     setIframeLoaded(false);
   }, [src]);
 
+  useEffect(() => {
+    if (!mountEnabled || iframeLoaded) return;
+    const timer = window.setTimeout(() => setIframeLoaded(true), PORTAL_LOAD_TIMEOUTS.iframeEngineMs);
+    return () => window.clearTimeout(timer);
+  }, [mountEnabled, iframeLoaded, src]);
+
   const postToIframe = useCallback((msg: Record<string, unknown>) => {
     iframeRef.current?.contentWindow?.postMessage(msg, window.location.origin);
   }, []);
@@ -170,7 +182,7 @@ export function MatawiModuleDdFrame({
     async (scope: MasterBranchScope, entityId: string) => {
       try {
         const [{ counts: pub }, snapshot, mahudhurio] = await Promise.all([
-          scope === "kitaifa" ? fetchPortalPublicDashboardCounts() : Promise.resolve({ counts: null }),
+          scope === "kitaifa" ? fetchPortalPublicDashboardCountsCached() : Promise.resolve({ counts: null }),
           fetchMasterBranchEngineSnapshot({
             scope,
             entityId: entityId || null,
@@ -194,6 +206,9 @@ export function MatawiModuleDdFrame({
           loadedAt: snapshot.loadedAt,
           live: Boolean(snapshot.ngazi),
         });
+        if (kpiLive) {
+          lastPushedKpiFingerprintRef.current = dashboardKpiFingerprint(kpiLive);
+        }
       } catch (err) {
         reportError(err, "matawiBranchEngine.kpis");
       }
@@ -206,7 +221,7 @@ export function MatawiModuleDdFrame({
     kpiRefreshTimerRef.current = setTimeout(() => {
       kpiRefreshTimerRef.current = null;
       void pushKpisToIframe(scopeRef.current, entityRef.current);
-    }, 600);
+    }, 2800);
   }, [pushKpisToIframe]);
 
   const lastWorkspaceKeyRef = useRef("");
@@ -413,12 +428,13 @@ export function MatawiModuleDdFrame({
   );
 
   useEffect(() => {
-    if (!iframeLoaded || !authInitialized || !authUser?.id) return;
+    if (!mountEnabled || !iframeLoaded || !authInitialized || !authUser?.id) return;
     lastWorkspaceKeyRef.current = "";
     void loadWorkspace(activeScope, activeEntityId);
     pushStructureToIframe();
     void pushKpisToIframe(activeScope, activeEntityId);
   }, [
+    mountEnabled,
     iframeLoaded,
     authInitialized,
     authUser?.id,
@@ -430,10 +446,10 @@ export function MatawiModuleDdFrame({
   ]);
 
   useEffect(() => {
-    if (!iframeLoaded) return;
+    if (!mountEnabled || !iframeLoaded) return;
     pushStructureToIframe();
     scheduleKpiRefresh();
-  }, [iframeLoaded, dayosisi, majimbo, matawi, pushStructureToIframe, scheduleKpiRefresh]);
+  }, [mountEnabled, iframeLoaded, dayosisi, majimbo, matawi, pushStructureToIframe, scheduleKpiRefresh]);
 
   useEffect(() => {
     if (!iframeLoaded || !authInitialized || !authUser || !pendingReadyRef.current) return;
@@ -452,7 +468,7 @@ export function MatawiModuleDdFrame({
   }, [authUser, flushSave]);
 
   useEffect(() => {
-    if (!isSupabaseRealtimeEnabled() || !authUser) return;
+    if (!mountEnabled || !isSupabaseRealtimeEnabled() || !authUser) return;
     const c = getSupabase();
     if (!c) return;
 
@@ -489,7 +505,7 @@ export function MatawiModuleDdFrame({
       if (workspaceReloadTimerRef.current) clearTimeout(workspaceReloadTimerRef.current);
       void c.removeChannel(channel);
     };
-  }, [authUser, scheduleKpiRefresh, scheduleWorkspaceReload]);
+  }, [mountEnabled, authUser, scheduleKpiRefresh, scheduleWorkspaceReload]);
 
   useEffect(() => {
     const onMetricsReload = () => scheduleKpiRefresh();
@@ -497,11 +513,16 @@ export function MatawiModuleDdFrame({
     return () => window.removeEventListener(KMT_PORTAL_RELOAD_METRICS_EVENT, onMetricsReload);
   }, [scheduleKpiRefresh]);
 
+  const kpiFingerprint = useMemo(
+    () => (kpiLive ? dashboardKpiFingerprint(kpiLive) : ""),
+    [kpiLive],
+  );
   /** Baada ya dashibodi kupakia KPI mpya (loadDashboardMetrics), unganisha na iframe — epuka race na reload event. */
   useEffect(() => {
-    if (!iframeLoaded) return;
+    if (!mountEnabled || !iframeLoaded) return;
+    if (kpiFingerprint && kpiFingerprint === lastPushedKpiFingerprintRef.current) return;
     scheduleKpiRefresh();
-  }, [iframeLoaded, kpiLive, scheduleKpiRefresh]);
+  }, [mountEnabled, iframeLoaded, kpiFingerprint, scheduleKpiRefresh]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -625,7 +646,21 @@ export function MatawiModuleDdFrame({
     reportError,
   ]);
 
-  const showLoadOverlay = !iframeLoaded;
+  const showLoadOverlay = mountEnabled && !iframeLoaded;
+
+  if (!mountEnabled) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="branch-engine-shell relative flex min-h-[min(72vh,640px)] w-full min-w-0 flex-1 flex-col"
+        aria-busy="true"
+        aria-label="Inapakia injini"
+      >
+        <div className="min-h-[min(72vh,640px)] animate-pulse rounded-xl bg-slate-100/90" />
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -645,29 +680,15 @@ export function MatawiModuleDdFrame({
       {authUser ? (
         <HierarchyReportsExportBar dayosisi={dayosisi} majimbo={majimbo} matawi={matawi} />
       ) : null}
-      {syncing ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="no-print mb-1 flex items-center gap-2 rounded-lg bg-emerald-50/95 px-2 py-1 text-[11px] font-medium text-emerald-900"
-          role="status"
-          aria-live="polite"
-        >
-          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
-          Inasawazisha na Supabase…
-        </motion.div>
-      ) : null}
       {showLoadOverlay ? (
-        <div className="pointer-events-none absolute inset-0 z-10 flex min-h-[28vh] items-start justify-center bg-[#f4f7fb]/70 pt-10">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center gap-2 rounded-lg bg-white/95 px-3 py-2 text-sm text-[#0B1F3A] shadow-sm"
-          >
-            <Loader2 className="h-4 w-4 animate-spin text-[#0B3C5D]" aria-hidden />
-            Inapakia Injini ya Matawi…
-          </motion.div>
-        </div>
+        <motion.div
+          className="pointer-events-none absolute inset-0 z-10 bg-[#f4f7fb]/75"
+          role="status"
+          aria-busy="true"
+          aria-label="Inaandaa injini"
+        >
+          <div className="h-full min-h-[28vh] animate-pulse rounded-xl bg-slate-200/40" />
+        </motion.div>
       ) : null}
       <iframe
         key={src}

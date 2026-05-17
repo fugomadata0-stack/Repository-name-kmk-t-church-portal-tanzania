@@ -9,7 +9,7 @@ import {
   type MatawiDdKpis,
 } from "../../lib/matawiBranchEngineKpiMapper";
 import { fetchMahudhurioForBranchScope } from "../../lib/branchEngineKpiContext";
-import { fetchPortalPublicDashboardCounts } from "../../services/portalPublicDashboardService";
+import { fetchPortalPublicDashboardCountsCached } from "../../lib/portalPublicDashboardCache";
 import {
   MASTER_BRANCH_ENGINE_REALTIME_TABLES,
   MASTER_BRANCH_ENGINE_SUBMODULE,
@@ -48,7 +48,7 @@ export function PublicBranchEngineLiveKpis() {
         fetchChurchTawi(),
       ]);
       const [{ counts: pub }, snapshot, mahudhurio] = await Promise.all([
-        fetchPortalPublicDashboardCounts(),
+        fetchPortalPublicDashboardCountsCached(),
         fetchMasterBranchEngineSnapshot({
           scope: "kitaifa",
           entityId: null,
@@ -167,6 +167,7 @@ export function PublicBranchEngineLiveKpis() {
                 hint={hint}
                 index={i}
                 static
+                live={false}
               />
             ))}
       </div>

@@ -56,6 +56,42 @@ export function PortalKpiRowSkeleton({ count = 4 }: { count?: number }) {
   );
 }
 
+/** Skeli ya kina ya portal wakati wa kuingia / RBAC — hakuna maandishi mengi ya loading. */
+export function PortalBootShell({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`flex min-h-0 flex-1 flex-col gap-4 p-3 sm:p-5 ${className}`}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="Inaandaa portal"
+    >
+      <PortalKpiRowSkeleton count={4} />
+      <div className="grid min-h-[min(52vh,520px)] flex-1 gap-3 lg:grid-cols-[1fr]">
+        <Shimmer className="h-full min-h-[280px] w-full rounded-2xl" />
+      </div>
+    </div>
+  );
+}
+
+/** Skeli fupi kwa moduli nzito (lazy). */
+export function PortalMainWorkspaceSkeleton({ fullscreen = false }: { fullscreen?: boolean }) {
+  return (
+    <div
+      className={
+        fullscreen
+          ? "flex min-h-0 flex-1 flex-col p-0"
+          : "portal-page-content mx-auto w-full max-w-[min(100%,96rem)] px-3 py-4 sm:px-5"
+      }
+      role="status"
+      aria-busy="true"
+      aria-label="Inaandaa maudhui"
+    >
+      <PortalBootShell />
+    </div>
+  );
+}
+
 export function PortalTableSkeleton({ rows = 6 }: { rows?: number }) {
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white" role="status" aria-busy="true" aria-label="Inapakia jedwali">

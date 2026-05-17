@@ -6,6 +6,7 @@ import {
   formatLeadershipCredentialSerial,
   mergeKmktInstitutionBlock,
 } from "./kmktExecutiveInstitution";
+import { resolveChurchLogoDataUrl } from "./churchPdfBranding";
 import { fetchUrlAsPdfImageDataUrl, fitPdfLinesToWidth, normalizePdfReadableText } from "./pdfInstitutional";
 import {
   CERT,
@@ -120,7 +121,7 @@ export async function buildLeaderProfilePdfDocument(
   };
   decoratePage();
 
-  const logo = opts?.logoDataUrl?.trim() ? opts.logoDataUrl : null;
+  const logo = opts?.logoDataUrl?.trim() ? opts.logoDataUrl : await resolveChurchLogoDataUrl();
   const qr = await fetchUrlAsPdfImageDataUrl(
     `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`
   );
@@ -391,6 +392,7 @@ export async function downloadLeadershipDirectoryPdf(leaders: KiongoziRecord[], 
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 12;
   const footerReserve = FOOTER_RESERVE_MM;
+  const logoDataUrl = await resolveChurchLogoDataUrl();
 
   drawLuxuryCertificateWatermark(doc, { line1: "KMK(T)", line2: "ORODHA YA VIONGOZI · LIVE SUPABASE", sealText: "HATI RASMI" });
   drawCertificateOrnamentalFrame(doc, 4);
@@ -408,6 +410,18 @@ export async function downloadLeadershipDirectoryPdf(leaders: KiongoziRecord[], 
   doc.rect(0, 0, pageWidth, headerH, "F");
   doc.setFillColor(...goldRgb);
   doc.rect(0, headerH - 1.1, pageWidth, 1.1, "F");
+
+  if (logoDataUrl) {
+    try {
+      const ls = 16;
+      const fmt = logoDataUrl.includes("jpeg") ? "JPEG" : "PNG";
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(margin, 6, ls + 2, ls + 2, 2, 2, "F");
+      doc.addImage(logoDataUrl, fmt, margin + 1, 7, ls, ls);
+    } catch {
+      // Logo optional
+    }
+  }
 
   doc.setFontSize(titleFit.fontSize);
   let hy = 11;

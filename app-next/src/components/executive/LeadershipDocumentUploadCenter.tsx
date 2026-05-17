@@ -6,6 +6,7 @@ import { FileUp, ImageIcon, Loader2, PenLine, Stamp } from "lucide-react";
 
 import type { StorageUploadProgress } from "../../lib/enterpriseStorageUpload";
 import { validateLeadershipUploadFile } from "../../lib/leadershipUploadGuard";
+import { userFacingQueryError } from "../../lib/portalHardening/userFacingError";
 
 
 
@@ -97,7 +98,7 @@ export function LeadershipDocumentUploadCenter({ kinds, disabled, busy, onUpload
       });
       setProgress((p) => ({ ...p, [kind]: 100 }));
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Upakiaji umeshindwa.";
+      const msg = userFacingQueryError(e instanceof Error ? e.message : "Upakiaji umeshindwa.");
       setValidationError((v) => ({ ...v, [kind]: msg }));
     } finally {
 

@@ -1,4 +1,5 @@
 import type { UserRole } from "../types";
+import { normalizePortalRoleKey } from "../lib/enterpriseRbac";
 
 const ALL_USER_ROLES: UserRole[] = [
   "super_admin",
@@ -9,6 +10,7 @@ const ALL_USER_ROLES: UserRole[] = [
   "secretary",
   "approver",
   "reviewer",
+  "auditor",
   "dayosisi_admin",
   "jimbo_admin",
   "tawi_admin",
@@ -21,7 +23,7 @@ const roleKeySet = new Set<string>(ALL_USER_ROLES);
 
 /** Tumia role_key kutoka portal_directory_profiles; ikiwa si sahihi rudisha viewer. */
 export function parsePortalUserRole(roleKey: string | null | undefined): UserRole {
-  const k = String(roleKey ?? "").trim();
+  const k = normalizePortalRoleKey(roleKey);
   if (roleKeySet.has(k)) return k as UserRole;
   return "viewer";
 }
@@ -130,6 +132,22 @@ const limitedMap: Record<UserRole, string[]> = {
     "live_stream",
     "notifications",
     "communications",
+    "aid_management",
+  ],
+  auditor: [
+    "dashboard",
+    "ripoti",
+    "analytics",
+    "usalama",
+    "fedha",
+    "mapato_income",
+    "waumini",
+    "viongozi",
+    "muundo",
+    "nyaraka",
+    "communications",
+    "notifications",
+    "attendance",
     "aid_management",
   ],
   reviewer: [
@@ -263,7 +281,7 @@ export function canPublishAbout(role: UserRole) {
 
 /** Kuona log za kanisa (Audit Logs / Audit Trail) */
 export function canViewAuditLogs(role: UserRole) {
-  return ["super_admin", "chief_admin", "national_admin", "office_admin", "finance_admin", "approver", "reviewer"].includes(role);
+  return ["super_admin", "chief_admin", "national_admin", "office_admin", "finance_admin", "approver", "reviewer", "auditor"].includes(role);
 }
 
 /** Ingizo la log kwa mkono + kiambatisho */

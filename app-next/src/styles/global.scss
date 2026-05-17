@@ -108,9 +108,125 @@ body {
   overflow-x: hidden;
 }
 
+/* Kichwa cha portal — juu ya eneo la scroll, urefu thabiti, hakuna blur/gharama */
+.portal-chrome-header {
+  --portal-chrome-topbar-min-h: 3.25rem;
+  --portal-chrome-menu-min-h: 2.625rem;
+  flex-shrink: 0;
+  z-index: 50;
+  isolation: isolate;
+  background: #ffffff;
+  box-shadow: 0 1px 0 rgba(15, 30, 70, 0.06);
+}
+
+.portal-chrome-header__top {
+  background: #ffffff;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.35);
+  min-height: var(--portal-chrome-topbar-min-h);
+  overflow: visible;
+}
+
+/* Rudi — ionekane kila skrini, isifichwe na menyu/go ya juu */
+.portal-chrome-back-btn {
+  flex: 0 0 auto;
+  min-width: 3.25rem;
+  visibility: visible;
+  opacity: 1;
+  position: relative;
+  z-index: 2;
+}
+
+.portal-chrome-header__menu {
+  background: linear-gradient(90deg, #061633 0%, #0f2744 50%, #061633 100%);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+  min-height: var(--portal-chrome-menu-min-h);
+}
+
+.portal-chrome-topbar {
+  margin: 0;
+  border: 0;
+  background: transparent;
+  min-height: var(--portal-chrome-topbar-min-h);
+}
+
+.portal-chrome-topbar__title-block {
+  min-height: 2.75rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.portal-chrome-topbar__subtitle {
+  min-height: 1.125rem;
+}
+
+.portal-chrome-menu {
+  margin: 0;
+  border: 0;
+  background: transparent;
+}
+
+.portal-chrome-menu__track {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0.375rem 0.5rem;
+  scrollbar-width: thin;
+
+  @media (min-width: 640px) {
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+  }
+}
+
+.portal-chrome-menu__btn {
+  transition: background-color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.portal-chrome-menu__dropdown {
+  transition: opacity 0.12s ease, visibility 0.12s ease;
+}
+
+html:has([data-portal-main]),
+html:has([data-portal-main]) body {
+  height: 100%;
+  overflow: hidden;
+}
+
+[data-portal-main] {
+  min-height: 0;
+}
+
+.portal-main-scroll {
+  scroll-padding-top: 0.5rem;
+}
+
+.portal-workspace-layer {
+  position: relative;
+  min-height: 12rem;
+}
+
+.portal-rbac-boot-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  min-height: inherit;
+  background: rgba(243, 246, 250, 0.92);
+  pointer-events: auto;
+}
+
 .portal-kpi-shell,
 .enterprise-page-shell {
   min-width: 0;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 8mm;
 }
 
 @media print {
@@ -130,12 +246,15 @@ body {
     top: 0;
     width: 100%;
     max-width: 210mm;
+    min-height: 297mm;
     max-height: none !important;
     overflow: visible !important;
     background: white !important;
     padding: 0 !important;
     margin: 0 auto;
     box-shadow: none !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -145,12 +264,16 @@ body {
 .print-pdf-master-doc {
   box-sizing: border-box;
   contain: layout paint style;
+  min-height: 297mm;
+  overflow: visible;
 }
 
 /* KPI stabilization — visible sizing, no collapse */
 .portal-kpi-shell {
   min-height: 7.5rem;
   contain: layout style;
+  opacity: 1;
+  visibility: visible;
 }
 .portal-kpi-card {
   isolation: isolate;
@@ -179,4 +302,26 @@ body {
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
   }
+}
+
+/* Auth enterprise card — subtle glow, no harsh errors */
+.auth-enterprise-card {
+  position: relative;
+  border-radius: 1rem;
+}
+.auth-enterprise-card::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(212, 175, 55, 0.14), transparent 65%);
+  opacity: 0.9;
+}
+.login-premium #login-form {
+  box-shadow:
+    0 24px 80px -12px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(212, 175, 55, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }

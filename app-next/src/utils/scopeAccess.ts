@@ -74,7 +74,7 @@ function rowMatchesNationalScopedAssignment(
  */
 export function describeScopeEditBadge(role: UserRole, profile: PortalDirectoryProfile | null): string {
   if (!profile) return "—";
-  if (role === "viewer" || role === "member_user") return "Read Only";
+  if (role === "viewer" || role === "auditor" || role === "member_user") return "Read Only";
   if (roleBypassesGeoScope(role)) return "View All · Hariri zote";
 
   const d = normUuid(profile.dayosisi_scope);
@@ -170,6 +170,7 @@ export function rowWithinAssignedScope(
       return Boolean(rt && rt === T);
 
     case "viewer":
+    case "auditor":
     case "member_user":
       return false;
 
@@ -193,8 +194,8 @@ export function recordAllowsScopeMutation(
   hierarchy: ScopeHierarchy
 ): boolean {
   if (!profile) return false;
-  /** viewer + member_user: ona tu — hakuna uhariri/oondoaji/idhini kwa mipaka */
-  if (role === "viewer" || role === "member_user") return false;
+  /** viewer / auditor / member_user: ona tu — hakuna uhariri */
+  if (role === "viewer" || role === "auditor" || role === "member_user") return false;
 
   if (roleBypassesGeoScope(role)) return true;
 

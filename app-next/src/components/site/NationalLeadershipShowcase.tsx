@@ -5,33 +5,59 @@ import {
   nationalLeadershipDisplayTitle,
   type NationalLeadershipProfileRow,
 } from "../../services/nationalLeadershipService";
+import type { PublicNationalLeaderRow } from "../../services/publicLandingService";
+import { getSupabase } from "../../lib/supabaseClient";
 import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
 
 const ROLE_ORDER = ["askofu_mkuu", "katibu_mkuu", "naibu_katibu_mkuu", "mhasibu_mkuu"] as const;
 
-function sortLeaders(rows: NationalLeadershipProfileRow[]): NationalLeadershipProfileRow[] {
+function sortLeaders<T extends { role_key: string }>(rows: T[]): T[] {
   const map = new Map(rows.map((r) => [r.role_key, r]));
-  return ROLE_ORDER.map((k) => map.get(k)).filter(Boolean) as NationalLeadershipProfileRow[];
+  return ROLE_ORDER.map((k) => map.get(k)).filter(Boolean) as T[];
 }
 
-/** Viongozi wanne wa kitaifa — sehemu ya chini ya ukurasa wa kuingia. */
-export function NationalLeadershipShowcase() {
-  const [rows, setRows] = useState<NationalLeadershipProfileRow[]>([]);
-  const [loading, setLoading] = useState(true);
+type ShowcaseRow = NationalLeadershipProfileRow | PublicNationalLeaderRow;
+
+function isPublicLeaderRow(r: ShowcaseRow): r is PublicNationalLeaderRow {
+  return "display_title_sw" in r && !("status" in r);
+}
+
+/** Viongozi wanne wa kitaifa — sehemu ya chini ya ukurasa wa kuingia (hakuna simu/barua pepe). */
+export function NationalLeadershipShowcase({ leaders: leadersProp }: { leaders?: PublicNationalLeaderRow[] }) {
+  const [rows, setRows] = useState<ShowcaseRow[]>([]);
+  const [loading, setLoading] = useState(!leadersProp?.length);
 
   useEffect(() => {
+    if (leadersProp?.length) {
+      setRows(leadersProp);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
-    void fetchNationalLeadershipProfilesOptional()
-      .then((list) => {
-        if (!cancelled) setRows(sortLeaders(list.filter((r) => r.status === "active")));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    const client = getSupabase();
+    void (async () => {
+      if (client) {
+        const { data } = await client.rpc("portal_public_national_leadership");
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
+          setRows(sortLeaders(data as PublicNationalLeaderRow[]));
+          setLoading(false);
+          return;
+        }
+      }
+      const list = await fetchNationalLeadershipProfilesOptional();
+      if (!cancelled) {
+        setRows(
+          sortLeaders(
+            list.filter((r) => r.status === "active" && r.is_visible !== false),
+          ),
+        );
+        setLoading(false);
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [leadersProp]);
 
   return (
     <section
@@ -63,7 +89,14 @@ export function NationalLeadershipShowcase() {
                   Picha za uongozi zitapakiwa kutoka mipangilio ya injini ya viongozi wa kitaifa.
                 </p>
               )
-            : rows.map((row, i) => (
+            : rows.map((row, i) => {
+                const title = isPublicLeaderRow(row)
+                  ? row.display_title_sw || row.role_key
+                  : nationalLeadershipDisplayTitle(row, "sw");
+                const photo = row.profile_photo_url;
+                const name = row.full_name.trim() || "—";
+                const quote = row.leadership_quote?.trim();
+                return (
                 <motion.article
                   key={row.role_key}
                   initial={{ opacity: 0, y: 16 }}
@@ -77,9 +110,9 @@ export function NationalLeadershipShowcase() {
                     aria-hidden
                   />
                   <div className="relative mx-auto mb-3 h-28 w-28 overflow-hidden rounded-full border-2 border-amber-400/60 shadow-lg shadow-amber-900/30 ring-4 ring-white/10">
-                    {row.profile_photo_url ? (
+                    {photo ? (
                       <ResponsiveLazyImage
-                        src={row.profile_photo_url}
+                        src={photo}
                         alt=""
                         className="h-full w-full object-cover"
                         width={224}
@@ -92,25 +125,14 @@ export function NationalLeadershipShowcase() {
                       </div>
                     )}
                   </div>
-                  <p className="text-center font-kmkt-display text-base font-bold text-white">
-                    {row.full_name.trim() || "—"}
-                  </p>
-                  <p className="mt-1 text-center text-xs font-semibold text-amber-200">
-                    {nationalLeadershipDisplayTitle(row, "sw")}
-                  </p>
-                  {(row.phone?.trim() || row.whatsapp?.trim()) ? (
-                    <p className="mt-2 text-center text-[11px] font-medium tracking-wide text-emerald-200/95">
-                      <span className="text-emerald-300/80">Simu:</span>{" "}
-                      {row.phone?.trim() || row.whatsapp?.trim()}
-                    </p>
-                  ) : null}
-                  {row.leadership_quote?.trim() ? (
-                    <p className="mt-2 line-clamp-2 text-center text-[11px] leading-snug text-blue-100/85">
-                      {row.leadership_quote.trim()}
-                    </p>
+                  <p className="text-center font-kmkt-display text-base font-bold text-white">{name}</p>
+                  <p className="mt-1 text-center text-xs font-semibold text-amber-200">{title}</p>
+                  {quote ? (
+                    <p className="mt-2 line-clamp-2 text-center text-[11px] leading-snug text-blue-100/85">{quote}</p>
                   ) : null}
                 </motion.article>
-              ))}
+              );
+              })}
       </div>
     </section>
   );

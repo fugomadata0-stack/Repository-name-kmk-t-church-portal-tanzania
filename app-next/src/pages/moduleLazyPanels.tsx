@@ -48,6 +48,10 @@ export const SecurityMatrixPanel = lazy(async () => {
   const m = await import("../components/usalama/SecurityMatrixPanel");
   return { default: m.SecurityMatrixPanel };
 });
+export const EnterpriseRbacPanel = lazy(async () => {
+  const m = await import("../components/usalama/EnterpriseRbacPanel");
+  return { default: m.EnterpriseRbacPanel };
+});
 export const SecurityRolesPanel = lazy(async () => {
   const m = await import("../components/usalama/SecurityRolesPanel");
   return { default: m.SecurityRolesPanel };
@@ -71,6 +75,38 @@ export const ChurchMembersPanel = lazy(async () => {
 export const ChurchSchoolLogsPanel = lazy(async () => {
   const m = await import("../components/taasisi/ChurchSchoolLogsPanel");
   return { default: m.ChurchSchoolLogsPanel };
+});
+export const MembershipStatisticsPanel = lazy(async () => {
+  const m = await import("../components/waumini/MembershipStatisticsPanel");
+  return { default: m.MembershipStatisticsPanel };
+});
+export const MembershipIntelligenceEngine = lazy(async () => {
+  const m = await import("../components/waumini/MembershipIntelligenceEngine");
+  return { default: m.MembershipIntelligenceEngine };
+});
+export const FinanceDistributionLedgerPanel = lazy(async () => {
+  const m = await import("../components/fedha/FinanceDistributionLedgerPanel");
+  return { default: m.FinanceDistributionLedgerPanel };
+});
+export const ContributionFormsEnginePanel = lazy(async () => {
+  const m = await import("../components/michango/ContributionFormsEnginePanel");
+  return { default: m.ContributionFormsEnginePanel };
+});
+export const ChurchProjectsPanel = lazy(async () => {
+  const m = await import("../components/taasisi/ChurchProjectsPanel");
+  return { default: m.ChurchProjectsPanel };
+});
+export const Phase1ReportsHubPanel = lazy(async () => {
+  const m = await import("../components/ripoti/Phase1ReportsHubPanel");
+  return { default: m.Phase1ReportsHubPanel };
+});
+export const PrintPdfMasterEnginePanel = lazy(async () => {
+  const m = await import("../components/print-pdf-master/PrintPdfMasterEnginePanel");
+  return { default: m.PrintPdfMasterEnginePanel };
+});
+export const InternalAdvancedReportsPanel = lazy(async () => {
+  const m = await import("../components/ripoti/InternalAdvancedReportsPanel");
+  return { default: m.InternalAdvancedReportsPanel };
 });
 export const DomainEntitiesPanel = lazy(async () => {
   const m = await import("../components/domain/DomainEntitiesPanel");
@@ -124,6 +160,10 @@ export const AnalyticsDashboardPanel = lazy(async () => {
   const m = await import("../components/stage3/AnalyticsDashboardPanel");
   return { default: m.AnalyticsDashboardPanel };
 });
+export const ExecutiveKpiDashboardPanel = lazy(async () => {
+  const m = await import("../components/executive/ExecutiveKpiDashboardPanel");
+  return { default: m.ExecutiveKpiDashboardPanel };
+});
 export const AIAssistantPanel = lazy(async () => {
   const m = await import("../components/ai/AIAssistantPanel");
   return { default: m.AIAssistantPanel };
@@ -131,6 +171,10 @@ export const AIAssistantPanel = lazy(async () => {
 export const FileManagerPanel = lazy(async () => {
   const m = await import("../components/stage3/FileManagerPanel");
   return { default: m.FileManagerPanel };
+});
+export const EnterpriseUploadCenterPanel = lazy(async () => {
+  const m = await import("../components/uploads/EnterpriseUploadCenterPanel");
+  return { default: m.EnterpriseUploadCenterPanel };
 });
 export const LiveStreamPanel = lazy(async () => {
   const m = await import("../components/stage3/LiveStreamPanel");

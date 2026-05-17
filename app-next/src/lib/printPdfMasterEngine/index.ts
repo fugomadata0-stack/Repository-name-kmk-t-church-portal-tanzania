@@ -1,3 +1,39 @@
+export type {
+  BuiltMasterPdf,
+  BuildMasterLeadershipInput,
+  MasterHierarchyReportKind,
+  MasterPdfMeta,
+  MasterPdfScope,
+  MasterReportCategory,
+  MasterReportKind,
+} from "./types";
+
+export {
+  applyMasterChromeToAllPages,
+  createMasterPdfDocument,
+  drawMasterDoubleBorderFrame,
+  drawMasterFooterBlock,
+  drawMasterInstitutionalHeader,
+  drawMasterVerticalRails,
+  drawMasterWatermark,
+  ensureMasterPageSpace,
+  MASTER_PDF,
+  scopeLabelSw,
+} from "./layout";
+
+export { buildMasterQrDataUrl, fetchMasterQrImage } from "./qr";
+
+export {
+  buildFinanceMasterPdf,
+  buildHierarchyMasterPdf,
+  buildLeadershipMasterPdf,
+  buildMasterReport,
+  buildMembershipMasterPdf,
+  buildNgaziSummaryTablePdf,
+  buildProjectsMasterPdf,
+  hierarchyKindToScope,
+} from "./buildReports";
+
 export type { BuiltLeadershipPdf, AdvancedLeadershipPdfInput, AdvancedLeadershipPdfKind } from "../leadershipPdfEngine/types";
 export {
   ADVANCED_PDF_KINDS,

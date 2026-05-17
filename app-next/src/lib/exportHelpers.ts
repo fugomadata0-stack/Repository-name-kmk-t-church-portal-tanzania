@@ -1,4 +1,5 @@
 ﻿import type { CellHookData } from "jspdf-autotable";
+import { drawChurchLogoOnPdf, resolveChurchLogoDataUrl, resolveChurchLogoUrl } from "./churchPdfBranding";
 import { drawKmktPdfWatermark, fitPdfLinesToWidth, normalizePdfReadableText } from "./pdfInstitutional";
 import { fetchMasterSettingsOptional, readMasterSettingsCache } from "../services/masterSettingsService";
 import { fetchChurchIdentityOptional } from "../services/settingsTablesService";
@@ -254,21 +255,8 @@ export async function exportTableToPdf(
   doc.setFillColor(...accent);
   doc.rect(0, 35.5, pageWidth, 1.4, "F");
 
-  const logoUrl = identity?.logo_url?.trim() || master.theme.logo_url?.trim();
-  if (logoUrl) {
-    const dataUrl = await tryLoadImageDataUrl(logoUrl);
-    if (dataUrl) {
-      try {
-        const fmt =
-          dataUrl.includes("image/jpeg") || dataUrl.includes("image/jpg") ? "JPEG" : ("PNG" as const);
-        doc.setFillColor(255, 255, 255);
-        doc.roundedRect(margin, 7, 22, 22, 3, 3, "F");
-        doc.addImage(dataUrl, fmt, margin + 2, 9, 18, 18);
-      } catch {
-        // Logo is optional; keep the report exportable.
-      }
-    }
-  }
+  const logoDataUrl = await resolveChurchLogoDataUrl();
+  drawChurchLogoOnPdf(doc, logoDataUrl, { x: margin + 2, y: 9, size: 18, whiteBg: true });
 
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
@@ -517,7 +505,7 @@ export async function openPrintableTable(
   if (!w) return;
 
   const official = master.theme.print_header_text || master.identity.official_name || "KMK(T)";
-  const logoUrl = master.theme.logo_url?.trim();
+  const logoUrl = (await resolveChurchLogoUrl()) || master.theme.logo_url?.trim() || "";
   const logo = logoUrl
     ? `<div class="logo-wrap"><img src="${escapeHtml(logoUrl)}" alt="" crossorigin="anonymous" style="max-height:56px;max-width:200px;object-fit:contain"/></div>`
     : "";

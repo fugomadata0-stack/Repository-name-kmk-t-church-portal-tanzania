@@ -9,6 +9,7 @@ export type UserRole =
   | "secretary"
   | "approver"
   | "reviewer"
+  | "auditor"
   | "dayosisi_admin"
   | "jimbo_admin"
   | "tawi_admin"
@@ -293,6 +294,9 @@ export interface KiongoziRecord {
   pdf_issued_by_name?: string | null;
   pdf_issued_by_title?: string | null;
   status: Status;
+  /** Viongozi wanne wa taifa — jina/cheo/simu hazibadiliki kwenye wasifu wa CV. */
+  official_locked?: boolean;
+  official_lock_key?: string | null;
   /** Kutoka DB — kusajili kiunga sahihi */
   dayosisi_id?: string | null;
   jimbo_id?: string | null;
@@ -565,6 +569,8 @@ export interface IncomeManagementRecord {
 
 export type MembershipStatusDb = "active" | "visitor" | "transferred" | "deceased" | "suspended";
 
+export type MinistrySegmentDb = "none" | "ke" | "me" | "jvkmkt" | "jwkmkt";
+
 /** Jedwali: church_families (Supabase) */
 export interface ChurchFamilyRecord {
   id: string;
@@ -614,7 +620,10 @@ export interface ChurchMemberRecord {
   is_baptized: boolean;
   member_number: string | null;
   dayosisi_id: string | null;
+  jimbo_id?: string | null;
+  tawi_id?: string | null;
   tawi_name: string | null;
+  ministry_segment?: MinistrySegmentDb | null;
   notes: string | null;
   status: Status;
 }

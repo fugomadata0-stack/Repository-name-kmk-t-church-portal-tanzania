@@ -4,6 +4,7 @@ import {
   formatLeadershipCredentialSerial,
   mergeKmktInstitutionBlock,
 } from "./kmktExecutiveInstitution";
+import { resolveChurchLogoDataUrl } from "./churchPdfBranding";
 import { fetchUrlAsPdfImageDataUrl, normalizePdfReadableText } from "./pdfInstitutional";
 import {
   CERT,
@@ -75,7 +76,7 @@ export async function downloadNationalLeadershipExecutiveCertificate(
   };
   decoratePage();
 
-  const logo = opts?.logoDataUrl?.trim() ? opts.logoDataUrl : null;
+  const logo = opts?.logoDataUrl?.trim() ? opts.logoDataUrl : await resolveChurchLogoDataUrl();
   const qr = await fetchUrlAsPdfImageDataUrl(
     `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(verifyUrl)}`
   );

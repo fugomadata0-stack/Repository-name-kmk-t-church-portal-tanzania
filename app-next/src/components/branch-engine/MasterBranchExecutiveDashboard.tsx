@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { DayosisiRecord, JimboRecord, TawiRecord } from "../../types";
 import type { MasterBranchScope } from "../../services/masterBranchEngineService";
 import type { DashboardKpiSnapshot } from "../../services/dashboardKpiAggregatesService";
@@ -11,12 +12,13 @@ interface Props {
   initialEntityId?: string;
   initialModuleId?: string;
   kpiLive?: DashboardKpiSnapshot | null;
+  mountEnabled?: boolean;
 }
 
 /**
  * Injini ya Ngazi Kuu — UI rasmi (MATAWI MODULE DD.html) + Supabase.
  */
-export function MasterBranchExecutiveDashboard({
+function MasterBranchExecutiveDashboardInner({
   dayosisi,
   majimbo,
   matawi,
@@ -24,6 +26,7 @@ export function MasterBranchExecutiveDashboard({
   initialEntityId = "",
   initialModuleId = "",
   kpiLive = null,
+  mountEnabled = true,
 }: Props) {
   return (
     <MatawiModuleDdFrame
@@ -34,6 +37,9 @@ export function MasterBranchExecutiveDashboard({
       initialEntityId={initialEntityId}
       initialModuleId={initialModuleId}
       kpiLive={kpiLive}
+      mountEnabled={mountEnabled}
     />
   );
 }
+
+export const MasterBranchExecutiveDashboard = memo(MasterBranchExecutiveDashboardInner);

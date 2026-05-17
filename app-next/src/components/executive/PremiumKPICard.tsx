@@ -57,16 +57,7 @@ function PremiumKPICardInner({
       ) : live ? (
         <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-emerald-400/90" />
       ) : null}
-      {!reducedMotion ? (
-        <motion.div
-          className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 blur-2xl"
-          animate={{ scale: [1, 1.12, 1], opacity: [0.35, 0.5, 0.35] }}
-          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-          aria-hidden
-        />
-      ) : (
-        <span className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 blur-2xl" aria-hidden />
-      )}
+      <span className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10 blur-2xl" aria-hidden />
       <div className="relative z-[1] flex flex-col items-center gap-2">
         {icon ? <span className="text-white/90">{icon}</span> : null}
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/85">{displayTitle}</p>
@@ -82,7 +73,7 @@ function PremiumKPICardInner({
 
   const shellClass = `portal-kpi-shell w-full min-h-[7.5rem] max-w-sm justify-self-center ${className}`.trim();
 
-  if (reducedMotion) {
+  if (reducedMotion || staticCard) {
     return (
       <div className={shellClass}>
         {interactive ? (

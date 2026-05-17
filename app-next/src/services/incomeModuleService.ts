@@ -4,6 +4,8 @@ import { parseMoneyTz } from "../lib/money";
 import { getSupabase } from "../lib/supabaseClient";
 import { unwrapList, unwrapOrThrow } from "../lib/supabaseResult";
 import { computeIncomeDistributionSplit } from "../lib/incomeDistribution";
+import { enrichIncomeLineGeo } from "../lib/incomeGeoResolve";
+import { syncIncomeLineRemittances } from "../lib/incomeRemittanceSync";
 import { KMKT_DEFAULT_HIERARCHY_SHARE_PERCENT } from "../data/kmktIncomeContributionTypes";
 import type { IncomeDistributionMode, IncomeManagementRecord, IncomeSourceRecord, Status } from "../types";
 
@@ -232,6 +234,8 @@ export async function upsertIncomeLine(row: Partial<IncomeManagementRecord>): Pr
   const c = getSupabase();
   if (!c) throw new Error("Supabase haijasanidiwa.");
 
+  const rowGeo = await enrichIncomeLineGeo(row);
+
   const amount =
     typeof row.amount === "number" ? row.amount : parseMoneyTz(row.amount ?? "");
   if (!Number.isFinite(amount) || amount < 0) throw new Error("Kiasi si sahihi.");
@@ -253,7 +257,6 @@ export async function upsertIncomeLine(row: Partial<IncomeManagementRecord>): Pr
     source_name: String(row.sourceName ?? "").trim(),
     main_category: row.mainCategory?.trim() || null,
     sub_category: row.subCategory?.trim() || null,
-    church_level: row.churchLevel?.trim() || null,
     income_type: incomeType,
     frequency,
     budgeted: row.budgeted ?? "No",
@@ -275,9 +278,10 @@ export async function upsertIncomeLine(row: Partial<IncomeManagementRecord>): Pr
     status: dbStatus(row.status ?? "Active"),
     branch_center: row.branchCenter?.trim() || null,
     remarks: row.remarks?.trim() || null,
-    dayosisi_id: row.dayosisi_id?.trim() || null,
-    jimbo_id: row.jimbo_id?.trim() || null,
-    tawi_id: row.tawi_id?.trim() || null,
+    dayosisi_id: rowGeo.dayosisi_id?.trim() || null,
+    jimbo_id: rowGeo.jimbo_id?.trim() || null,
+    tawi_id: rowGeo.tawi_id?.trim() || null,
+    church_level: rowGeo.churchLevel?.trim() || row.churchLevel?.trim() || null,
     updated_at: new Date().toISOString(),
   };
 
@@ -290,7 +294,13 @@ export async function upsertIncomeLine(row: Partial<IncomeManagementRecord>): Pr
     try {
       const res = await c.from("church_income_lines").update(payload).eq("id", row.id).select("*").single();
       const data = unwrapOrThrow(res, "church_income_lines.update");
-      return mapIncomeLineRow(data as unknown as Record<string, unknown>);
+      const mapped = mapIncomeLineRow(data as unknown as Record<string, unknown>);
+      try {
+        await syncIncomeLineRemittances(mapped);
+      } catch (syncErr) {
+        console.warn("[IncomeLine:remittanceSync]", syncErr);
+      }
+      return mapped;
     } catch (err) {
       console.error("[IncomeLine:update]", err);
       throw new Error("Imeshindikana kuhifadhi mapato.");
@@ -300,7 +310,13 @@ export async function upsertIncomeLine(row: Partial<IncomeManagementRecord>): Pr
   try {
     const res = await c.from("church_income_lines").insert(payload).select("*").single();
     const data = unwrapOrThrow(res, "church_income_lines.insert");
-    return mapIncomeLineRow(data as unknown as Record<string, unknown>);
+    const mapped = mapIncomeLineRow(data as unknown as Record<string, unknown>);
+    try {
+      await syncIncomeLineRemittances(mapped);
+    } catch (syncErr) {
+      console.warn("[IncomeLine:remittanceSync]", syncErr);
+    }
+    return mapped;
   } catch (err) {
     console.error("[IncomeLine:insert]", err);
     throw new Error("Imeshindikana kuhifadhi mapato.");

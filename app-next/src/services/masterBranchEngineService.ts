@@ -3,7 +3,7 @@
  */
 import { dedupeInFlight } from "../lib/inFlightDedupe";
 import type { DayosisiRecord, JimboRecord, TawiRecord } from "../types";
-import { fetchPortalPublicDashboardCounts } from "./portalPublicDashboardService";
+import { fetchPortalPublicDashboardCountsCached } from "../lib/portalPublicDashboardCache";
 import { fetchNgaziOperationsSummary, type NgaziOperationsSummaryPayload } from "./ngaziOperationsService";
 import { fetchTawiBranchDashboardPayload, type TawiBranchDashboardPayload } from "./tawiBranchDashboardService";
 
@@ -165,7 +165,7 @@ async function fetchMasterBranchEngineSnapshotInner(opts: {
   }
 
   if (scope === "kitaifa") {
-    const { counts: pub } = await fetchPortalPublicDashboardCounts();
+    const { counts: pub } = await fetchPortalPublicDashboardCountsCached();
     if (pub) {
       counts = {
         ...counts,

@@ -97,15 +97,11 @@ export function HierarchyRegistryHub({ level, kpi, dayosisi, majimbo, matawi, ch
       />
 
       {kpiCards.length > 0 ? (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 justify-items-center gap-3 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4"
-        >
+        <div className="grid grid-cols-1 justify-items-center gap-3 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-4">
           {kpiCards.map((c, i) => (
-            <PremiumKPICard key={c.title} title={c.title} value={c.value} hint={c.hint} index={i} live />
+            <PremiumKPICard key={c.title} title={c.title} value={c.value} hint={c.hint} index={i} static live={false} />
           ))}
-        </motion.div>
+        </div>
       ) : null}
 
       <HierarchyReportsExportBar dayosisi={dayosisi} majimbo={majimbo} matawi={matawi} />

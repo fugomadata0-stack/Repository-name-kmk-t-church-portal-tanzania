@@ -10,6 +10,7 @@ import {
 
 } from "../kmktExecutiveInstitution";
 
+import { resolveChurchLogoDataUrl } from "../churchPdfBranding";
 import { fetchUrlAsPdfImageDataUrl } from "../pdfInstitutional";
 
 import { buildLeaderProfilePdfDocument } from "../leadershipPdf";
@@ -117,6 +118,7 @@ function detailRows(input: AdvancedLeadershipPdfInput, serial: string, issued: s
 /** PDF ya ukurasa mmoja — Ultra Premium KMK(T) design system (A4 print-perfect). */
 
 export async function buildAdvancedLeadershipPdf(input: AdvancedLeadershipPdfInput): Promise<BuiltLeadershipPdf> {
+  const logoDataUrl = input.logoDataUrl?.trim() || (await resolveChurchLogoDataUrl());
 
   if (input.kind === "leadership_cv") {
 
@@ -128,7 +130,7 @@ export async function buildAdvancedLeadershipPdf(input: AdvancedLeadershipPdfInp
 
       portalBaseUrl: base,
 
-      logoDataUrl: input.logoDataUrl,
+      logoDataUrl,
 
       photoDataUrl: input.photoDataUrl,
 
@@ -242,7 +244,7 @@ export async function buildAdvancedLeadershipPdf(input: AdvancedLeadershipPdfInp
     copy,
     kind: input.kind,
     margin,
-    logoDataUrl: input.logoDataUrl?.trim() || null,
+    logoDataUrl: logoDataUrl?.trim() || null,
     qrDataUrl: qr,
     orgLines: input.institutionalLines,
     name,

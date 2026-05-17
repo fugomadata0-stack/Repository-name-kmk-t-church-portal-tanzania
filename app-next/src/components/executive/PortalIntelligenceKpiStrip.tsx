@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import {
   Activity,
   Building2,
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { emptyDashboardKpiSnapshot, type DashboardKpiSnapshot } from "../../services/dashboardKpiAggregatesService";
 import { formatMoneyTzOrDash } from "../../lib/money";
+import { dashboardKpiFingerprint } from "../../lib/portalHardening/kpiSnapshotFingerprint";
 import { safeHint, safeKpiValue, safePercentLabel } from "../../lib/portalHardening/safeDisplay";
 import { PremiumKPICard } from "./PremiumKPICard";
 
@@ -18,11 +19,14 @@ type Props = {
   kpi: DashboardKpiSnapshot | null | undefined;
   moduleKey: string;
   submodule?: string;
+  /** Wakati KPI zinasasishwa — kadi statiki (hakuna fade-in). */
+  refreshing?: boolean;
 };
 
 /** KPI za kiwango cha juu — chanzo kimoja (dashibodi / Supabase). */
-export function PortalIntelligenceKpiStrip({ kpi, moduleKey }: Props) {
+function PortalIntelligenceKpiStripInner({ kpi, moduleKey, refreshing = false }: Props) {
   const snap = kpi ?? emptyDashboardKpiSnapshot();
+  const kpiKey = dashboardKpiFingerprint(kpi);
 
   const cards = useMemo(() => {
     const base = [
@@ -56,22 +60,20 @@ export function PortalIntelligenceKpiStrip({ kpi, moduleKey }: Props) {
     if (moduleKey === "muundo") {
       return base.filter((c) => /Matawi|Majimbo|Dayosisi|Sajili|Viongozi/i.test(c.title));
     }
+    if (moduleKey === "waumini") {
+      return base.filter((c) => /Matawi|Majimbo|Dayosisi|Viongozi|Mahudhurio/i.test(c.title));
+    }
     return base;
-  }, [snap, moduleKey]);
+  }, [kpiKey, moduleKey]);
+
+  const staticCards = refreshing;
 
   return (
-    <section
-      className="w-full min-w-0"
-      aria-label="Vipimo vya uongozi"
-    >
+    <section className="w-full min-w-0" aria-label="Vipimo vya uongozi" aria-busy={refreshing}>
       <div className="mb-3 flex flex-col items-center gap-1 text-center sm:flex-row sm:justify-between sm:text-left">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-600/90">
-            Takwimu za ngazi
-          </p>
-          <p className="text-sm font-semibold text-[#0B1F3A]">
-            Data hai kutoka injini ya dashibodi — Supabase
-          </p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-600/90">Takwimu za ngazi</p>
+          <p className="text-sm font-semibold text-[#0B1F3A]">Data hai kutoka injini ya dashibodi — Supabase</p>
         </div>
         <div className="hidden h-px flex-1 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent sm:block" aria-hidden />
       </div>
@@ -84,10 +86,13 @@ export function PortalIntelligenceKpiStrip({ kpi, moduleKey }: Props) {
             hint={c.hint}
             icon={c.icon}
             index={i}
-            live
+            static={staticCards}
+            live={!staticCards}
           />
         ))}
       </div>
     </section>
   );
 }
+
+export const PortalIntelligenceKpiStrip = memo(PortalIntelligenceKpiStripInner);

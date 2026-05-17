@@ -8,17 +8,32 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { AuthError, Session, User } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
 import { canonicalAboutKmktFields } from "../data/kmktCanonicalContent";
 import { captureClientException } from "../lib/clientExceptionReporting";
 import { formatCaughtError, formatPostgrestError, isAbortLikeError } from "../lib/supabaseErrors";
+import { AsyncTimeoutError, runWithTimeout, withTimeout } from "../lib/asyncTimeout";
+import { getSessionIdleLimitMs, setRememberedEmail } from "../lib/authPreferences";
+import {
+  formatAuthLoginError,
+  formatPasswordResetError,
+  formatPasswordUpdateError,
+} from "../lib/authUserMessages";
 import { bootstrapSessionOnce } from "../lib/authBootstrap";
+import { invalidatePortalBootCache } from "../lib/portalBootCache";
+import { PORTAL_LOAD_TIMEOUTS } from "../lib/portalLoadTimeouts";
+import { PORTAL_SLOW_NETWORK_SW } from "../lib/supabaseUiMessages";
 import { clearAuthSessionCache, syncAuthSessionCache } from "../lib/authSessionCache";
 import { getSupabase, isSupabaseConfigured, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
 import { redactSensitiveText, safeStorage } from "../lib/security";
 import { clearPortalUiSnapshot } from "../lib/portalUiPersistence";
 import { notifyOfficialPortalSave } from "../lib/portalDraftRecovery";
 import { checkAndIncrementRateLimit, fetchMatrixForRole, resetRateLimit } from "../services/securityService";
+import {
+  inferAuditActionCategory,
+  inferAuditModuleFromEntity,
+  type AuditActionCategory,
+} from "../lib/enterpriseAudit";
 import { logAuditAction } from "../services/auditLogService";
 import { parsePortalUserRole } from "../utils/permissions";
 import { matrixHasAnyViewableModule, type ModuleMatrixMap } from "../utils/matrixPermissions";
@@ -63,7 +78,13 @@ export interface PortalContextValue {
   toasts: Toast[];
   dismissToast: (id: string) => void;
   reportError: (err: unknown, context?: string) => void;
-  logAudit: (action: string, entity: string, entityId?: string, meta?: Record<string, unknown>) => Promise<void>;
+  logAudit: (
+    action: string,
+    entity: string,
+    entityId?: string,
+    meta?: Record<string, unknown>,
+    options?: { module?: string; category?: AuditActionCategory },
+  ) => Promise<void>;
 
   session: Session | null;
   authUser: User | null;
@@ -81,6 +102,8 @@ export interface PortalContextValue {
   noModuleRbac: boolean;
 
   signInWithEmailPassword: (email: string, password: string) => Promise<string | null>;
+  requestPasswordReset: (email: string) => Promise<string | null>;
+  updatePasswordFromRecovery: (password: string) => Promise<string | null>;
   signOut: () => Promise<void>;
   refreshPortalAccess: () => Promise<void>;
 
@@ -160,27 +183,11 @@ const Ctx = createContext<PortalContextValue | null>(null);
 const LOGIN_FAIL_STORAGE_KEY = "kmkt_auth_failures_v1";
 const LOGIN_BLOCK_UNTIL_KEY = "kmkt_auth_block_until_v1";
 const SESSION_ACTIVITY_KEY = "kmkt_last_activity_v1";
-const SESSION_IDLE_LIMIT_MS = 30 * 60 * 1000;
 const SESSION_REFRESH_BUFFER_MS = 120_000;
 
 function isInvalidRefreshTokenError(err: unknown): boolean {
   const msg = String((err as { message?: unknown } | null)?.message ?? err ?? "").toLowerCase();
   return msg.includes("invalid refresh token") || msg.includes("refresh token not found");
-}
-
-function formatAuthLoginError(error: AuthError): string {
-  const raw = (error.message || "").trim();
-  const low = raw.toLowerCase();
-  if (error.status === 400 && (low.includes("invalid login") || low.includes("invalid email or password"))) {
-    return "Barua pepe au nenosiri si sahihi.";
-  }
-  if (low.includes("email not confirmed")) {
-    return "Thibitisha barua pepe kabla ya kuendelea.";
-  }
-  if (low.includes("too many requests")) {
-    return "Jaribio limezidi. Jaribu tena baada ya muda mfupi.";
-  }
-  return raw || "Imeshindikana kuingia.";
 }
 
 function parseCategoryList(raw: unknown): SiteSettingsState["categories"] {
@@ -332,7 +339,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("unhandledrejection", onUnhandled);
   }, [reportError, pushToast]);
 
+  const portalProfileRef = useRef<PortalDirectoryProfile | null>(null);
+  const portalAccessReadyRef = useRef<{ userId: string; at: number } | null>(null);
+
   const clearPortalAccess = useCallback(() => {
+    portalProfileRef.current = null;
+    portalAccessReadyRef.current = null;
     setPortalProfile(null);
     setMatrixByModule(new Map());
     setProfileGateBlocked(false);
@@ -356,6 +368,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       setProfileGateBlocked(false);
       setPortalDirectoryLoadError(false);
       try {
+        await withTimeout(
+          (async () => {
         /** Msoro wa newest ikiwa kuna zaidi ya safu moja kwa uuid sawa (epuka PGRST116 ya maybeSingle). */
         const qProf = await client
           .from("portal_directory_profiles")
@@ -456,12 +470,30 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         }
 
         setPortalProfile(profile);
+        portalProfileRef.current = profile;
         setProfileGateBlocked(false);
         setPortalDirectoryLoadError(false);
 
-        const rows = await fetchMatrixForRole(profile.role_key);
+        const rows = await withTimeout(
+          fetchMatrixForRole(profile.role_key),
+          PORTAL_LOAD_TIMEOUTS.rbacMs,
+          "portal-matrix",
+        );
         setMatrixByModule(new Map(rows.map((r: PortalModuleMatrixRow) => [r.module_key, r])));
+        portalAccessReadyRef.current = { userId, at: Date.now() };
+          })(),
+          PORTAL_LOAD_TIMEOUTS.rbacMs,
+          "portal-rbac",
+        );
       } catch (e) {
+        if (e instanceof AsyncTimeoutError) {
+          setPortalProfile(null);
+          setMatrixByModule(new Map());
+          setProfileGateBlocked(false);
+          setPortalDirectoryLoadError(true);
+          pushToast(PORTAL_SLOW_NETWORK_SW, "error");
+          return;
+        }
         reportError(e, "RBAC");
         setPortalProfile(null);
         setMatrixByModule(new Map());
@@ -523,7 +555,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
           });
           return formatAuthLoginError(error);
         }
-        await logAuditAction({
+        void logAuditAction({
           module: "auth",
           action: "login_success",
           entity_type: "auth_session",
@@ -533,11 +565,12 @@ export function PortalProvider({ children }: { children: ReactNode }) {
           performed_by_name: data.user?.email ?? null,
           new_values: { email: normalizedEmail },
           user_agent: typeof window !== "undefined" ? window.navigator.userAgent : null,
-        });
+        }).catch(() => undefined);
         await resetRateLimit("login", normalizedEmail);
         safeStorage.remove(LOGIN_FAIL_STORAGE_KEY);
         safeStorage.remove(LOGIN_BLOCK_UNTIL_KEY);
         safeStorage.set(SESSION_ACTIVITY_KEY, String(Date.now()));
+        setRememberedEmail(normalizedEmail);
         return null;
       } catch (e) {
         const failures = Number(safeStorage.get(LOGIN_FAIL_STORAGE_KEY) || 0) + 1;
@@ -559,6 +592,63 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     [authBusy]
   );
 
+  const requestPasswordReset = useCallback(
+    async (email: string): Promise<string | null> => {
+      const client = getSupabase();
+      if (!client) return "Mfumo haupatikani kwa sasa.";
+      if (authBusy) return "Tafadhali subiri, ombi lingine linaendelea.";
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!normalizedEmail) return "Ingiza barua pepe.";
+      setAuthBusy(true);
+      try {
+        const redirectTo =
+          typeof window !== "undefined"
+            ? `${window.location.origin}${window.location.pathname}`
+            : undefined;
+        const { error } = await client.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
+        if (error) return formatPasswordResetError(error);
+        await logAuditAction({
+          module: "auth",
+          action: "password_reset_requested",
+          entity_type: "auth_session",
+          status: "success",
+          message: "Ombi la kuweka upya nenosiri.",
+          new_values: { email: normalizedEmail },
+          user_agent: typeof window !== "undefined" ? window.navigator.userAgent : null,
+        });
+        return null;
+      } catch (e) {
+        return formatPasswordResetError(e);
+      } finally {
+        setAuthBusy(false);
+      }
+    },
+    [authBusy],
+  );
+
+  const updatePasswordFromRecovery = useCallback(async (password: string): Promise<string | null> => {
+    const client = getSupabase();
+    if (!client) return "Mfumo haupatikani kwa sasa.";
+    setAuthBusy(true);
+    try {
+      const { error } = await client.auth.updateUser({ password });
+      if (error) return formatPasswordUpdateError(error);
+      await logAuditAction({
+        module: "auth",
+        action: "password_updated",
+        entity_type: "auth_session",
+        status: "success",
+        message: "Nenosiri limesasishwa kupitia urejeshaji.",
+        user_agent: typeof window !== "undefined" ? window.navigator.userAgent : null,
+      });
+      return null;
+    } catch (e) {
+      return formatPasswordUpdateError(e);
+    } finally {
+      setAuthBusy(false);
+    }
+  }, []);
+
   const signOut = useCallback(async () => {
     const client = getSupabase();
     if (authUser?.id) {
@@ -575,6 +665,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     }
     clearPortalUiSnapshot();
     clearPortalAccess();
+    invalidatePortalBootCache();
     syncAuthSessionCache(null);
     clearAuthSessionCache();
     setSession(null);
@@ -707,7 +798,13 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
 
-    const applySession = (s: Session | null) => {
+    const authHardCap = window.setTimeout(() => {
+      if (cancelled || authBootstrappedRef.current) return;
+      authBootstrappedRef.current = true;
+      setAuthInitialized(true);
+    }, PORTAL_LOAD_TIMEOUTS.authBootstrapMs);
+
+    const applySession = (s: Session | null, authEvent?: string) => {
       if (cancelled) return;
       syncAuthSessionCache(s);
       setSession(s);
@@ -716,29 +813,50 @@ export function PortalProvider({ children }: { children: ReactNode }) {
         authBootstrappedRef.current = true;
         setAuthInitialized(true);
       }
-      if (s?.user) void runPortalAccessRef.current(s.user);
-      else clearPortalAccessRef.current();
+      if (!s?.user) {
+        clearPortalAccessRef.current();
+        return;
+      }
+      const ready = portalAccessReadyRef.current;
+      if (
+        authEvent === "SIGNED_IN" &&
+        ready?.userId === s.user.id &&
+        portalProfileRef.current?.auth_user_id === s.user.id
+      ) {
+        return;
+      }
+      void runPortalAccessRef.current(s.user);
     };
 
     const { data: sub } = client.auth.onAuthStateChange((event, s) => {
       if (event === "TOKEN_REFRESHED" && s) {
-        applySession(s);
+        if (cancelled) return;
+        syncAuthSessionCache(s);
+        setSession(s);
+        setAuthUser(s.user);
         return;
       }
-      applySession(s ?? null);
+      applySession(s ?? null, event);
     });
 
     const fallbackTimer = window.setTimeout(() => {
       if (cancelled || authBootstrappedRef.current) return;
-      void bootstrapSessionOnce(client).then((bootSession) => {
-        if (cancelled || authBootstrappedRef.current) return;
-        applySession(bootSession);
-      });
+      void bootstrapSessionOnce(client)
+        .then((bootSession) => {
+          if (cancelled || authBootstrappedRef.current) return;
+          applySession(bootSession);
+        })
+        .catch(() => {
+          if (cancelled || authBootstrappedRef.current) return;
+          authBootstrappedRef.current = true;
+          setAuthInitialized(true);
+        });
     }, 180);
 
     return () => {
       cancelled = true;
       window.clearTimeout(fallbackTimer);
+      window.clearTimeout(authHardCap);
       sub.subscription.unsubscribe();
     };
   }, []);
@@ -814,7 +932,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     const onUserActivity = () => touch();
     const interval = window.setInterval(() => {
       const last = Number(safeStorage.get(SESSION_ACTIVITY_KEY) || 0);
-      if (last > 0 && Date.now() - last > SESSION_IDLE_LIMIT_MS) {
+      if (last > 0 && Date.now() - last > getSessionIdleLimitMs()) {
         pushToast("Kikao chako kimekwisha muda wake. Tafadhali ingia tena.", "info");
         void signOut();
       }
@@ -837,14 +955,23 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       return;
     }
     setLoading(true);
-    const { data, error } = await client.from("site_settings").select("*").limit(1).maybeSingle();
-    setLoading(false);
-    if (error) {
-      pushToast(formatPostgrestError(error, "site_settings"), "error");
+    try {
+      const { data, error } = await runWithTimeout(
+        async () => client.from("site_settings").select("*").limit(1).maybeSingle(),
+        PORTAL_LOAD_TIMEOUTS.siteAboutMs,
+        "site_settings",
+      );
+      setLoading(false);
+      if (error) {
+        pushToast(formatPostgrestError(error, "site_settings"), "error");
+        setSite({ ...defaultSite });
+        return;
+      }
+      setSite(rowToSite(data as Record<string, unknown> | null));
+    } catch {
       setSite({ ...defaultSite });
-      return;
+      setLoading(false);
     }
-    setSite(rowToSite(data as Record<string, unknown> | null));
   }, [pushToast]);
 
   const refreshAbout = useCallback(async () => {
@@ -854,20 +981,46 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       return;
     }
     setLoading(true);
-    const { data, error } = await client.from("about_kmkt").select("*").limit(1).maybeSingle();
-    setLoading(false);
-    if (error) {
-      pushToast(formatPostgrestError(error, "about_kmkt"), "error");
+    try {
+      const { data, error } = await runWithTimeout(
+        async () => client.from("about_kmkt").select("*").limit(1).maybeSingle(),
+        PORTAL_LOAD_TIMEOUTS.siteAboutMs,
+        "about_kmkt",
+      );
+      setLoading(false);
+      if (error) {
+        pushToast(formatPostgrestError(error, "about_kmkt"), "error");
+        setAbout(emptyAbout());
+        return;
+      }
+      setAbout(rowToAbout(data as Record<string, unknown> | null));
+    } catch {
       setAbout(emptyAbout());
-      return;
+      setLoading(false);
     }
-    setAbout(rowToAbout(data as Record<string, unknown> | null));
   }, [pushToast]);
 
   useEffect(() => {
-    void refreshSite();
-    void refreshAbout();
-  }, [refreshSite, refreshAbout]);
+    if (!authUser?.id) return;
+    let cancelled = false;
+    const run = () => {
+      if (cancelled) return;
+      void refreshSite();
+      void refreshAbout();
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(run, { timeout: 5000 });
+      return () => {
+        cancelled = true;
+        window.cancelIdleCallback(id);
+      };
+    }
+    const t = window.setTimeout(run, 900);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [refreshSite, refreshAbout, authUser?.id]);
 
   useEffect(() => {
     const client = getSupabase();
@@ -1004,10 +1157,17 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   );
 
   const logAudit = useCallback(
-    async (action: string, entity: string, entityId?: string, meta?: Record<string, unknown>) => {
+    async (
+      action: string,
+      entity: string,
+      entityId?: string,
+      meta?: Record<string, unknown>,
+      options?: { module?: string; category?: AuditActionCategory },
+    ) => {
       await logAuditAction({
-        module: entity?.split("/")[0] || "general",
+        module: options?.module ?? inferAuditModuleFromEntity(entity),
         action,
+        action_category: options?.category ?? inferAuditActionCategory(action),
         entity_type: entity,
         entity_id: entityId ?? null,
         performed_by_user_id: authUser?.id ?? null,
@@ -1049,6 +1209,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       portalDirectoryLoadError,
       noModuleRbac,
       signInWithEmailPassword,
+      requestPasswordReset,
+      updatePasswordFromRecovery,
       signOut,
       refreshPortalAccess,
       canPortalViewModule,
@@ -1093,6 +1255,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       portalDirectoryLoadError,
       noModuleRbac,
       signInWithEmailPassword,
+      requestPasswordReset,
+      updatePasswordFromRecovery,
       signOut,
       refreshPortalAccess,
       canPortalViewModule,

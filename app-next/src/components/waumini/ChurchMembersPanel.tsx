@@ -28,6 +28,8 @@ import { exportTableToPdf, openPrintableTable } from "../../lib/exportHelpers";
 import { fetchCascadeOptions } from "../../services/churchStructureService";
 import { StructureCascadeSelector } from "../common/StructureCascadeSelector";
 import { portalPremiumTableScope } from "../../lib/portalUiPersistence";
+import { MINISTRY_SEGMENT_OPTIONS, parseMinistrySegment } from "../../lib/membershipIntelligence";
+import type { MinistrySegmentDb } from "../../types";
 
 type Row = ChurchMemberRecord;
 const PHONE_RE = /^\+?[0-9]{9,15}$/;
@@ -153,10 +155,10 @@ export function ChurchMembersPanel({
   useEffect(() => {
     setCascade({
       dayosisi_id: draft?.dayosisi_id ?? "",
-      jimbo_id: "",
-      tawi_id: "",
+      jimbo_id: draft?.jimbo_id ?? "",
+      tawi_id: draft?.tawi_id ?? "",
     });
-  }, [draft?.id, draft?.dayosisi_id]);
+  }, [draft?.id, draft?.dayosisi_id, draft?.jimbo_id, draft?.tawi_id]);
   useEffect(() => {
     void (async () => {
       try {
@@ -348,6 +350,7 @@ export function ChurchMembersPanel({
     const idara_name = String(fd.get("idara_name") ?? "").trim() || null;
     const huduma_name = String(fd.get("huduma_name") ?? "").trim() || null;
     const notes = String(fd.get("notes") ?? "").trim() || null;
+    const ministry_segment = parseMinistrySegment(String(fd.get("ministry_segment") ?? "")) as MinistrySegmentDb;
     if (!first_name || !last_name) {
       pushToast("Jaza taarifa muhimu.", "error");
       return;
@@ -392,6 +395,9 @@ export function ChurchMembersPanel({
         is_baptized,
         member_number,
         dayosisi_id,
+        jimbo_id,
+        tawi_id,
+        ministry_segment,
         jimbo_name,
         tawi_name,
         jumuiya_name,
@@ -540,6 +546,20 @@ export function ChurchMembersPanel({
                   <option value="male">Mwanaume</option>
                   <option value="female">Mwanamke</option>
                   <option value="other">Nyingine</option>
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-slate-800">
+                Chama / Ministry segment
+                <select
+                  name="ministry_segment"
+                  defaultValue={draft.ministry_segment ?? "none"}
+                  className="rounded-xl border border-slate-200 px-3 py-2"
+                >
+                  {MINISTRY_SEGMENT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.sw} · {o.en}
+                    </option>
+                  ))}
                 </select>
               </label>
               <label className="grid gap-1 text-sm font-medium text-slate-800">

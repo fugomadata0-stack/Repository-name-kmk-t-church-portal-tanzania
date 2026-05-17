@@ -1,5 +1,10 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { logNationalLeadershipSaveAttempt, logNationalLeadershipSaveResult } from "../lib/nationalLeadershipDiagnostics";
+import { assertNationalLeadershipSavable } from "../lib/nationalLeadershipValidation";
+import { syncNationalProfileMediaToChurchViongozi } from "../lib/nationalLeadershipSync";
 import { dispatchPortalReloadMetrics } from "../lib/portalEvents";
+import { formatPostgrestError } from "../lib/supabaseErrors";
+import { mapRlsOrPermissionError } from "../lib/enterpriseRbac";
 import { getSupabase, getSupabaseOrThrow, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
 import { stripUndefined, unwrapOrThrow } from "../lib/supabaseResult";
 
@@ -157,6 +162,34 @@ export async function fetchNationalLeadershipProfiles(): Promise<NationalLeaders
   return data.map((r) => normalizeRow(r)).filter(Boolean) as NationalLeadershipProfileRow[];
 }
 
+function sanitizeAttachments(raw: NationalLeadershipAttachment[]): NationalLeadershipAttachment[] {
+  if (!Array.isArray(raw)) return [];
+  const out: NationalLeadershipAttachment[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const name = String(item.name ?? "").trim();
+    const url = String(item.url ?? "").trim();
+    if (!name || !url || !/^https?:\/\//i.test(url)) continue;
+    out.push({ name, url });
+  }
+  return out.slice(0, 24);
+}
+
+function formatNationalLeadershipSaveError(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err ?? "");
+  if (/identity fields are locked|official.*locked/i.test(raw)) {
+    return "Taarifa za utambulisho zimefungwa kwenye jedwali la viongozi. Tumia skrini hii ya «Uongozi wa Kitaifa» kuhifadhi.";
+  }
+  if (/permission denied|row-level security|rls|42501|pgrst301/i.test(raw)) {
+    return mapRlsOrPermissionError(raw);
+  }
+  if (/JWT|jwt|not authenticated/i.test(raw)) {
+    return "Kikao kimeisha muda. Ingia tena kisha jaribu.";
+  }
+  if (raw.length > 0 && raw.length < 200) return raw;
+  return "Imeshindwa kuhifadhi wasifu wa uongozi wa kitaifa. Angalia muunganisho na ruhusa.";
+}
+
 export async function upsertNationalLeadershipProfile(row: NationalLeadershipProfileRow): Promise<NationalLeadershipProfileRow> {
   const client = getSupabaseOrThrow();
   const t = (s: string) => s.trim();
@@ -166,36 +199,71 @@ export async function upsertNationalLeadershipProfile(row: NationalLeadershipPro
     const n = Math.floor(Number(term));
     term = Number.isFinite(n) ? Math.min(60, Math.max(0, n)) : null;
   }
+
+  const cleanedRow: NationalLeadershipProfileRow = {
+    ...row,
+    attachments_json: sanitizeAttachments(row.attachments_json),
+  };
+
+  assertNationalLeadershipSavable(cleanedRow);
+  logNationalLeadershipSaveAttempt("validate_ok", cleanedRow);
+
   const payload = stripUndefined({
-    role_key: row.role_key,
-    display_title_sw: t(row.display_title_sw),
-    display_title_en: t(row.display_title_en),
-    full_name: t(row.full_name),
-    gender: t(row.gender),
-    biography: t(row.biography),
-    leadership_quote: t(row.leadership_quote),
-    phone: t(row.phone),
-    whatsapp: t(row.whatsapp),
-    email: t(row.email),
-    website_url: t(row.website_url),
-    country: t(row.country) || "Tanzania",
-    region: t(row.region),
-    district: t(row.district),
-    ward: t(row.ward),
-    physical_address: t(row.physical_address),
-    profile_photo_url: t(row.profile_photo_url),
-    signature_url: t(row.signature_url),
-    cv_pdf_url: t(row.cv_pdf_url),
-    attachments_json: row.attachments_json,
-    status: row.status,
-    start_date: row.start_date || null,
-    end_date: row.end_date || null,
+    role_key: cleanedRow.role_key,
+    display_title_sw: t(cleanedRow.display_title_sw),
+    display_title_en: t(cleanedRow.display_title_en),
+    full_name: t(cleanedRow.full_name),
+    gender: t(cleanedRow.gender),
+    biography: t(cleanedRow.biography),
+    leadership_quote: t(cleanedRow.leadership_quote),
+    phone: t(cleanedRow.phone),
+    whatsapp: t(cleanedRow.whatsapp) || t(cleanedRow.phone),
+    email: t(cleanedRow.email),
+    website_url: t(cleanedRow.website_url),
+    country: t(cleanedRow.country) || "Tanzania",
+    region: t(cleanedRow.region),
+    district: t(cleanedRow.district),
+    ward: t(cleanedRow.ward),
+    physical_address: t(cleanedRow.physical_address),
+    profile_photo_url: t(cleanedRow.profile_photo_url),
+    signature_url: t(cleanedRow.signature_url),
+    cv_pdf_url: t(cleanedRow.cv_pdf_url),
+    attachments_json: cleanedRow.attachments_json,
+    status: cleanedRow.status,
+    start_date: cleanedRow.start_date || null,
+    end_date: cleanedRow.end_date || null,
     term_years: term,
-    is_visible: row.is_visible,
+    is_visible: cleanedRow.is_visible,
     sort_order: sortOrder,
   } as Record<string, unknown>);
+
+  logNationalLeadershipSaveAttempt("upsert_payload", cleanedRow, { keys: Object.keys(payload) });
+
   const res = await client.from("national_leadership_profiles").upsert(payload, { onConflict: "role_key" }).select("*").single();
-  const saved = normalizeRow(unwrapOrThrow(res, "national_leadership_profiles.upsert") as Record<string, unknown>) as NationalLeadershipProfileRow;
+  if (res.error) {
+    const msg = formatPostgrestError(res.error, "national_leadership_profiles.upsert");
+    logNationalLeadershipSaveResult("upsert", false, { code: res.error.code, message: msg });
+    throw new Error(formatNationalLeadershipSaveError(new Error(msg)));
+  }
+  if (!res.data) {
+    logNationalLeadershipSaveResult("upsert", false, { reason: "no_data" });
+    throw new Error("Hakuna data iliyorudishwa kutoka Supabase baada ya kuhifadhi.");
+  }
+
+  const saved = normalizeRow(res.data as Record<string, unknown>) as NationalLeadershipProfileRow;
+  if (!saved) {
+    throw new Error("Jibu la seva halijakamilika — wasifu haujathibitishwa.");
+  }
+
+  try {
+    await syncNationalProfileMediaToChurchViongozi(saved);
+    logNationalLeadershipSaveResult("sync_viongozi", true, { role_key: saved.role_key });
+  } catch (syncErr) {
+    logNationalLeadershipSaveResult("sync_viongozi", false, { error: String(syncErr) });
+    console.warn("[national_leadership] sync_viongozi skipped:", syncErr);
+  }
+
+  logNationalLeadershipSaveResult("upsert", true, { role_key: saved.role_key });
   dispatchPortalReloadMetrics({ immediate: true });
   return saved;
 }

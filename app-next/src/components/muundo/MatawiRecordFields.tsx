@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { TanzaniaLocationFields } from "../common/TanzaniaLocationFields";
 import type { DayosisiRecord, JimboRecord, TawiRecord } from "../../types";
 
 type Hierarchy = { dayosisi: DayosisiRecord[]; majimbo: JimboRecord[] };
@@ -23,6 +24,11 @@ export function MatawiRecordFields({ initial, hierarchy }: { initial: Partial<Ta
     if (!dayosisiId) return hierarchy.majimbo;
     return hierarchy.majimbo.filter((j) => j.dayosisi_id === dayosisiId);
   }, [hierarchy.majimbo, dayosisiId]);
+
+  const suggestMkoa = useMemo(() => {
+    const j = hierarchy.majimbo.find((x) => x.id === jimboId);
+    return j?.mkoa?.trim() || null;
+  }, [hierarchy.majimbo, jimboId]);
 
   return (
     <>
@@ -73,22 +79,20 @@ export function MatawiRecordFields({ initial, hierarchy }: { initial: Partial<Ta
           ))}
         </select>
       </label>
-      <label className="grid gap-1 text-xs">
-        Mkoa
-        <input name="mkoa" defaultValue={initial.mkoa ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
-      </label>
-      <label className="grid gap-1 text-xs">
-        Wilaya
-        <input name="wilaya" defaultValue={initial.wilaya ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
-      </label>
-      <label className="grid gap-1 text-xs">
-        Kata
-        <input name="kata" defaultValue={initial.kata ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
-      </label>
-      <label className="grid gap-1 text-xs md:col-span-2">
-        Kijiji / Mtaa
-        <input name="mtaa" defaultValue={initial.mtaa ?? ""} className="rounded-lg border px-3 py-2 text-sm" />
-      </label>
+      <div className="md:col-span-2">
+        <TanzaniaLocationFields
+          formMode
+          suggestMkoa={suggestMkoa}
+          defaultValue={{
+            mkoa: initial.mkoa ?? "",
+            wilaya: initial.wilaya ?? "",
+            kata: initial.kata ?? "",
+            mtaa: initial.mtaa ?? "",
+          }}
+          names={{ mkoa: "mkoa", wilaya: "wilaya", kata: "kata", mtaa: "mtaa" }}
+          className="md:grid-cols-2"
+        />
+      </div>
       <label className="grid gap-1 text-xs">
         GPS Lat
         <input

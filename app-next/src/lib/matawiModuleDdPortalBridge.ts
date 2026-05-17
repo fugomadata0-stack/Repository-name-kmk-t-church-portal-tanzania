@@ -12,15 +12,16 @@ export const MATAWI_DD_PORTAL_LINKS: Record<string, MatawiDdPortalLink> = {
   departments: { moduleKey: "jumuiya" },
   contributionForms: { moduleKey: "mapato_income" },
   finance: { moduleKey: "fedha" },
-  projects: { moduleKey: "mapato_income", submodule: "Mapato ya Miradi na Uwekezaji" },
+  projects: { moduleKey: "taasisi", submodule: "Miradi na Taasisi" },
   notifications: { moduleKey: "notifications" },
   smswhatsapp: { moduleKey: "communications" },
   idcards: { moduleKey: "waumini", submodule: "Member Profiles" },
   smartdetect: { moduleKey: "analytics" },
   executive: { moduleKey: "muundo", submodule: "Injini ya Ngazi — Executive" },
   approval: { moduleKey: "dashboard", submodule: "Vibali vinavyosubiri" },
+  approvals: { moduleKey: "dashboard", submodule: "Vibali vinavyosubiri" },
   publicmode: { moduleKey: "mipangilio", submodule: "SEO & Umma" },
-  certificates: { moduleKey: "mipangilio", submodule: "Master Settings Center" },
+  certificates: { moduleKey: "viongozi", submodule: "Cheti & CV — Injini ya Ngazi Kuu" },
   security: { moduleKey: "usalama" },
 };
 

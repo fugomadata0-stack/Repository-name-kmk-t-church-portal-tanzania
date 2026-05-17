@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { ErrorBoundary } from "../common/ErrorBoundary";
+import { PortalBootShell } from "../common/PortalSkeleton";
 import { buildBranchEnginePortalUrl } from "../../lib/branchEnginePortalUrl";
 import {
   isAcceptInvitePath,
@@ -25,23 +26,20 @@ const AppLayout = lazy(async () => {
   return { default: m.AppLayout };
 });
 
-function AuthSpinner() {
+/** Hali moja ya kuingia — skeli tu, bila maandishi yanayojirudia. */
+function AuthBootFallback() {
   return (
-    <div
-      className="flex min-h-screen flex-col items-center justify-center bg-slate-100"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <div className="h-10 w-10 animate-spin rounded-full border-2 border-blue-900 border-t-transparent" aria-hidden />
-      <p className="mt-4 text-sm text-slate-600">Inapakia akaunti…</p>
+    <div className="flex min-h-screen flex-col bg-[#eef2f7]" role="status" aria-busy="true" aria-label="Inaandaa portal">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <PortalBootShell className="mx-auto w-full max-w-[min(100%,96rem)]" />
+      </div>
     </div>
   );
 }
 
 export function RootShell() {
   const { pathname } = usePublicPath();
-  const { supabaseReady, authInitialized, session, rbacLoading, profileGateBlocked, portalDirectoryLoadError } =
+  const { supabaseReady, authInitialized, session, profileGateBlocked, portalDirectoryLoadError } =
     usePortal();
 
   if (typeof window !== "undefined" && isStandaloneMatawiHtmlPath(pathname)) {
@@ -52,11 +50,11 @@ export function RootShell() {
         engineModuleId: params.get("module") || params.get("engineModuleId") || undefined,
       }),
     );
-    return <AuthSpinner />;
+    return <AuthBootFallback />;
   }
 
   if (!authInitialized) {
-    return <AuthSpinner />;
+    return <AuthBootFallback />;
   }
 
   if (!supabaseReady) {
@@ -82,10 +80,6 @@ export function RootShell() {
     return <LoginPage />;
   }
 
-  if (rbacLoading) {
-    return <AuthSpinner />;
-  }
-
   if (portalDirectoryLoadError) {
     return <PortalDirectoryLoadError />;
   }
@@ -96,7 +90,7 @@ export function RootShell() {
 
   return (
     <ErrorBoundary>
-      <Suspense fallback={<AuthSpinner />}>
+      <Suspense fallback={<AuthBootFallback />}>
         <AppLayout />
       </Suspense>
     </ErrorBoundary>

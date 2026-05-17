@@ -153,26 +153,35 @@ export function ExecutiveLeadershipProfileEngine({
           draft.yearsMinistry ?? computeYearsBetween(draft.serviceStart, draft.serviceEnd || undefined);
         const yearsPosition =
           draft.yearsPosition ?? computeYearsBetween(draft.serviceStart, draft.serviceEnd || undefined);
+        const officialLocked =
+          Boolean(bundle.leader.official_locked) || Boolean(bundle.leader.official_lock_key?.trim());
         await saveExecutiveProfileBundle({
           leaderId: bundle.leader.id,
-          roleKey: roleKey || null,
-          catalogLevelKey: role?.level_key as ExecutiveHierarchyLevel | undefined,
-          jimboLeaderVariant: roleKey === "mkuu_wa_jimbo" ? jimboVariant : null,
-          cheoTitle: role ? resolveCheoFromRole(role, jimboVariant) : undefined,
-          viongoziPatch: {
-            jina: draft.fullName,
-            full_name: draft.fullName,
-            gender: draft.gender || null,
-            simu: draft.phone,
-            whatsapp: draft.whatsapp || null,
-            email: draft.email || null,
-            address: draft.address || null,
-            mkoa: draft.mkoa || null,
-            wilaya: draft.wilaya || null,
-            date_of_birth: draft.dateOfBirth || null,
-            start_date: draft.serviceStart || null,
-            end_date: draft.serviceEnd || null,
-          },
+          roleKey: officialLocked ? null : roleKey || null,
+          catalogLevelKey: officialLocked ? null : (role?.level_key as ExecutiveHierarchyLevel | undefined),
+          jimboLeaderVariant: officialLocked ? null : roleKey === "mkuu_wa_jimbo" ? jimboVariant : null,
+          cheoTitle: officialLocked ? undefined : role ? resolveCheoFromRole(role, jimboVariant) : undefined,
+          viongoziPatch: officialLocked
+            ? {
+                address: draft.address || null,
+                mkoa: draft.mkoa || null,
+                wilaya: draft.wilaya || null,
+                biography: draft.cvBundle?.profile?.biography?.trim() || null,
+              }
+            : {
+                jina: draft.fullName,
+                full_name: draft.fullName,
+                gender: draft.gender || null,
+                simu: draft.phone,
+                whatsapp: draft.whatsapp || null,
+                email: draft.email || null,
+                address: draft.address || null,
+                mkoa: draft.mkoa || null,
+                wilaya: draft.wilaya || null,
+                date_of_birth: draft.dateOfBirth || null,
+                start_date: draft.serviceStart || null,
+                end_date: draft.serviceEnd || null,
+              },
           extendedPatch: {
             gender: draft.gender || null,
             whatsapp: draft.whatsapp || null,

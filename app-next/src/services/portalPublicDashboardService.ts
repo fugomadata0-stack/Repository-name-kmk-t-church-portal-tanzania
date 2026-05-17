@@ -30,6 +30,12 @@ export type PortalPublicDashboardCounts = {
   attendanceSessionsMonth: number;
   /** Jumla ya wageni (safu ya visitors) kwa mwezi wa sasa. */
   attendanceVisitorsMonth: number;
+  /** Miradi hai (ikiwa RPC inarudisha safu hii). */
+  projectsActive?: number;
+  /** Upakiaji wa michango unasubiri uhakiki. */
+  contributionUploadsPending?: number;
+  /** Idhini zinazosubiri (remittance + mapato). */
+  approvalsPending?: number;
 };
 
 function parseCount(value: number | string | null | undefined): number {
@@ -75,6 +81,15 @@ function rowToCounts(row: Record<string, unknown> | null | undefined): PortalPub
     attendanceSessionsToday: parseCount(row.attendance_sessions_today as number | string | null | undefined),
     attendanceSessionsMonth: parseCount(row.attendance_sessions_month as number | string | null | undefined),
     attendanceVisitorsMonth: parseCount(row.attendance_visitors_month as number | string | null | undefined),
+    projectsActive: Object.prototype.hasOwnProperty.call(row, "projects_active")
+      ? parseCount(row.projects_active as number | string | null | undefined)
+      : undefined,
+    contributionUploadsPending: Object.prototype.hasOwnProperty.call(row, "contribution_uploads_pending")
+      ? parseCount(row.contribution_uploads_pending as number | string | null | undefined)
+      : undefined,
+    approvalsPending: Object.prototype.hasOwnProperty.call(row, "approvals_pending")
+      ? parseCount(row.approvals_pending as number | string | null | undefined)
+      : undefined,
   };
 }
 

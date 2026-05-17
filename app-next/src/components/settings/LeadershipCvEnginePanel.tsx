@@ -18,6 +18,10 @@ import {
   uploadLeadershipCvObject,
 } from "../../services/leadershipCvEngineService";
 import { readLeadershipCredentialPrefill, clearLeadershipCredentialPrefill } from "../../lib/leadershipCredentialPrefill";
+import {
+  patchOfficialLockedViongoziMedia,
+  syncViongoziLeaderMediaToNationalProfile,
+} from "../../lib/nationalLeadershipSync";
 import { fetchChurchViongozi, fetchOfficialLeadershipSigners, upsertKiongozi } from "../../services/viongoziService";
 import type {
   KiongoziRecord,
@@ -381,55 +385,6 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
     if (!props.canEdit || !leader) return;
     setBusy(true);
     try {
-      await upsertKiongozi({
-        id: leader.id,
-        jina: leader.jina,
-        full_name: leader.full_name ?? leader.jina,
-        cheo: leader.cheo,
-        ngazi: leader.ngazi,
-        leadership_level: leader.leadership_level ?? leader.ngazi,
-        assigned_entity: leader.assigned_entity ?? "",
-        gender: leader.gender,
-        date_of_birth: leader.date_of_birth,
-        simu: leader.simu,
-        whatsapp: leader.whatsapp,
-        email: leader.email,
-        address: leader.address,
-        mkoa: leader.mkoa,
-        wilaya: leader.wilaya,
-        kata: leader.kata,
-        national_id: leader.national_id,
-        passport_number: leader.passport_number,
-        church_member_id: leader.church_member_id,
-        dayosisi_id: leader.dayosisi_id,
-        jimbo_id: leader.jimbo_id,
-        tawi_id: leader.tawi_id,
-        start_date: leader.start_date,
-        end_date: leader.end_date,
-        appointment_date: leader.appointment_date,
-        term_status: leader.term_status,
-        status: leader.status,
-        photo_url: leader.photo_url,
-        signature_url: leader.signature_url,
-        idara_name: leader.idara_name,
-        huduma_name: leader.huduma_name,
-        taasisi_name: leader.taasisi_name,
-        jumuiya_name: leader.jumuiya_name,
-        pdf_issued_by_name: leader.pdf_issued_by_name,
-        pdf_issued_by_title: leader.pdf_issued_by_title,
-        notes: leader.notes,
-        former_leader: leader.former_leader,
-        reason_for_leaving: leader.reason_for_leaving,
-        education_summary: leader.education_summary,
-        theology_training: leader.theology_training,
-        professional_skills: leader.professional_skills,
-        certificates_summary: leader.certificates_summary,
-        ministry_gifts: leader.ministry_gifts,
-        ministry_experience: leader.ministry_experience,
-        internal_notes: leader.internal_notes,
-        audit_notes: leader.audit_notes,
-      });
-
       const bundle: LeadershipCvBundle = {
         profile: profile ?? emptyProfile(leader.id),
         experience,
@@ -438,8 +393,68 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
         skills,
         attachments,
       };
-      await saveLeadershipCvBundle(leader.id, bundle);
-      pushToast("Wasifu wa CV umehifadhiwa.", "success");
+
+      const officialLocked =
+        Boolean(leader.official_locked) || Boolean(leader.official_lock_key?.trim());
+      if (officialLocked) {
+        await saveLeadershipCvBundle(leader.id, bundle);
+        await patchOfficialLockedViongoziMedia(leader);
+        await syncViongoziLeaderMediaToNationalProfile(leader);
+        pushToast("Wasifu wa CV umehifadhiwa (viongozi rasmi wa taifa).", "success");
+      } else {
+        await upsertKiongozi({
+          id: leader.id,
+          jina: leader.jina,
+          full_name: leader.full_name ?? leader.jina,
+          cheo: leader.cheo,
+          ngazi: leader.ngazi,
+          leadership_level: leader.leadership_level ?? leader.ngazi,
+          assigned_entity: leader.assigned_entity ?? "",
+          gender: leader.gender,
+          date_of_birth: leader.date_of_birth,
+          simu: leader.simu,
+          whatsapp: leader.whatsapp,
+          email: leader.email,
+          address: leader.address,
+          mkoa: leader.mkoa,
+          wilaya: leader.wilaya,
+          kata: leader.kata,
+          national_id: leader.national_id,
+          passport_number: leader.passport_number,
+          church_member_id: leader.church_member_id,
+          dayosisi_id: leader.dayosisi_id,
+          jimbo_id: leader.jimbo_id,
+          tawi_id: leader.tawi_id,
+          start_date: leader.start_date,
+          end_date: leader.end_date,
+          appointment_date: leader.appointment_date,
+          term_status: leader.term_status,
+          status: leader.status,
+          photo_url: leader.photo_url,
+          signature_url: leader.signature_url,
+          idara_name: leader.idara_name,
+          huduma_name: leader.huduma_name,
+          taasisi_name: leader.taasisi_name,
+          jumuiya_name: leader.jumuiya_name,
+          pdf_issued_by_name: leader.pdf_issued_by_name,
+          pdf_issued_by_title: leader.pdf_issued_by_title,
+          notes: leader.notes,
+          former_leader: leader.former_leader,
+          reason_for_leaving: leader.reason_for_leaving,
+          education_summary: leader.education_summary,
+          theology_training: leader.theology_training,
+          professional_skills: leader.professional_skills,
+          certificates_summary: leader.certificates_summary,
+          ministry_gifts: leader.ministry_gifts,
+          ministry_experience: leader.ministry_experience,
+          internal_notes: leader.internal_notes,
+          audit_notes: leader.audit_notes,
+          official_locked: leader.official_locked,
+          official_lock_key: leader.official_lock_key,
+        });
+        await saveLeadershipCvBundle(leader.id, bundle);
+        pushToast("Wasifu wa CV umehifadhiwa.", "success");
+      }
       await reloadList();
       setBundleTick((t) => t + 1);
       dispatchPortalReloadMetrics();
@@ -672,6 +687,13 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
             <p className="text-sm text-slate-500">Chagua kiongozi kwenye orodha ya kushoto.</p>
           ) : (
             <>
+              {leader.official_locked ? (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
+                  <strong>Kiongozi rasmi wa taifa (imefungwa):</strong> jina, cheo, simu na barua pepe hazibadiliki hapa.
+                  Wasifu, picha, saini, elimu na CV zinaweza kuhifadhiwa. Kwa kubadilisha taarifa za utambulisho, tumia tab{" "}
+                  <strong>Uongozi wa Kitaifa</strong> chini ya Mipangilio.
+                </p>
+              ) : null}
               <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
                 <div>
                   <h3 className="text-lg font-bold text-[#0B1F3A]">{leader.jina || leader.full_name}</h3>
@@ -783,9 +805,9 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
 
               <Collapsible title="Taarifa za msingi (church_viongozi)">
                 <div className="grid gap-3 md:grid-cols-2">
-                  <Field label="Jina" value={leader.jina} onChange={(v) => setLeader({ ...leader, jina: v })} ro={!props.canEdit} />
-                  <Field label="Jina kamili" value={leader.full_name ?? ""} onChange={(v) => setLeader({ ...leader, full_name: v })} ro={!props.canEdit} />
-                  <Field label="Cheo" value={leader.cheo} onChange={(v) => setLeader({ ...leader, cheo: v })} ro={!props.canEdit} />
+                  <Field label="Jina" value={leader.jina} onChange={(v) => setLeader({ ...leader, jina: v })} ro={!props.canEdit || Boolean(leader.official_locked)} />
+                  <Field label="Jina kamili" value={leader.full_name ?? ""} onChange={(v) => setLeader({ ...leader, full_name: v })} ro={!props.canEdit || Boolean(leader.official_locked)} />
+                  <Field label="Cheo" value={leader.cheo} onChange={(v) => setLeader({ ...leader, cheo: v })} ro={!props.canEdit || Boolean(leader.official_locked)} />
                   <label className="grid gap-1 text-xs font-medium text-slate-700">
                     Leadership level (chaguo otomatiki kutoka muundo)
                     <select
@@ -804,9 +826,9 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
                   </label>
                   <Field label="Assigned entity" value={leader.assigned_entity ?? ""} onChange={(v) => setLeader({ ...leader, assigned_entity: v })} ro={!props.canEdit} />
                   <Field label="Ngazi (orodha)" value={leader.ngazi} onChange={(v) => setLeader({ ...leader, ngazi: v })} ro={!props.canEdit} />
-                  <Field label="Simu" value={leader.simu} onChange={(v) => setLeader({ ...leader, simu: v })} ro={!props.canEdit} />
-                  <Field label="WhatsApp" value={leader.whatsapp ?? ""} onChange={(v) => setLeader({ ...leader, whatsapp: v || null })} ro={!props.canEdit} />
-                  <Field label="Barua pepe" value={leader.email ?? ""} onChange={(v) => setLeader({ ...leader, email: v || null })} ro={!props.canEdit} />
+                  <Field label="Simu" value={leader.simu} onChange={(v) => setLeader({ ...leader, simu: v })} ro={!props.canEdit || Boolean(leader.official_locked)} />
+                  <Field label="WhatsApp" value={leader.whatsapp ?? ""} onChange={(v) => setLeader({ ...leader, whatsapp: v || null })} ro={!props.canEdit || Boolean(leader.official_locked)} />
+                  <Field label="Barua pepe" value={leader.email ?? ""} onChange={(v) => setLeader({ ...leader, email: v || null })} ro={!props.canEdit || Boolean(leader.official_locked)} />
                   <Field label="Anwani" value={leader.address ?? ""} onChange={(v) => setLeader({ ...leader, address: v || null })} ro={!props.canEdit} />
                   <Field label="Mkoa" value={leader.mkoa ?? ""} onChange={(v) => setLeader({ ...leader, mkoa: v || null })} ro={!props.canEdit} />
                   <Field label="Wilaya" value={leader.wilaya ?? ""} onChange={(v) => setLeader({ ...leader, wilaya: v || null })} ro={!props.canEdit} />

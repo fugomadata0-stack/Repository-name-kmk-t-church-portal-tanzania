@@ -169,6 +169,8 @@ export function mapViongoziRow(row: Record<string, unknown>): KiongoziRecord {
     pdf_issued_by_name: row.pdf_issued_by_name ? String(row.pdf_issued_by_name) : null,
     pdf_issued_by_title: row.pdf_issued_by_title ? String(row.pdf_issued_by_title) : null,
     status: uiStatus(row.status as string),
+    official_locked: Boolean(row.official_locked),
+    official_lock_key: row.official_lock_key ? String(row.official_lock_key).trim() || null : null,
     dayosisi_id: row.dayosisi_id ? String(row.dayosisi_id) : undefined,
     jimbo_id: row.jimbo_id ? String(row.jimbo_id) : undefined,
     tawi_id: row.tawi_id ? String(row.tawi_id) : undefined,
@@ -207,6 +209,51 @@ export async function fetchOfficialLeadershipSigners(limit = 25): Promise<Offici
     full_name: String((row as Record<string, unknown>).full_name ?? "").trim(),
     title: String((row as Record<string, unknown>).title ?? "").trim(),
   }));
+}
+
+const OFFICIAL_LOCKED_IDENTITY_COLUMNS = [
+  "jina",
+  "full_name",
+  "cheo",
+  "title",
+  "simu",
+  "email",
+  "whatsapp",
+  "official_lock_key",
+  "official_locked",
+] as const;
+
+export function stripOfficialLockedIdentityFields(payload: Record<string, unknown>): Record<string, unknown> {
+  const next = { ...payload };
+  for (const col of OFFICIAL_LOCKED_IDENTITY_COLUMNS) delete next[col];
+  return next;
+}
+
+function isOfficialLeadershipLockError(message: string): boolean {
+  return /official.*locked|identity fields are locked|lock cannot be removed|locked_record/i.test(message);
+}
+
+function officialLeadershipLockUserMessage(): string {
+  return "Kiongozi rasmi wa taifa: jina, cheo, simu na barua pepe hazibadiliki hapa. Hariri taarifa hizo kwenye tab «Uongozi wa Kitaifa» (National Leadership), au wasiliana na ICT.";
+}
+
+export async function isChurchViongoziOfficialLocked(id: string, hinted?: boolean): Promise<boolean> {
+  if (hinted === true) return true;
+  if (hinted === false) return false;
+  return fetchOfficialLockedFlag(id);
+}
+
+async function fetchOfficialLockedFlag(id: string): Promise<boolean> {
+  const c = getSupabase();
+  if (!c || !isViongoziUuid(id)) return false;
+  const res = await c
+    .from("church_viongozi")
+    .select("official_locked, official_lock_key")
+    .eq("id", id)
+    .maybeSingle();
+  if (res.error) return false;
+  const row = res.data as { official_locked?: boolean; official_lock_key?: string | null } | null;
+  return Boolean(row?.official_locked) || Boolean(row?.official_lock_key?.trim());
 }
 
 export async function upsertKiongozi(row: Partial<KiongoziRecord> & { jina: string }): Promise<KiongoziRecord> {
@@ -319,8 +366,31 @@ export async function upsertKiongozi(row: Partial<KiongoziRecord> & { jina: stri
   };
 
   if (row.id && isViongoziUuid(row.id)) {
-    const res = await executeViongoziSave("update", row.id);
-    const data = unwrapOrThrow(res, "church_viongozi.update");
+    const officialLocked = row.official_locked === true || (await fetchOfficialLockedFlag(row.id));
+    const updatePayload = officialLocked ? stripOfficialLockedIdentityFields(payload) : payload;
+    if (!Object.keys(updatePayload).length) {
+      const res = await c.from("church_viongozi").select(sEmb()).eq("id", row.id).single();
+      const data = unwrapOrThrow(res, "church_viongozi.fetch");
+      return mapViongoziRow(data as unknown as Record<string, unknown>);
+    }
+    const runLockedSafe = async (clean: Record<string, unknown>) => {
+      let res = await c.from("church_viongozi").update(clean).eq("id", row.id).select(sEmb()).single();
+      const fallback = stripUnknownChurchViongoziColumns(clean, (res as { error?: { message?: string } })?.error?.message);
+      if (fallback !== clean) {
+        res = await c.from("church_viongozi").update(fallback).eq("id", row.id).select(sEmb()).single();
+      }
+      return res;
+    };
+    const res = await runLockedSafe(updatePayload);
+    if (res.error) {
+      const combined = formatPostgrestError(res.error, "church_viongozi.update");
+      if (isOfficialLeadershipLockError(combined)) {
+        throw new Error(officialLeadershipLockUserMessage());
+      }
+      unwrapOrThrow(res, "church_viongozi.update");
+    }
+    const data = res.data;
+    if (!data) throw new Error("[church_viongozi.update] Hakuna data iliyorudishwa.");
     return mapViongoziRow(data as unknown as Record<string, unknown>);
   }
 

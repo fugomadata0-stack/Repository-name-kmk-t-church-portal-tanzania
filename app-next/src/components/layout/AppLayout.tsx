@@ -8,6 +8,11 @@ import { useSiteDocumentMeta } from "../../hooks/useSiteDocumentMeta";
 import { fetchAuditLogCount } from "../../services/auditLogService";
 import { fetchPortalSecurityCountsStrict } from "../../services/securityService";
 import { fetchWauminiCountsStrict } from "../../services/wauminiService";
+import { fetchDashboardBootBundle } from "../../lib/portalBootCache";
+import { AsyncTimeoutError, withTimeout } from "../../lib/asyncTimeout";
+import { PORTAL_LOAD_TIMEOUTS } from "../../lib/portalLoadTimeouts";
+import { PORTAL_SLOW_NETWORK_SW } from "../../lib/supabaseUiMessages";
+import { useBoundedLoading } from "../../hooks/useBoundedLoading";
 import { fetchDayosisi } from "../../services/dayosisiService";
 import { fetchChurchFinanceEntries } from "../../services/financeEntriesService";
 import { fetchChurchIncomeLines, fetchChurchIncomeSources } from "../../services/incomeModuleService";
@@ -22,23 +27,28 @@ import {
 import { dedupeInFlight } from "../../lib/inFlightDedupe";
 import { repairAllLegacyStructureLinks } from "../../lib/legacyStructureMirror";
 import { isAbortLikeError } from "../../lib/supabaseErrors";
-import { DASHBOARD_KPI_LOAD_ERROR_SW, HAIJAPATIKANA_DATA_SW } from "../../lib/supabaseUiMessages";
+import { DASHBOARD_KPI_LOAD_ERROR_SW } from "../../lib/supabaseUiMessages";
 import { dispatchPortalReloadMetrics, KMT_PORTAL_RELOAD_METRICS_EVENT } from "../../lib/portalEvents";
-import { PORTAL_GLOBAL_REALTIME_TABLES } from "../../lib/portalRealtimeSyncTables";
+import { coalesceRealtimeCallback } from "../../lib/portalHardening/realtimeCoalesce";
+import { PORTAL_DASHBOARD_REALTIME_TABLES } from "../../lib/portalDashboardRealtimeTables";
 import { roleBypassesGeoScope } from "../../utils/scopeAccess";
+import { logRbacDenied } from "../../services/enterpriseSecurityService";
 import { readPortalUiSnapshot, writePortalUiSnapshot } from "../../lib/portalUiPersistence";
 import {
   buildBranchEnginePortalUrl,
   PORTAL_HOME_AFTER_LOGIN,
   shouldOpenBranchEngineAsPortalHome,
 } from "../../lib/branchEnginePortalUrl";
-import { isPortalBranchEngineSurface, resolveBranchEngineRoute } from "../../lib/branchEngineRoute";
+import { isPortalBranchEngineSurface } from "../../lib/branchEngineRoute";
 import { getPortalLayoutMode, shouldHidePortalProjectRibbon } from "../../lib/portalLayoutMode";
-import { MasterBranchExecutiveDashboard } from "../branch-engine/MasterBranchExecutiveDashboard";
+import { InternalDashboardRouter } from "../dashboard/InternalDashboardRouter";
 import {
   coerceSubmoduleForModule,
+  DASHBOARD_COMMAND_CENTER_SUBMODULE,
+  DASHBOARD_PENDING_APPROVALS_SUBMODULE,
   getDashboardDefaultSubmodule,
   getFirstSubmoduleForModule,
+  normalizeDashboardSubmodule,
 } from "../../lib/dashboardSubmodules";
 import {
   clearPortalDraft,
@@ -48,7 +58,7 @@ import {
   type PortalDraftScope,
 } from "../../lib/portalDraftRecovery";
 import { ErrorBoundary } from "../common/ErrorBoundary";
-import { PortalPanelSkeleton } from "../common/PortalSkeleton";
+import { PortalBootShell, PortalPanelSkeleton } from "../common/PortalSkeleton";
 import { CookieConsentBanner } from "./CookieConsentBanner";
 import { MaintenanceBanner } from "./MaintenanceBanner";
 import { PortalAutoDraftRecovery } from "../draft/PortalAutoDraftRecovery";
@@ -56,53 +66,13 @@ import { SiteFooter } from "./SiteFooter";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 import { ExecutiveMenuBar } from "../executive/ExecutiveMenuBar";
+import { PortalChromeHeader } from "./PortalChromeHeader";
+import { useThrottledElementScroll } from "../../hooks/useThrottledElementScroll";
 import { PortalProjectNotesRibbon } from "./PortalProjectNotesRibbon";
 const ModulePage = lazy(async () => {
   const m = await import("../../pages/ModulePage");
   return { default: m.ModulePage };
 });
-
-/** Hali ya kusawazisha vipimo vya dashibodi — loading / hitilafu. */
-function PortalKpiSyncStatus({
-  refreshing,
-  error,
-  onRetry,
-}: {
-  refreshing: boolean;
-  error: string | null;
-  onRetry: () => void;
-}) {
-  if (!refreshing && !error) return null;
-  return (
-    <div
-      className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-slate-50/95 px-3 py-2 text-xs sm:px-4"
-      role="status"
-      aria-live="polite"
-      aria-busy={refreshing}
-    >
-      {refreshing ? (
-        <span className="inline-flex items-center gap-2 font-medium text-slate-700">
-          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#123C69] border-t-transparent" aria-hidden />
-          Inasasisha vipimo vya mfumo…
-        </span>
-      ) : (
-        <span />
-      )}
-      {error ? (
-        <span className="flex flex-wrap items-center gap-2 text-amber-900">
-          <span role="alert">{error}</span>
-          <button
-            type="button"
-            onClick={onRetry}
-            className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-semibold text-amber-950 shadow-sm hover:bg-amber-50"
-          >
-            Jaribu tena
-          </button>
-        </span>
-      ) : null}
-    </div>
-  );
-}
 
 function ModuleLoadingFallback() {
   return <PortalPanelSkeleton rows={5} />;
@@ -178,9 +148,24 @@ export function AppLayout() {
   const [incomeSources, setIncomeSources] = useState<IncomeSourceRecord[]>([]);
   const [incomeManagement, setIncomeManagement] = useState<IncomeManagementRecord[]>([]);
   const [kpiLive, setKpiLive] = useState<DashboardKpiSnapshot>(() => emptyDashboardKpiSnapshot());
+  const [wauminiCounts, setWauminiCounts] = useState({
+    families: 0,
+    members: 0,
+    activeMembers: 0,
+    baptized: 0,
+  });
   const [kpiRefreshing, setKpiRefreshing] = useState(false);
   const [kpiError, setKpiError] = useState<string | null>(null);
+  const kpiErrorToastRef = useRef<string | null>(null);
+  const kpiRefreshGuardRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showRbacBootShell = useBoundedLoading(rbacLoading, PORTAL_LOAD_TIMEOUTS.rbacUiCapMs);
   const [online, setOnline] = useState(() => navigator.onLine);
+
+  useEffect(() => {
+    if (!kpiError || kpiError === kpiErrorToastRef.current) return;
+    kpiErrorToastRef.current = kpiError;
+    pushToast(kpiError, "error");
+  }, [kpiError, pushToast]);
 
   /** Muda wa mwisho wa kuwa nyuma ya tab (kupima kurudi); si tokeni. */
   const hiddenAtRef = useRef<number | null>(null);
@@ -188,8 +173,22 @@ export function AppLayout() {
   const lastResumeHiddenMsRef = useRef(0);
   const lastDashboardMetricsAtRef = useRef(0);
   const legacyStructureRepairRef = useRef(false);
+  const fullMetricsScheduledRef = useRef(false);
+  const activeModuleRef = useRef(activeModule);
+  activeModuleRef.current = activeModule;
+  const [branchEngineMountEnabled, setBranchEngineMountEnabled] = useState(false);
   const lastIncomeDataAtRef = useRef(0);
   const restoredScrollRef = useRef(false);
+
+  useEffect(() => {
+    if (!authUser?.id || legacyStructureRepairRef.current) return;
+    const t = window.setTimeout(() => {
+      if (legacyStructureRepairRef.current) return;
+      legacyStructureRepairRef.current = true;
+      void dedupeInFlight("portal:repair-legacy-structure-links", () => repairAllLegacyStructureLinks());
+    }, 90_000);
+    return () => window.clearTimeout(t);
+  }, [authUser?.id]);
 
   const VISIBILITY_SKIP_HIDDEN_MS = 120_000;
   const METRICS_RECENT_FETCH_MS = 180_000;
@@ -229,133 +228,200 @@ export function AppLayout() {
       const el = document.getElementById("portal-main-scroll");
       if (el) el.scrollTop = snap.scrollTop;
     };
-    apply();
     requestAnimationFrame(apply);
-    window.setTimeout(apply, 80);
     restoredScrollRef.current = true;
   }, [authUser?.id]);
 
-  useEffect(() => {
-    const el = document.getElementById("portal-main-scroll");
-    if (!el || !authUser?.id) return;
-    let t: ReturnType<typeof setTimeout> | null = null;
-    const onScroll = () => {
-      if (t) window.clearTimeout(t);
-      t = window.setTimeout(() => {
-        writePortalUiSnapshot({
-          userId: authUser.id,
-          activeModule,
-          activeSubmodule,
-          expanded,
-          sidebarCollapsed,
-          scrollTop: el.scrollTop,
-        });
-      }, 400);
-    };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      if (t) window.clearTimeout(t);
-    };
-  }, [authUser?.id, activeModule, activeSubmodule, expanded, sidebarCollapsed]);
-
-  /** Hesabu + dayosisi za KPI za dashibodi — zote kutoka Supabase kwa wakati mmoja. */
-  const loadDashboardMetrics = useCallback(async () => {
-    return dedupeInFlight("portal:load-dashboard-metrics", async () => {
-    const client = getSupabase();
-    if (!client) {
-      setDayosisi([]);
-      setMajimbo([]);
-      setMatawi([]);
-      setFedha([]);
-      setIncomeSources([]);
-      setIncomeManagement([]);
-      setKpiLive(emptyDashboardKpiSnapshot());
-      setKpiError(null);
-      return;
-    }
-    setKpiRefreshing(true);
-    setKpiError(null);
-    try {
-      const settled = await Promise.allSettled([
-        fetchDayosisi(),
-        fetchAuditLogCount(),
-        fetchPortalSecurityCountsStrict(),
-        fetchWauminiCountsStrict(),
-        fetchChurchJimbo(),
-        fetchChurchTawi(),
-        fetchChurchFinanceEntries(),
-        fetchChurchIncomeSources(),
-        fetchChurchIncomeLines(),
-        fetchChurchViongozi(),
-        fetchDashboardKpiAggregates({ alignCoreCountsWithPublicRpc: roleBypassesGeoScope(role) }),
-      ]);
-      const getVal = <T,>(idx: number, fallback: T, keepOnAbort?: T): T => {
-        const r = settled[idx];
-        if (r.status === "fulfilled") return r.value as T;
-        if (isAbortLikeError(r.reason)) return (keepOnAbort ?? fallback) as T;
-        if (import.meta.env.DEV) console.warn("[Dashibodi — kipimo kimeshindwa]", r.reason);
-        return fallback;
-      };
-      const getErr = (idx: number): string | null => {
-        const r = settled[idx];
-        if (r.status === "fulfilled") return null;
-        if (isAbortLikeError(r.reason)) return null;
-        return String((r.reason as { message?: unknown } | null)?.message ?? r.reason ?? HAIJAPATIKANA_DATA_SW);
-      };
-      const failedCritical = settled.filter(
-        (r) => r.status === "rejected" && !isAbortLikeError(r.reason)
-      ).length;
-      const auditErr = getErr(1);
-      const securityErr = getErr(2);
-      const wauminiErr = getErr(3);
-      setDayosisi((prev) => getVal(0, [], prev));
-      setMajimbo((prev) => getVal(4, [], prev));
-      setMatawi((prev) => getVal(5, [], prev));
-      setFedha((prev) => getVal(6, [], prev));
-      setIncomeSources((prev) => getVal(7, [], prev));
-      setIncomeManagement((prev) => getVal(8, [], prev));
-      setViongozi((prev) => getVal(9, [], prev));
-      setKpiLive((prevKpi) => {
-        const baseKpi = getVal(10, emptyDashboardKpiSnapshot(), prevKpi);
-        return {
-        ...baseKpi,
-        failedKpis: {
-          ...(baseKpi.failedKpis ?? {}),
-          ...(auditErr ? { "kpi.audit_logs.count": auditErr } : {}),
-          ...(securityErr
-            ? {
-                "kpi.portal_directory_profiles.count": securityErr,
-                "kpi.portal_visibility_rules.count": securityErr,
-                "kpi.portal_module_matrix.count": securityErr,
-              }
-            : {}),
-          ...(wauminiErr
-            ? {
-                "kpi.church_families.count": wauminiErr,
-                "kpi.church_members.count": wauminiErr,
-                "kpi.church_members.count_active": wauminiErr,
-                "kpi.church_members.count_baptized": wauminiErr,
-              }
-            : {}),
-        },
-      };
+  const persistScrollSnapshot = useCallback(
+    (el: HTMLElement) => {
+      if (!authUser?.id) return;
+      writePortalUiSnapshot({
+        userId: authUser.id,
+        activeModule,
+        activeSubmodule,
+        expanded,
+        sidebarCollapsed,
+        scrollTop: el.scrollTop,
       });
-      setKpiError(failedCritical >= settled.length ? DASHBOARD_KPI_LOAD_ERROR_SW : null);
-    } catch (err) {
-      reportError(err, "Dashibodi — vipimo");
-      setKpiError(DASHBOARD_KPI_LOAD_ERROR_SW);
-      setKpiLive(emptyDashboardKpiSnapshot());
-    } finally {
-      setKpiRefreshing(false);
-      lastDashboardMetricsAtRef.current = Date.now();
-      if (authUser?.id && !legacyStructureRepairRef.current) {
-        legacyStructureRepairRef.current = true;
-        void dedupeInFlight("portal:repair-legacy-structure-links", () => repairAllLegacyStructureLinks());
+    },
+    [authUser?.id, activeModule, activeSubmodule, expanded, sidebarCollapsed],
+  );
+
+  useThrottledElementScroll("portal-main-scroll", persistScrollSnapshot, {
+    enabled: Boolean(authUser?.id),
+    minIntervalMs: 700,
+  });
+
+  /** Boot ya haraka: RPC 1–2 + waumini counts (si orodha nzito wala ~70 queries). */
+  const loadDashboardMetricsBoot = useCallback(async () => {
+    return dedupeInFlight(
+      "portal:load-dashboard-metrics-boot",
+      async () => {
+      const client = getSupabase();
+      if (!client) {
+        setKpiLive(emptyDashboardKpiSnapshot());
+        setKpiError(null);
+        return;
       }
+      setKpiError(null);
+      try {
+        const { kpi, waumini } = await fetchDashboardBootBundle(roleBypassesGeoScope(role));
+        setKpiLive(kpi);
+        setWauminiCounts(waumini);
+      } catch (err) {
+        if (err instanceof AsyncTimeoutError) {
+          setKpiLive(emptyDashboardKpiSnapshot());
+          setKpiError(null);
+          pushToast(PORTAL_SLOW_NETWORK_SW, "info");
+        } else if (!isAbortLikeError(err)) {
+          reportError(err, "Dashibodi — vipimo (boot)");
+          setKpiError(DASHBOARD_KPI_LOAD_ERROR_SW);
+          setKpiLive(emptyDashboardKpiSnapshot());
+        }
+      } finally {
+        lastDashboardMetricsAtRef.current = Date.now();
+      }
+    },
+      { timeoutMs: PORTAL_LOAD_TIMEOUTS.bootKpiMs + 2000 },
+    );
+  }, [reportError, role, pushToast]);
+
+  /** Hesabu kamili za KPI (baadaye / on-demand) — bila orodha za jimbo/tawi/viongozi. */
+  const loadDashboardMetricsFull = useCallback(async () => {
+    return dedupeInFlight("portal:load-dashboard-metrics-full", async () => {
+      const client = getSupabase();
+      if (!client) return;
+      setKpiRefreshing(true);
+      if (kpiRefreshGuardRef.current) window.clearTimeout(kpiRefreshGuardRef.current);
+      kpiRefreshGuardRef.current = window.setTimeout(() => {
+        setKpiRefreshing(false);
+      }, PORTAL_LOAD_TIMEOUTS.fullKpiMs + 2500);
+      setKpiError(null);
+      try {
+        const [kpiSettled, auditSettled, securitySettled, wauminiSettled] = await Promise.allSettled([
+          withTimeout(
+            fetchDashboardKpiAggregates({ alignCoreCountsWithPublicRpc: roleBypassesGeoScope(role) }),
+            PORTAL_LOAD_TIMEOUTS.fullKpiMs,
+            "kpi-full",
+          ),
+          withTimeout(fetchAuditLogCount(), PORTAL_LOAD_TIMEOUTS.bootKpiMs, "kpi-audit"),
+          withTimeout(fetchPortalSecurityCountsStrict(), PORTAL_LOAD_TIMEOUTS.bootKpiMs, "kpi-security"),
+          withTimeout(fetchWauminiCountsStrict(), PORTAL_LOAD_TIMEOUTS.bootKpiMs, "kpi-waumini"),
+        ]);
+        if (wauminiSettled.status === "fulfilled") setWauminiCounts(wauminiSettled.value);
+        const auditErr =
+          auditSettled.status === "rejected" && !isAbortLikeError(auditSettled.reason)
+            ? String((auditSettled.reason as Error)?.message ?? auditSettled.reason)
+            : null;
+        const securityErr =
+          securitySettled.status === "rejected" && !isAbortLikeError(securitySettled.reason)
+            ? String((securitySettled.reason as Error)?.message ?? securitySettled.reason)
+            : null;
+        if (kpiSettled.status === "fulfilled") {
+          const baseKpi = kpiSettled.value;
+          setKpiLive({
+            ...baseKpi,
+            failedKpis: {
+              ...(baseKpi.failedKpis ?? {}),
+              ...(auditErr ? { "kpi.audit_logs.count": auditErr } : {}),
+              ...(securityErr
+                ? {
+                    "kpi.portal_directory_profiles.count": securityErr,
+                    "kpi.portal_visibility_rules.count": securityErr,
+                    "kpi.portal_module_matrix.count": securityErr,
+                  }
+                : {}),
+            },
+          });
+          setKpiError(null);
+        } else if (!isAbortLikeError(kpiSettled.reason)) {
+          if (kpiSettled.reason instanceof AsyncTimeoutError) {
+            pushToast(PORTAL_SLOW_NETWORK_SW, "info");
+          } else {
+            reportError(kpiSettled.reason, "Dashibodi — vipimo (kamili)");
+            setKpiError(DASHBOARD_KPI_LOAD_ERROR_SW);
+          }
+        }
+      } catch (err) {
+        if (err instanceof AsyncTimeoutError) {
+          pushToast(PORTAL_SLOW_NETWORK_SW, "info");
+        } else {
+          reportError(err, "Dashibodi — vipimo");
+          setKpiError(DASHBOARD_KPI_LOAD_ERROR_SW);
+        }
+      } finally {
+        if (kpiRefreshGuardRef.current) {
+          window.clearTimeout(kpiRefreshGuardRef.current);
+          kpiRefreshGuardRef.current = null;
+        }
+        setKpiRefreshing(false);
+        lastDashboardMetricsAtRef.current = Date.now();
+      }
+    },
+      { timeoutMs: PORTAL_LOAD_TIMEOUTS.fullKpiMs + 3000 },
+    );
+  }, [reportError, role, pushToast]);
+
+  const scheduleDashboardMetricsFull = useCallback(() => {
+    if (fullMetricsScheduledRef.current) return;
+    fullMetricsScheduledRef.current = true;
+    const run = () => {
+      if (activeModuleRef.current !== "dashboard") return;
+      void loadDashboardMetricsFull();
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      window.requestIdleCallback(run, { timeout: 8000 });
+    } else {
+      window.setTimeout(run, 3500);
     }
-    });
-  }, [reportError, role, authUser?.id]);
+  }, [loadDashboardMetricsFull]);
+
+  const loadDashboardMetrics = useCallback(
+    async (mode: "boot" | "full" = "boot") => {
+      if (mode === "full") return loadDashboardMetricsFull();
+      return loadDashboardMetricsBoot();
+    },
+    [loadDashboardMetricsBoot, loadDashboardMetricsFull],
+  );
+
+  const loadStructureListsForBranch = useCallback(async () => {
+    return dedupeInFlight(
+      "portal:load-structure-for-branch",
+      async () => {
+      if (!getSupabase()) return;
+      const settled = await Promise.allSettled([
+        withTimeout(fetchDayosisi(), PORTAL_LOAD_TIMEOUTS.structureListsMs, "dayosisi"),
+        withTimeout(fetchChurchJimbo(), PORTAL_LOAD_TIMEOUTS.structureListsMs, "jimbo"),
+        withTimeout(fetchChurchTawi(), PORTAL_LOAD_TIMEOUTS.structureListsMs, "tawi"),
+      ]);
+      if (settled[0].status === "fulfilled") setDayosisi(settled[0].value);
+      if (settled[1].status === "fulfilled") setMajimbo(settled[1].value);
+      if (settled[2].status === "fulfilled") setMatawi(settled[2].value);
+    },
+      { timeoutMs: PORTAL_LOAD_TIMEOUTS.structureListsMs + 1500 },
+    );
+  }, []);
+
+  const coalescedMetricsReloadRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    coalescedMetricsReloadRef.current = coalesceRealtimeCallback(() => {
+      if (activeModuleRef.current !== "dashboard") return;
+      void loadDashboardMetricsBoot();
+    }, 2200);
+  }, [loadDashboardMetricsBoot]);
+
+  const scheduleMetricsReload = useCallback(
+    (immediate?: boolean, full = false) => {
+      if (activeModuleRef.current !== "dashboard") return;
+      if (immediate) {
+        void loadDashboardMetrics(full ? "full" : "boot");
+        return;
+      }
+      coalescedMetricsReloadRef.current?.();
+    },
+    [loadDashboardMetrics],
+  );
 
   const loadViongoziList = useCallback(async () => {
     return dedupeInFlight("portal:load-viongozi-list", async () => {
@@ -457,29 +523,23 @@ export function AppLayout() {
     });
   }, [reportError]);
 
-  /** Orodha ya dayosisi kwa moduli zingine hata kabla hazijafungua Dashibodi (au baada ya kubofya haraka). */
-  useEffect(() => {
-    if (!getSupabase()) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const rows = await fetchDayosisi();
-        if (!cancelled) setDayosisi(rows);
-      } catch (err) {
-        if (!cancelled && !isAbortLikeError(err)) reportError(err, "Dayosisi — orodha");
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [reportError]);
+  const loadPendingApprovalsData = useCallback(async () => {
+    return dedupeInFlight("portal:load-pending-approvals-data", async () => {
+      if (!getSupabase()) return;
+      const settled = await Promise.allSettled([
+        loadMuundoLists(),
+        fetchChurchFinanceEntries(),
+        fetchChurchIncomeLines(),
+      ]);
+      if (settled[1].status === "fulfilled") setFedha(settled[1].value);
+      if (settled[2].status === "fulfilled") setIncomeManagement(settled[2].value);
+    });
+  }, [loadMuundoLists]);
 
-  const dashboardDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const globalRealtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const masterSettingsRealtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (!authInitialized || !authUser) return;
+    if (!authInitialized || !authUser || rbacLoading) return;
     if (!getSupabase()) {
       setMajimbo([]);
       setMatawi([]);
@@ -491,7 +551,16 @@ export function AppLayout() {
     if (activeModule !== "dashboard") return;
 
     let cancelled = false;
-    void loadDashboardMetrics();
+    fullMetricsScheduledRef.current = false;
+    setBranchEngineMountEnabled(false);
+    void loadDashboardMetricsBoot();
+
+    const branchTimer = window.setTimeout(() => {
+      if (!cancelled) {
+        setBranchEngineMountEnabled(true);
+        void loadStructureListsForBranch();
+      }
+    }, 1400);
 
     if (!isSupabaseRealtimeEnabled()) {
       const onVisibility = () => {
@@ -499,65 +568,70 @@ export function AppLayout() {
         const hiddenMs = lastResumeHiddenMsRef.current;
         const since = Date.now() - lastDashboardMetricsAtRef.current;
         if (hiddenMs > 0 && hiddenMs < VISIBILITY_SKIP_HIDDEN_MS && since < METRICS_RECENT_FETCH_MS) return;
-        void loadDashboardMetrics();
+        void loadDashboardMetricsBoot();
       };
       document.addEventListener("visibilitychange", onVisibility);
       return () => {
         cancelled = true;
+        window.clearTimeout(branchTimer);
         document.removeEventListener("visibilitychange", onVisibility);
       };
     }
 
     const scheduleReload = () => {
-      if (dashboardDebounceRef.current) clearTimeout(dashboardDebounceRef.current);
-      dashboardDebounceRef.current = setTimeout(() => {
-        dashboardDebounceRef.current = null;
-        if (!cancelled) void loadDashboardMetrics();
-      }, 400);
+      if (!cancelled) scheduleMetricsReload();
     };
 
     const client = getSupabase()!;
-    const channel = client
-      .channel("portal-dashboard-live")
-      .on("postgres_changes", { event: "*", schema: "public", table: "church_members" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "church_families" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "dayosisi" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "audit_logs" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "portal_directory_profiles" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "portal_visibility_rules" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "portal_module_matrix" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "church_jimbo" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "church_tawi" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "church_finance_entries" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "church_income_sources" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "church_income_lines" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "church_viongozi" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "national_leadership_profiles" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "portal_domain_entities" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "events" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "gallery" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "news_posts" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "documents" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "videos" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "audios" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "sermons" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_sessions" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "attendance_records" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "file_manager_items" }, scheduleReload)
-      .subscribe();
+    let channel = client.channel("portal-dashboard-live");
+    for (const table of PORTAL_DASHBOARD_REALTIME_TABLES) {
+      channel = channel.on("postgres_changes", { event: "*", schema: "public", table }, scheduleReload);
+    }
+    channel.subscribe();
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible" && !cancelled) void loadDashboardMetrics();
+      if (document.visibilityState !== "visible" || cancelled) return;
+      const since = Date.now() - lastDashboardMetricsAtRef.current;
+      if (since < METRICS_RECENT_FETCH_MS) return;
+      scheduleMetricsReload();
     };
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelled = true;
-      if (dashboardDebounceRef.current) clearTimeout(dashboardDebounceRef.current);
+      window.clearTimeout(branchTimer);
       document.removeEventListener("visibilitychange", onVisibility);
       void client.removeChannel(channel);
     };
-  }, [activeModule, loadDashboardMetrics, authInitialized, authUser]);
+  }, [
+    activeModule,
+    loadDashboardMetricsBoot,
+    scheduleMetricsReload,
+    scheduleDashboardMetricsFull,
+    loadStructureListsForBranch,
+    authInitialized,
+    authUser,
+    rbacLoading,
+  ]);
+
+  useEffect(() => {
+    if (!authInitialized || !authUser) return;
+    if (activeModule !== "dashboard") return;
+    const sub = normalizeDashboardSubmodule(activeSubmodule);
+    if (sub === DASHBOARD_PENDING_APPROVALS_SUBMODULE) {
+      void loadPendingApprovalsData();
+    }
+    if (sub === DASHBOARD_COMMAND_CENTER_SUBMODULE && !fullMetricsScheduledRef.current) {
+      scheduleDashboardMetricsFull();
+    }
+  }, [
+    activeModule,
+    activeSubmodule,
+    authInitialized,
+    authUser,
+    loadPendingApprovalsData,
+    scheduleDashboardMetricsFull,
+  ]);
 
   useEffect(() => {
     if (!authInitialized || !authUser) return;
@@ -622,49 +696,6 @@ export function AppLayout() {
     };
   }, [activeModule, loadIncomeModuleData, authInitialized, authUser]);
 
-  /**
-   * Global realtime sync (all modules):
-   * Any change in public schema triggers a debounced refresh of shared datasets
-   * and dispatches the cross-module reload event used by dashboard/widgets.
-   */
-  useEffect(() => {
-    if (!authInitialized || !authUser) return;
-    if (!getSupabase()) return;
-    if (!isSupabaseRealtimeEnabled()) return;
-
-    let cancelled = false;
-    const client = getSupabase()!;
-    const scheduleGlobalRefresh = () => {
-      if (globalRealtimeDebounceRef.current) clearTimeout(globalRealtimeDebounceRef.current);
-      globalRealtimeDebounceRef.current = setTimeout(() => {
-        globalRealtimeDebounceRef.current = null;
-        if (cancelled) return;
-        dispatchPortalReloadMetrics();
-        void loadDashboardMetrics();
-      }, 900);
-    };
-
-    let channel = client.channel("portal-global-live-sync");
-    for (const table of PORTAL_GLOBAL_REALTIME_TABLES) {
-      channel = channel.on("postgres_changes", { event: "*", schema: "public", table }, scheduleGlobalRefresh);
-    }
-    channel.subscribe();
-
-    return () => {
-      cancelled = true;
-      if (globalRealtimeDebounceRef.current) clearTimeout(globalRealtimeDebounceRef.current);
-      void client.removeChannel(channel);
-    };
-  }, [
-    authInitialized,
-    authUser,
-    loadDashboardMetrics,
-    loadIncomeModuleData,
-    loadFinanceEntries,
-    loadViongoziList,
-    loadMuundoLists,
-  ]);
-
   useEffect(() => {
     if (!authInitialized || !authUser) return;
     if (!getSupabase()) return;
@@ -695,7 +726,10 @@ export function AppLayout() {
     };
   }, [authInitialized, authUser]);
 
-  const visibleModules = useMemo(() => modules.filter((m) => canPortalViewModule(m.key)), [canPortalViewModule]);
+  const visibleModules = useMemo(() => {
+    if (rbacLoading) return modules;
+    return modules.filter((m) => canPortalViewModule(m.key));
+  }, [rbacLoading, canPortalViewModule]);
   const draftScope = useMemo<PortalDraftScope>(
     () => ({ userId: authUser?.id, moduleKey: activeModule, submodule: activeSubmodule }),
     [activeModule, activeSubmodule, authUser?.id]
@@ -740,6 +774,7 @@ export function AppLayout() {
 
   const selectModule = useCallback(
     (moduleKey: string, submodule: string) => {
+      if (rbacLoading && showRbacBootShell) return;
       const resolvedSub = coerceSubmoduleForModule(moduleKey, submodule);
       if (!canLeaveDraftScope(moduleKey, resolvedSub)) return;
       setActiveModule(moduleKey);
@@ -748,12 +783,12 @@ export function AppLayout() {
       setMobileOpen(false);
       syncPortalUrl(moduleKey, resolvedSub);
     },
-    [canLeaveDraftScope, syncPortalUrl]
+    [canLeaveDraftScope, syncPortalUrl, rbacLoading, showRbacBootShell]
   );
 
   const urlBootRef = useRef(false);
   useEffect(() => {
-    if (!authInitialized || !authUser || rbacLoading || urlBootRef.current) return;
+    if (!authInitialized || !authUser || (rbacLoading && showRbacBootShell) || urlBootRef.current) return;
     urlBootRef.current = true;
     const params = new URLSearchParams(window.location.search);
     const mk = params.get("module")?.trim();
@@ -778,26 +813,18 @@ export function AppLayout() {
       return;
     }
     selectModule("dashboard", getDashboardDefaultSubmodule());
-  }, [authInitialized, authUser, rbacLoading, canPortalViewModule, selectModule, syncPortalUrl]);
-
-  const reloadMetricsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  }, [authInitialized, authUser, rbacLoading, showRbacBootShell, canPortalViewModule, selectModule, syncPortalUrl]);
 
   useEffect(() => {
     const onReloadMetrics = (ev: Event) => {
-      const immediate = Boolean((ev as CustomEvent<{ immediate?: boolean }>).detail?.immediate);
-      const ms = immediate ? 0 : 380;
-      if (reloadMetricsDebounceRef.current) clearTimeout(reloadMetricsDebounceRef.current);
-      reloadMetricsDebounceRef.current = setTimeout(() => {
-        reloadMetricsDebounceRef.current = null;
-        void loadDashboardMetrics();
-      }, ms);
+      if (activeModuleRef.current !== "dashboard") return;
+      const detail = (ev as CustomEvent<{ immediate?: boolean; full?: boolean }>).detail;
+      const immediate = Boolean(detail?.immediate);
+      scheduleMetricsReload(immediate, Boolean(detail?.full));
     };
     window.addEventListener(KMT_PORTAL_RELOAD_METRICS_EVENT, onReloadMetrics);
-    return () => {
-      window.removeEventListener(KMT_PORTAL_RELOAD_METRICS_EVENT, onReloadMetrics);
-      if (reloadMetricsDebounceRef.current) clearTimeout(reloadMetricsDebounceRef.current);
-    };
-  }, [loadDashboardMetrics]);
+    return () => window.removeEventListener(KMT_PORTAL_RELOAD_METRICS_EVENT, onReloadMetrics);
+  }, [scheduleMetricsReload]);
 
   useEffect(() => {
     const onNavigate = (ev: Event) => {
@@ -869,6 +896,7 @@ export function AppLayout() {
     }
     if (activeModule !== "dashboard" && !canPortalViewModule(activeModule)) {
       pushToast("Huna ruhusa ya moduli hii.", "error");
+      void logRbacDenied(activeModule, { submodule: activeSubmodule, source: "AppLayout.guard" });
       if (canPortalViewModule("dashboard")) {
         setActiveModule("dashboard");
         setActiveSubmodule(getDashboardDefaultSubmodule());
@@ -925,8 +953,19 @@ export function AppLayout() {
     window.dispatchEvent(new Event("kmt-portal-submodule-back"));
   }, []);
 
+  const handleDashboardNavigate = useCallback(
+    (moduleKey: string, submodule: string) => {
+      selectModule(moduleKey, submodule);
+    },
+    [selectModule],
+  );
+
+  const handleRefreshDashboardKpis = useCallback(() => {
+    void loadDashboardMetrics("full");
+  }, [loadDashboardMetrics]);
+
   return (
-    <div className="flex h-screen flex-col bg-[#F3F6FA]" style={{ height: "100dvh" }}>
+    <div className="portal-app-shell flex h-screen flex-col overflow-hidden bg-[#F3F6FA]" style={{ height: "100dvh" }}>
       <a
         href="#portal-main-scroll"
         className="pointer-events-none fixed left-4 top-4 z-[300] -translate-y-[160%] rounded-xl bg-[#0f1e46] px-4 py-2.5 text-sm font-semibold text-white opacity-0 shadow-lg ring-2 ring-white/90 transition-transform duration-200 focus:pointer-events-auto focus:translate-y-0 focus:opacity-100 focus:outline-none"
@@ -953,79 +992,97 @@ export function AppLayout() {
           }
         />
         <main className="flex min-h-0 min-w-0 flex-1 flex-col" data-portal-main>
-          {!online ? (
-            <div className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
-              Uko offline. Baadhi ya huduma (auth/sync) zinahitaji intaneti.
-            </div>
-          ) : null}
-          <MaintenanceBanner site={site} />
-          {authUser ? (
-            <PortalKpiSyncStatus
-              refreshing={kpiRefreshing}
-              error={kpiError}
-              onRetry={() => void loadDashboardMetrics()}
-            />
-          ) : null}
-          <Topbar
-            moduleLabel={topbarModuleLabel}
-            submoduleLabel={topbarSubmoduleLabel}
-            canBack={canSubBack}
-            onBack={handleTopbarBack}
-            onOpenMobileSidebar={() => setMobileOpen(true)}
-            onNavigateToModule={(moduleKey, submodule) => {
-              selectModule(moduleKey, submodule ?? "");
-            }}
-            sidebarCollapsed={authUser ? sidebarCollapsed : undefined}
-            onToggleSidebarCollapse={
-              authUser ? () => setSidebarCollapsed((c) => !c) : undefined
+          <PortalChromeHeader
+            topbar={
+              <Topbar
+                moduleLabel={topbarModuleLabel}
+                submoduleLabel={topbarSubmoduleLabel}
+                canBack={canSubBack}
+                onBack={handleTopbarBack}
+                onOpenMobileSidebar={() => setMobileOpen(true)}
+                onNavigateToModule={(moduleKey, submodule) => {
+                  selectModule(moduleKey, submodule ?? "");
+                }}
+                sidebarCollapsed={authUser ? sidebarCollapsed : undefined}
+                onToggleSidebarCollapse={
+                  authUser ? () => setSidebarCollapsed((c) => !c) : undefined
+                }
+              />
+            }
+            menu={
+              authUser ? (
+                <ExecutiveMenuBar
+                  activeModule={activeModule}
+                  activeSubmodule={activeSubmodule}
+                  canViewModule={canPortalViewModule}
+                  onNavigate={(moduleKey, submodule) => selectModule(moduleKey, submodule)}
+                />
+              ) : null
             }
           />
-          {authUser ? (
-            <ExecutiveMenuBar
-              activeModule={activeModule}
-              activeSubmodule={activeSubmodule}
-              canViewModule={canPortalViewModule}
-              onNavigate={(moduleKey, submodule) => selectModule(moduleKey, submodule)}
-            />
-          ) : null}
           <div
             id="portal-main-scroll"
             tabIndex={-1}
-            className={`relative flex min-h-0 min-w-0 flex-1 flex-col overscroll-y-contain [-webkit-overflow-scrolling:touch] focus:outline-none ${
+            className={`portal-main-scroll relative flex min-h-0 min-w-0 flex-1 flex-col overscroll-y-contain [-webkit-overflow-scrolling:touch] focus:outline-none ${
               branchEngineSurface
                 ? "overflow-hidden"
                 : "overflow-y-auto overflow-x-hidden pb-[max(5rem,env(safe-area-inset-bottom))]"
             }`}
           >
+            {!online ? (
+              <div className="border-b border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+                Uko offline. Baadhi ya huduma (auth/sync) zinahitaji intaneti.
+              </div>
+            ) : null}
+            <MaintenanceBanner site={site} />
             {authInitialized &&
             authUser &&
+            !rbacLoading &&
             visibleModules.length > 0 &&
             !shouldHidePortalProjectRibbon(activeModule, activeSubmodule) ? (
               <PortalProjectNotesRibbon show />
             ) : null}
-            {noModuleRbac ? (
+            {!rbacLoading && noModuleRbac ? (
               <div className="portal-page-content">
                 <NoModuleAccessNotice />
               </div>
             ) : null}
+            {authUser ? (
             <div
-              className={`portal-page-content flex w-full min-w-0 flex-1 flex-col ${
+              className={`portal-workspace-layer portal-page-content flex w-full min-w-0 flex-1 flex-col ${
                 branchEngineSurface ? "portal-page-content--fullscreen min-h-0 p-0" : ""
               } ${moduleWorkspace && !branchEngineSurface ? "min-h-0" : ""}`}
             >
+            {rbacLoading && showRbacBootShell ? (
+              <div className="portal-rbac-boot-overlay" aria-busy="true" aria-label="Inapakia ruhusa">
+                <PortalBootShell className="flex-1" />
+              </div>
+            ) : null}
             <Suspense fallback={<ModuleLoadingFallback />}>
               <ErrorBoundary sectionLabel={activeModule === "dashboard" ? "Dashibodi" : `Moduli: ${activeModule}`}>
               {activeModule === "dashboard" ? (
                 <div className="flex min-h-0 w-full flex-1 flex-col">
-                <MasterBranchExecutiveDashboard
+                <InternalDashboardRouter
+                  activeSubmodule={activeSubmodule}
                   dayosisi={dayosisi}
                   majimbo={majimbo}
                   matawi={matawi}
+                  fedha={fedha}
+                  incomeManagement={incomeManagement}
                   kpiLive={kpiLive}
-                  {...resolveBranchEngineRoute(activeSubmodule, portalProfile, {
-                    recordId: highlightRecordId,
-                    engineModuleId: branchEngineModuleId,
-                  })}
+                  kpiRefreshing={kpiRefreshing}
+                  wauminiCounts={wauminiCounts}
+                  matawiRegistryPendingReviewKpi={kpiLive.matawiRegistryPendingReviewCount}
+                  matawiRegistryPendingReviewKpiFailed={Boolean(
+                    (kpiLive.failedKpis ?? {})["kpi.church_tawi.count_registry_pending_review"],
+                  )}
+                  portalProfile={portalProfile}
+                  highlightRecordId={highlightRecordId}
+                  branchEngineModuleId={branchEngineModuleId}
+                  canViewModule={canPortalViewModule}
+                  onNavigateModule={handleDashboardNavigate}
+                  branchEngineMountEnabled={branchEngineMountEnabled}
+                  onRefreshKpis={handleRefreshDashboardKpis}
                 />
                 </div>
               ) : (
@@ -1034,6 +1091,7 @@ export function AppLayout() {
                   submodule={activeSubmodule}
                   layoutMode={layoutMode}
                   kpiLive={kpiLive}
+                  kpiRefreshing={kpiRefreshing}
                   canNavigateBack={canSubBack}
                   dayosisi={dayosisi}
                   setDayosisi={setDayosisi}
@@ -1084,6 +1142,7 @@ export function AppLayout() {
               </ErrorBoundary>
             </Suspense>
             </div>
+            ) : null}
           </div>
           <PortalAutoDraftRecovery scope={draftScope} rootId="portal-main-scroll" enabled={authInitialized && Boolean(authUser)} />
           {!branchEngineSurface && !moduleWorkspace ? <SiteFooter site={site} about={about} /> : null}
