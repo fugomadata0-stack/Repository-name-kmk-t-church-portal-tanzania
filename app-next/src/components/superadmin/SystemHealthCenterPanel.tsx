@@ -301,8 +301,6 @@ export function SystemHealthCenterPanel() {
         <p className="mt-3 text-xs text-blue-100">Last checked at: {fmtDate(snapshot.checked_at)}</p>
       </section>
 
-      <StorageDiagnosticsPanel showBucketGrid />
-
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {healthCards.map((card) => {
           const Icon = card.icon;
@@ -320,6 +318,8 @@ export function SystemHealthCenterPanel() {
           );
         })}
       </section>
+
+      <StorageDiagnosticsPanel showBucketGrid />
 
       <section className="grid gap-3 lg:grid-cols-2">
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">

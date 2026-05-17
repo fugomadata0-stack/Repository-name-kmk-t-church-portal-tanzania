@@ -16,6 +16,7 @@ export type StorageDiagnosticRow = {
 
 export type StorageDiagnosticsSnapshot = {
   checked_at: string;
+  overall_ok: boolean;
   env_ok: boolean;
   env_message: string;
   project_origin: string;
@@ -25,6 +26,8 @@ export type StorageDiagnosticsSnapshot = {
   api_connectivity_ok: boolean;
   api_message: string;
   buckets_ok: boolean;
+  buckets_healthy_count: number;
+  buckets_needs_setup_count: number;
   missing_buckets: string[];
   bucket_rows: StorageBucketHealthRow[];
   rows: StorageDiagnosticRow[];
@@ -54,11 +57,17 @@ export async function fetchStorageDiagnostics(): Promise<StorageDiagnosticsSnaps
     label: "Kikao cha mtumiaji",
     ok: authSignedIn,
     status: authSignedIn ? "ok" : "warn",
-    message: authSignedIn ? `Umeingia kama ${authEmail ?? "mtumiaji"}.` : "Huna kikao — baadhi ya buckets za faragha zinaweza kuonekana tu baada ya kuingia.",
+    message: authSignedIn
+      ? `Umeingia kama ${authEmail ?? "mtumiaji"}.`
+      : "Huna kikao — buckets za faragha zinaweza kuonekana tu baada ya kuingia (si hitilafu ya storage).",
     hint: authSignedIn ? undefined : "Ingia kwenye portal kisha kagua tena.",
   });
 
-  const link = await checkSupabaseMediaLink();
+  const [link, buckets] = await Promise.all([
+    checkSupabaseMediaLink(),
+    checkStorageBucketsSummary(ALL_STORAGE_BUCKET_NAMES),
+  ]);
+
   rows.push({
     id: "api",
     label: "Muunganisho wa API",
@@ -68,7 +77,6 @@ export async function fetchStorageDiagnostics(): Promise<StorageDiagnosticsSnaps
     hint: link.ok ? undefined : "Angalia URL ya mradi, funguo, na mtandao.",
   });
 
-  const buckets = await checkStorageBucketsSummary(ALL_STORAGE_BUCKET_NAMES);
   const healthyCount = buckets.rows.filter((b) => b.status === "healthy").length;
   const setupCount = buckets.rows.filter((b) => b.status === "needs_setup").length;
 
@@ -76,7 +84,7 @@ export async function fetchStorageDiagnostics(): Promise<StorageDiagnosticsSnaps
     id: "buckets",
     label: "Buckets za storage",
     ok: buckets.ok,
-    status: buckets.ok ? "ok" : setupCount > 0 ? "warn" : "warn",
+    status: buckets.ok ? "ok" : "warn",
     message: buckets.ok
       ? `Buckets ${healthyCount}/${ALL_STORAGE_BUCKET_NAMES.length} ziko tayari.`
       : setupCount > 0
@@ -85,8 +93,11 @@ export async function fetchStorageDiagnostics(): Promise<StorageDiagnosticsSnaps
     hint: buckets.ok ? undefined : "Endesha migrations za storage (npm run db:push:safe kutoka app-next).",
   });
 
+  const overallOk = env.ok && link.ok && buckets.ok;
+
   return {
     checked_at: new Date().toISOString(),
+    overall_ok: overallOk,
     env_ok: env.ok,
     env_message: env.ok ? "Sawa" : env.message,
     project_origin: origin || "(haijaseti)",
@@ -96,6 +107,8 @@ export async function fetchStorageDiagnostics(): Promise<StorageDiagnosticsSnaps
     api_connectivity_ok: link.ok,
     api_message: link.message,
     buckets_ok: buckets.ok,
+    buckets_healthy_count: healthyCount,
+    buckets_needs_setup_count: setupCount,
     missing_buckets: buckets.missing,
     bucket_rows: buckets.rows,
     rows,

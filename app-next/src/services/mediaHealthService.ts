@@ -3,21 +3,23 @@ import { checkStorageBucketsSummary } from "../lib/storageBucketProbe";
 import { formatPostgrestError, isMissingTableError } from "../lib/supabaseErrors";
 import { getSupabase } from "../lib/supabaseClient";
 
-/** @deprecated Tumia ALL_STORAGE_BUCKET_NAMES kutoka storageBuckets */
+/** @deprecated Tumia `ALL_STORAGE_BUCKET_NAMES` kutoka `storageBuckets`. */
 export const REQUIRED_MEDIA_BUCKETS = ALL_STORAGE_BUCKET_NAMES;
 
 /**
- * Kagua buckets zilizobainishwa — si listBuckets() (false-negative kwa anon key).
+ * Kagua buckets — kwa System Health / diagnostics pekee.
+ * Usiite kwenye moduli za media (Gallery, Video, nk.).
  */
 export async function checkRequiredMediaBuckets(buckets?: readonly string[]) {
   return checkStorageBucketsSummary(buckets ?? ALL_STORAGE_BUCKET_NAMES);
 }
 
-/** Kagua buckets za moduli ya media pekee (gallery, video, audio, events). */
+/** Kagua buckets za moduli za media (gallery, video, audio, events). */
 export async function checkMediaModuleBuckets() {
   return checkStorageBucketsSummary(MEDIA_MODULE_BUCKET_NAMES);
 }
 
+/** Muunganisho wa DB (si orodha ya buckets). */
 export async function checkSupabaseMediaLink(): Promise<{ ok: boolean; message: string }> {
   const c = getSupabase();
   if (!c) return { ok: false, message: "Supabase haijasanidiwa." };
