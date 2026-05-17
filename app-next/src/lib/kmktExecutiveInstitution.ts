@@ -45,8 +45,20 @@ export function buildLeadershipVerificationUrl(baseUrl: string, kind: Leadership
   return `${b}/verify/leadership?vid=${enc}`;
 }
 
+/** URL ya uhakiki kwa cheti rasmi (verification_id ya DB). */
+export function buildOfficialCertificateVerificationUrl(baseUrl: string, verificationId: string): string {
+  const b = String(baseUrl ?? "")
+    .trim()
+    .replace(/\/$/, "");
+  const id = String(verificationId ?? "").trim();
+  if (!b || !id) return "";
+  return `${b}/verify/leadership?vrf=${encodeURIComponent(id)}`;
+}
+
 /** Nambari fupi ya kumbukumbu inayoonekana kwenye cheti / QR. */
-export function formatLeadershipCredentialSerial(prefix: "CV" | "NAT", id: string): string {
+export type LeadershipCredentialSerialPrefix = "CV" | "NAT" | "NAT-CV" | "CHT" | "ID";
+
+export function formatLeadershipCredentialSerial(prefix: LeadershipCredentialSerialPrefix, id: string): string {
   const raw = String(id ?? "").replace(/-/g, "").toUpperCase();
   const core = raw.slice(0, 12) || "UNKNOWN";
   return `KMK-${prefix}-${core}`;

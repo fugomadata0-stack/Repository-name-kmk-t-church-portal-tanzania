@@ -11,6 +11,7 @@ import {
 } from "../lib/structureFieldValidation";
 import { formatPostgrestError, isMissingTableError } from "../lib/supabaseErrors";
 import { STORAGE_BUCKETS } from "../lib/storageBuckets";
+import { getCurrentUserId } from "../lib/supabaseAuthSession";
 import { getSupabase } from "../lib/supabase";
 import { enterpriseStorageUpload, PORTAL_DOCUMENT_FILE_GUARD } from "../lib/enterpriseStorageUpload";
 import { buildSafeStoragePath } from "../lib/storageUpload";
@@ -148,8 +149,7 @@ export async function createStructureLeader(
   const c = getSupabase();
   if (!c) throw new Error("Supabase haijasanidiwa.");
   validateLeaderPayload(payload, "create", entityId);
-  const { data: userData } = await c.auth.getUser();
-  const uid = userData?.user?.id ?? null;
+  const uid = getCurrentUserId();
   const row = {
     entity_id: entityId,
     position_title: String(payload.position_title ?? "").trim(),
@@ -192,8 +192,7 @@ export async function updateStructureLeader(
     ? String((existingRow as { entity_id?: unknown }).entity_id ?? "")
     : "";
   validateLeaderPayload(payload, "update", ent || undefined);
-  const { data: userData } = await c.auth.getUser();
-  const uid = userData?.user?.id ?? null;
+  const uid = getCurrentUserId();
   const patch: Record<string, unknown> = {
     updated_by: uid,
   };
@@ -234,8 +233,7 @@ export async function updateStructureLeader(
 export async function archiveStructureLeader(id: string): Promise<void> {
   const c = getSupabase();
   if (!c) throw new Error("Supabase haijasanidiwa.");
-  const { data: userData } = await c.auth.getUser();
-  const uid = userData?.user?.id ?? null;
+  const uid = getCurrentUserId();
   const { error } = await c
     .from("church_structure_leaders")
     .update({ status: "archived", updated_by: uid })

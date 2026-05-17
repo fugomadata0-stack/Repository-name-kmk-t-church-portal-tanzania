@@ -6,6 +6,8 @@ export const GLOBAL_ERROR_BOUNDARY_MESSAGE_SW =
 
 interface Props {
   children: ReactNode;
+  /** Kitambulisho cha sehemu (kwa ufuatiliaji na ujumbe). */
+  sectionLabel?: string;
 }
 
 interface State {
@@ -22,7 +24,8 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(err: Error, info: ErrorInfo) {
-    console.error("[ErrorBoundary]", err, info.componentStack);
+    const label = this.props.sectionLabel?.trim();
+    console.error(label ? `[ErrorBoundary:${label}]` : "[ErrorBoundary]", err, info.componentStack);
     if (import.meta.env.DEV) {
       this.setState({ devDetail: err?.message || String(err) });
     }
@@ -40,7 +43,9 @@ export class ErrorBoundary extends Component<Props, State> {
           role="alert"
           aria-live="assertive"
         >
-          <h1 className="text-lg font-bold text-[#0f1e46]">Changamoto ya mfumo</h1>
+          <h1 className="text-lg font-bold text-[#0f1e46]">
+            Changamoto ya mfumo{this.props.sectionLabel ? ` — ${this.props.sectionLabel}` : ""}
+          </h1>
           <p className="max-w-md text-sm leading-relaxed text-slate-700">{GLOBAL_ERROR_BOUNDARY_MESSAGE_SW}</p>
           {import.meta.env.DEV && this.state.devDetail ? (
             <pre className="max-h-40 max-w-lg overflow-auto rounded-lg border border-rose-200 bg-rose-50 p-3 text-left text-xs text-rose-900">

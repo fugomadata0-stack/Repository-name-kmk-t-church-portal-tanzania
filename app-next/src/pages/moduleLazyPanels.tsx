@@ -164,6 +164,14 @@ export const EnterpriseLeadershipHub = lazy(async () => {
   const m = await import("../components/viongozi/EnterpriseLeadershipHub");
   return { default: m.EnterpriseLeadershipHub };
 });
+export const LeadershipCredentialsHub = lazy(async () => {
+  const m = await import("../components/leadership-credentials/LeadershipCredentialsHub");
+  return { default: m.LeadershipCredentialsHub };
+});
+export const ExecutiveLeadershipProfileEngine = lazy(async () => {
+  const m = await import("../components/executive-leadership-profile/ExecutiveLeadershipProfileEngine");
+  return { default: m.ExecutiveLeadershipProfileEngine };
+});
 export const AboutKmktPanel = lazy(async () => {
   const m = await import("../components/site/AboutKmktPanel");
   return { default: m.AboutKmktPanel };

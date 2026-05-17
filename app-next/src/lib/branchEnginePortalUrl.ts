@@ -2,6 +2,7 @@ import { MASTER_BRANCH_ENGINE_SUBMODULE } from "./masterBranchEngineHub";
 
 /** URL ya kina ya portal (si iframe) — login moja, injini moja. */
 export function buildBranchEnginePortalUrl(options?: {
+  moduleKey?: "dashboard" | "muundo";
   submodule?: string;
   recordId?: string;
   engineModuleId?: string;
@@ -11,7 +12,7 @@ export function buildBranchEnginePortalUrl(options?: {
     options?.origin ??
     (typeof window !== "undefined" ? window.location.origin : "https://v0-church-portal-tanzania.vercel.app");
   const url = new URL("/", base);
-  url.searchParams.set("module", "muundo");
+  url.searchParams.set("module", options?.moduleKey ?? "muundo");
   url.searchParams.set("submodule", options?.submodule?.trim() || MASTER_BRANCH_ENGINE_SUBMODULE);
   const rid = options?.recordId?.trim();
   const mid = options?.engineModuleId?.trim();
@@ -23,9 +24,9 @@ export function buildBranchEnginePortalUrl(options?: {
 /** Njia ya kudumu ya kufungua injini ndani ya portal (baada ya login). */
 export const BRANCH_ENGINE_PORTAL_ENTRY = buildBranchEnginePortalUrl();
 
-/** Baada ya login kutoka link kuu — ndani ya portal fungua injini ya Matawi. */
+/** Baada ya login kutoka link kuu — Dashibodi Kuu (injini mpya). */
 export const PORTAL_HOME_AFTER_LOGIN = {
-  moduleKey: "muundo" as const,
+  moduleKey: "dashboard" as const,
   submodule: MASTER_BRANCH_ENGINE_SUBMODULE,
 };
 

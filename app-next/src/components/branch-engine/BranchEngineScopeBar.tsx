@@ -87,7 +87,7 @@ export function BranchEngineScopeBar({
     <motion.div
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-[#D4AF37]/25 bg-gradient-to-r from-[#061633]/95 to-[#123C69]/90 px-3 py-2.5 text-white shadow-md no-print"
+      className="mb-1 flex flex-wrap items-center gap-1.5 rounded-lg bg-gradient-to-r from-[#061633]/95 to-[#123C69]/90 px-2 py-1.5 text-white shadow-sm no-print sm:gap-2 sm:px-3 sm:py-2"
     >
       <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#fde68a]">
         <Building2 className="h-3.5 w-3.5" aria-hidden />

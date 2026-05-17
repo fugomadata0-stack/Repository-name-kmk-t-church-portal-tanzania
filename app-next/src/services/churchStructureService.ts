@@ -6,7 +6,9 @@ import {
   normalizeOptionalImageOrDocUrl,
   normalizePhoneStored,
 } from "../lib/structureFieldValidation";
+import { syncStructureEntityToLegacy } from "../lib/legacyStructureMirror";
 import { formatPostgrestError, isMissingTableError } from "../lib/supabaseErrors";
+import { getCurrentUserId } from "../lib/supabaseAuthSession";
 import { getSupabase } from "../lib/supabaseClient";
 import type { ChurchStructureEntity, ChurchStructureLevel } from "../types";
 
@@ -17,11 +19,8 @@ type StructureFilters = {
   includeInactive?: boolean;
 };
 
-async function authUserId(): Promise<string | null> {
-  const c = getSupabase();
-  if (!c) return null;
-  const { data } = await c.auth.getUser();
-  return data.user?.id ?? null;
+function authUserId(): string | null {
+  return getCurrentUserId();
 }
 
 let warnedMissingStructureTable = false;
@@ -260,7 +259,9 @@ export async function createStructureEntity(payload: Partial<ChurchStructureEnti
     throw new Error("Muundo wa kanisa bado haujasanidiwa kwenye DB (church_structure_entities).");
   }
   if (error) throw new Error(formatPostgrestError(error, "church_structure_entities.create"));
-  return mapRow(data as Record<string, unknown>);
+  const mapped = mapRow(data as Record<string, unknown>);
+  void syncStructureEntityToLegacy(mapped);
+  return mapped;
 }
 
 export async function updateStructureEntity(
@@ -339,7 +340,9 @@ export async function updateStructureEntity(
     throw new Error("Muundo wa kanisa bado haujasanidiwa kwenye DB (church_structure_entities).");
   }
   if (error) throw new Error(formatPostgrestError(error, "church_structure_entities.update"));
-  return mapRow(data as Record<string, unknown>);
+  const mapped = mapRow(data as Record<string, unknown>);
+  void syncStructureEntityToLegacy(mapped);
+  return mapped;
 }
 
 export async function archiveStructureEntity(id: string): Promise<void> {
@@ -355,6 +358,12 @@ export async function archiveStructureEntity(id: string): Promise<void> {
     throw new Error("Muundo wa kanisa bado haujasanidiwa kwenye DB (church_structure_entities).");
   }
   if (error) throw new Error(formatPostgrestError(error, "church_structure_entities.archive"));
+  const { data: row } = await c.from("church_structure_entities").select("*").eq("id", id).maybeSingle();
+  if (row) {
+    const mapped = mapRow(row as Record<string, unknown>);
+    mapped.status = "archived";
+    void syncStructureEntityToLegacy(mapped);
+  }
 }
 
 export async function searchStructureEntities(filters: StructureFilters): Promise<ChurchStructureEntity[]> {

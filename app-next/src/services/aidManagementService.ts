@@ -61,7 +61,7 @@ export async function upsertAidBeneficiary(
   row: Partial<AidBeneficiaryRow> & { full_name: string }
 ): Promise<AidBeneficiaryRow> {
   const c = clientOrThrow();
-  const uid = await getCurrentUserId();
+  const uid = getCurrentUserId();
   const payload: Record<string, unknown> = {
     full_name: row.full_name.trim(),
     gender: row.gender ?? "",
@@ -88,7 +88,7 @@ export async function upsertAidRequest(
   row: Partial<AidRequestRow> & { beneficiary_id: string }
 ): Promise<AidRequestRow> {
   const c = clientOrThrow();
-  const uid = await getCurrentUserId();
+  const uid = getCurrentUserId();
   const itemsArr = parseItems(row.items);
   const payload: Record<string, unknown> = {
     id: row.id,

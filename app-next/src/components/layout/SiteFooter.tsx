@@ -30,7 +30,7 @@ export function SiteFooter({ site, about }: { site: SiteSettingsState; about: Ab
     ["YouTube", sl.youtube],
     ["Instagram", sl.instagram],
     ["X", sl.twitter_x],
-    ["Barua", emailHref],
+    ["Barua pepe", emailHref],
   ].filter((x) => String(x[1]).trim());
 
   const legal = [

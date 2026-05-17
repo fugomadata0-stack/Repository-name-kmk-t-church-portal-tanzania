@@ -1,5 +1,6 @@
 import type { DayosisiRecord, JimboRecord, TawiRecord } from "../../types";
 import type { MasterBranchScope } from "../../services/masterBranchEngineService";
+import type { DashboardKpiSnapshot } from "../../services/dashboardKpiAggregatesService";
 import { MatawiModuleDdFrame } from "./MatawiModuleDdFrame";
 
 interface Props {
@@ -9,6 +10,7 @@ interface Props {
   initialScope?: MasterBranchScope;
   initialEntityId?: string;
   initialModuleId?: string;
+  kpiLive?: DashboardKpiSnapshot | null;
 }
 
 /**
@@ -21,6 +23,7 @@ export function MasterBranchExecutiveDashboard({
   initialScope = "kitaifa",
   initialEntityId = "",
   initialModuleId = "",
+  kpiLive = null,
 }: Props) {
   return (
     <MatawiModuleDdFrame
@@ -30,6 +33,7 @@ export function MasterBranchExecutiveDashboard({
       initialScope={initialScope}
       initialEntityId={initialEntityId}
       initialModuleId={initialModuleId}
+      kpiLive={kpiLive}
     />
   );
 }

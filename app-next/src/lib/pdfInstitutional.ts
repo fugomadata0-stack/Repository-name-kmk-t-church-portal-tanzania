@@ -79,6 +79,11 @@ export function fitPdfLinesToWidth(
     if (lines.length <= maxLines) break;
     fontSize -= 0.35;
   }
-  const lineHeight = Math.max(6.2, fontSize * 0.48);
+  const lineHeight = Math.max(7.2, fontSize * 0.55);
   return { lines, fontSize, lineHeight };
+}
+
+/** Viambishi vya Kiswahili sanifu kwenye PDF na KPI. */
+export function swahiliFinanceDisplay(text: string): string {
+  return normalizePdfReadableText(text).replace(/\bSaldo\b/gi, "Salio");
 }

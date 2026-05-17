@@ -24,7 +24,7 @@ export const ENTERPRISE_COMMAND_MODULES: EnterpriseCommandModule[] = [
     description: "Command center ya mfumo mzima: KPIs, alerts, approvals na shughuli za hivi karibuni.",
     portalModuleKey: "dashboard",
     defaultSubmodule: getDashboardDefaultSubmodule(),
-    submodules: ["Kadi za KPI", "Arifa", "Vibali vinavyosubiri"],
+    submodules: ["Injini ya Ngazi — Executive"],
     gradient: "linear-gradient(135deg,#061633,#2563eb)",
     gridClass: "col-span-2 md:col-span-3 xl:col-span-2",
   },

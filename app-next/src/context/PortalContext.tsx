@@ -12,6 +12,8 @@ import type { AuthError, Session, User } from "@supabase/supabase-js";
 import { canonicalAboutKmktFields } from "../data/kmktCanonicalContent";
 import { captureClientException } from "../lib/clientExceptionReporting";
 import { formatCaughtError, formatPostgrestError, isAbortLikeError } from "../lib/supabaseErrors";
+import { bootstrapSessionOnce } from "../lib/authBootstrap";
+import { clearAuthSessionCache, syncAuthSessionCache } from "../lib/authSessionCache";
 import { getSupabase, isSupabaseConfigured, isSupabaseRealtimeEnabled } from "../lib/supabaseClient";
 import { redactSensitiveText, safeStorage } from "../lib/security";
 import { clearPortalUiSnapshot } from "../lib/portalUiPersistence";
@@ -159,14 +161,7 @@ const LOGIN_FAIL_STORAGE_KEY = "kmkt_auth_failures_v1";
 const LOGIN_BLOCK_UNTIL_KEY = "kmkt_auth_block_until_v1";
 const SESSION_ACTIVITY_KEY = "kmkt_last_activity_v1";
 const SESSION_IDLE_LIMIT_MS = 30 * 60 * 1000;
-let initialSessionPromise: Promise<Session | null> | null = null;
-
-async function getInitialSessionOnce(client: NonNullable<ReturnType<typeof getSupabase>>): Promise<Session | null> {
-  if (!initialSessionPromise) {
-    initialSessionPromise = client.auth.getSession().then(({ data }) => data.session ?? null);
-  }
-  return initialSessionPromise;
-}
+const SESSION_REFRESH_BUFFER_MS = 120_000;
 
 function isInvalidRefreshTokenError(err: unknown): boolean {
   const msg = String((err as { message?: unknown } | null)?.message ?? err ?? "").toLowerCase();
@@ -580,6 +575,8 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     }
     clearPortalUiSnapshot();
     clearPortalAccess();
+    syncAuthSessionCache(null);
+    clearAuthSessionCache();
     setSession(null);
     setAuthUser(null);
     if (client) {
@@ -698,89 +695,78 @@ export function PortalProvider({ children }: { children: ReactNode }) {
 
   const supabaseReady = isSupabaseConfigured();
 
+  const authBootstrappedRef = useRef(false);
+
   useEffect(() => {
     const client = getSupabase();
     if (!client) {
+      syncAuthSessionCache(null);
       setAuthInitialized(true);
       return;
     }
 
     let cancelled = false;
 
-    void getInitialSessionOnce(client)
-      .then((s) => {
-        if (cancelled) return;
-        setSession(s ?? null);
-        setAuthUser(s?.user ?? null);
-        setAuthInitialized(true);
-        if (s?.user) void runPortalAccessRef.current(s.user);
-        else clearPortalAccessRef.current();
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        if (isInvalidRefreshTokenError(e)) {
-          safeStorage.remove(SESSION_ACTIVITY_KEY);
-          clearPortalUiSnapshot();
-          void client.auth.signOut({ scope: "local" }).catch(() => undefined);
-          pushToast("Kikao chako kimekwisha muda wake. Tafadhali ingia tena.", "info");
-        } else {
-          reportError(e, "Auth — getSession");
-        }
-        setSession(null);
-        setAuthUser(null);
-        setAuthInitialized(true);
-        clearPortalAccessRef.current();
-      });
-
-    const { data: sub } = client.auth.onAuthStateChange((event, s) => {
-      if (event === "INITIAL_SESSION") return;
-      setSession(s ?? null);
+    const applySession = (s: Session | null) => {
+      if (cancelled) return;
+      syncAuthSessionCache(s);
+      setSession(s);
       setAuthUser(s?.user ?? null);
+      if (!authBootstrappedRef.current) {
+        authBootstrappedRef.current = true;
+        setAuthInitialized(true);
+      }
       if (s?.user) void runPortalAccessRef.current(s.user);
       else clearPortalAccessRef.current();
+    };
+
+    const { data: sub } = client.auth.onAuthStateChange((event, s) => {
+      if (event === "TOKEN_REFRESHED" && s) {
+        applySession(s);
+        return;
+      }
+      applySession(s ?? null);
     });
+
+    const fallbackTimer = window.setTimeout(() => {
+      if (cancelled || authBootstrappedRef.current) return;
+      void bootstrapSessionOnce(client).then((bootSession) => {
+        if (cancelled || authBootstrappedRef.current) return;
+        applySession(bootSession);
+      });
+    }, 180);
 
     return () => {
       cancelled = true;
+      window.clearTimeout(fallbackTimer);
       sub.subscription.unsubscribe();
     };
-  }, [reportError, pushToast]);
+  }, []);
 
-  /** Kurudi kwenye tab / programu: thibitisha kikao kimya kimya; epuka kutoa mtumiaji kwa hitilafu ya mtandao kwa muda mfupi. */
+  /** Kurudi kwenye tab: onyesha upya tokeni tu ikiwa karibu kuisha — usiitoe getSession mara kwa mara. */
   useEffect(() => {
     const client = getSupabase();
     if (!client || !session) return;
 
     const SESSION_EXPIRED_SW = "Kikao chako kimekwisha muda wake. Tafadhali ingia tena.";
+    let reconcileInFlight = false;
 
     const reconcileSession = () => {
+      if (reconcileInFlight) return;
+      const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
+      if (expiresAt && Date.now() < expiresAt - SESSION_REFRESH_BUFFER_MS) {
+        return;
+      }
+      reconcileInFlight = true;
       void (async () => {
         try {
-          const { data, error } = await client.auth.getSession();
-          const s = data.session;
-          if (error) {
-            if (isInvalidRefreshTokenError(error)) {
-              safeStorage.remove(SESSION_ACTIVITY_KEY);
-              clearPortalUiSnapshot();
-              await client.auth.signOut({ scope: "local" }).catch(() => undefined);
-              setSession(null);
-              setAuthUser(null);
-              clearPortalAccessRef.current();
-              pushToast(SESSION_EXPIRED_SW, "info");
-              return;
-            }
-            return;
-          }
-          if (s?.user) {
-            setSession(s);
-            setAuthUser(s.user);
-            return;
-          }
           const refreshed = await client.auth.refreshSession();
           if (refreshed.error) {
             if (isInvalidRefreshTokenError(refreshed.error)) {
               safeStorage.remove(SESSION_ACTIVITY_KEY);
               clearPortalUiSnapshot();
+              syncAuthSessionCache(null);
+              clearAuthSessionCache();
               await client.auth.signOut({ scope: "local" }).catch(() => undefined);
               setSession(null);
               setAuthUser(null);
@@ -791,11 +777,14 @@ export function PortalProvider({ children }: { children: ReactNode }) {
           }
           const rs = refreshed.data.session;
           if (rs?.user) {
+            syncAuthSessionCache(rs);
             setSession(rs);
             setAuthUser(rs.user);
           }
         } catch {
           /* mtandao si thabiti — usibadilishe hali ya mtumiaji */
+        } finally {
+          reconcileInFlight = false;
         }
       })();
     };

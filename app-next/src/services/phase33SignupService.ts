@@ -49,6 +49,88 @@ function stamp(): string {
   return `REQ-${Date.now()}-${Math.floor(Math.random() * 900 + 100)}`;
 }
 
+/** JSONB salama kwa insert — kamwe usitume undefined/null kwenye dynamic_payload. */
+export function sanitizePhase33DynamicPayload(
+  raw: Record<string, string> | Record<string, unknown> | null | undefined
+): Record<string, unknown> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const k = String(key ?? "").trim();
+    if (!k) continue;
+    if (value == null) {
+      out[k] = "";
+      continue;
+    }
+    if (typeof value === "object") {
+      try {
+        out[k] = JSON.parse(JSON.stringify(value));
+      } catch {
+        out[k] = String(value);
+      }
+      continue;
+    }
+    out[k] = String(value);
+  }
+  return out;
+}
+
+/** Flat string map kwa validators za fomu (scope, unit, flags). */
+export function phase33DynamicPayloadAsStrings(
+  raw: Record<string, string> | Record<string, unknown> | null | undefined
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(sanitizePhase33DynamicPayload(raw)).map(([k, v]) => [k, v == null ? "" : String(v)])
+  );
+}
+
+function isMissingDynamicPayloadColumn(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  const code = String(error.code ?? "");
+  const msg = String(error.message ?? "").toLowerCase();
+  return (
+    code === "PGRST204" ||
+    (msg.includes("dynamic_payload") && (msg.includes("schema cache") || msg.includes("could not find")))
+  );
+}
+
+function buildPhase33InsertRow(payload: {
+  fullName: string;
+  gender: string;
+  phone: string;
+  email: string;
+  requestedRole: string;
+  requestReason: string;
+  previousResponsibility: string;
+  requestedScope: string;
+  unitName: string;
+  dynamicPayload: Record<string, string>;
+  verificationFlag: string;
+}): Record<string, unknown> {
+  const id = stamp();
+  const fullName = String(payload.fullName ?? "").trim();
+  const email = String(payload.email ?? "").trim().toLowerCase();
+  const phone = String(payload.phone ?? "").trim();
+  const requestedRole = String(payload.requestedRole ?? "").trim();
+  const requestReason = String(payload.requestReason ?? "").trim();
+
+  return {
+    id,
+    full_name: fullName || "—",
+    gender: String(payload.gender ?? "").trim() || null,
+    phone: phone || "—",
+    email: email || "—",
+    requested_role: requestedRole || "Viewer / Mtazamaji",
+    request_reason: requestReason || "—",
+    previous_responsibility: String(payload.previousResponsibility ?? "").trim() || "",
+    requested_scope: String(payload.requestedScope ?? "").trim() || "",
+    unit_name: String(payload.unitName ?? "").trim() || "",
+    dynamic_payload: sanitizePhase33DynamicPayload(payload.dynamicPayload),
+    status: "Pending Approval",
+    verification_flag: String(payload.verificationFlag ?? "").trim() || "",
+  };
+}
+
 function fromDb(r: Phase33SignupRequestRow): Phase33SignupRequest {
   const dyn = r.dynamic_payload && typeof r.dynamic_payload === "object" && !Array.isArray(r.dynamic_payload) ? r.dynamic_payload : {};
   const flat: Record<string, string> = {};
@@ -87,22 +169,7 @@ export async function insertPhase33SignupRequest(payload: {
   verificationFlag: string;
 }): Promise<Phase33SignupRequest> {
   const sb = getSupabase();
-  const id = stamp();
-  const row = {
-    id,
-    full_name: payload.fullName,
-    gender: payload.gender || null,
-    phone: payload.phone.trim(),
-    email: payload.email.trim().toLowerCase(),
-    requested_role: payload.requestedRole,
-    request_reason: payload.requestReason,
-    previous_responsibility: payload.previousResponsibility || "",
-    requested_scope: payload.requestedScope || "",
-    unit_name: payload.unitName || "",
-    dynamic_payload: payload.dynamicPayload,
-    status: "Pending Approval" as const,
-    verification_flag: payload.verificationFlag || "",
-  };
+  const row = buildPhase33InsertRow(payload);
 
   if (!sb) {
     return fromDb({
@@ -111,7 +178,16 @@ export async function insertPhase33SignupRequest(payload: {
     } as Phase33SignupRequestRow);
   }
 
-  const { data, error } = await sb.from("phase33_signup_requests").insert(row).select("*").single();
+  let { data, error } = await sb.from("phase33_signup_requests").insert(row).select("*").single();
+
+  if (error && isMissingDynamicPayloadColumn(error)) {
+    const { dynamic_payload: _omit, ...rowWithoutDynamic } = row;
+    void _omit;
+    const retry = await sb.from("phase33_signup_requests").insert(rowWithoutDynamic).select("*").single();
+    data = retry.data;
+    error = retry.error;
+  }
+
   if (error) throw new Error(formatPostgrestError(error, "phase33 insert"));
   return fromDb(data as Phase33SignupRequestRow);
 }

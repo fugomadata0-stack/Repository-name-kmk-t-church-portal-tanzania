@@ -16,6 +16,7 @@ import {
   drawExecutivePortraitFrame,
   drawLuxuryCertificateWatermark,
   drawLuxurySectionBar,
+  resolveLeadershipCertificateTheme,
   type TimelineEntry,
 } from "./pdfExecutiveCertificate";
 import type { KiongoziRecord, LeadershipCvBundle } from "../types";
@@ -87,7 +88,10 @@ export type LeaderProfilePdfOpts = {
   logoDataUrl?: string | null;
 };
 
-export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: LeaderProfilePdfOpts) {
+export async function buildLeaderProfilePdfDocument(
+  leader: KiongoziRecord,
+  opts?: LeaderProfilePdfOpts,
+): Promise<jsPDF> {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 14;
@@ -100,14 +104,19 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: Le
   const credentialSerial = formatLeadershipCredentialSerial("CV", leader.id);
   const bundle = opts?.bundle ?? null;
   const prof = bundle?.profile;
+  const theme = resolveLeadershipCertificateTheme({
+    cheo: leader.cheo,
+    leadershipLevel: leader.leadership_level ?? leader.ngazi,
+  });
 
   const decoratePage = () => {
     drawLuxuryCertificateWatermark(doc, {
       line1: "KMK(T)",
       line2: "WASIFU RASMI · DATA LIVE SUPABASE",
       sealText: "HATI YA UONGOZI",
+      theme,
     });
-    drawCertificateOrnamentalFrame(doc);
+    drawCertificateOrnamentalFrame(doc, 5, theme);
   };
   decoratePage();
 
@@ -125,6 +134,7 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: Le
     certTitleEn: "EXECUTIVE LEADERSHIP PROFILE",
     subtitle: churchName,
     verificationSerial: credentialSerial,
+    theme,
   });
 
   const photo =
@@ -368,6 +378,11 @@ export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: Le
   applyLeadershipPdfFooters(doc, {
     rightTag: `${credentialSerial} · ${hierarchyPath ? hierarchyPath.slice(0, 28) : leader.id.slice(0, 8)}`.slice(0, 52),
   });
+  return doc;
+}
+
+export async function downloadLeaderProfilePdf(leader: KiongoziRecord, opts?: LeaderProfilePdfOpts) {
+  const doc = await buildLeaderProfilePdfDocument(leader, opts);
   doc.save(`wasifu-kiongozi-${(leader.jina || "kiongozi").replace(/\s+/g, "-").slice(0, 40)}.pdf`);
 }
 
@@ -383,7 +398,7 @@ export async function downloadLeadershipDirectoryPdf(leaders: KiongoziRecord[], 
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   const mainTitle = normalizePdfReadableText((opts?.title || "ORODHA KAMILI YA VIONGOZI — DIRA YA UONGOZI NA VIWANGO").toUpperCase());
-  const titleFit = fitPdfLinesToWidth(doc, mainTitle, pageWidth - margin * 2, 13, 9, 5);
+  const titleFit = fitPdfLinesToWidth(doc, mainTitle, pageWidth - margin * 2, 14, 10, 6);
   const nTitle = titleFit.lines.length;
   const lh = titleFit.lineHeight;
   const jumlaBaseline = 11 + nTitle * lh + 1.2 + 4.6;

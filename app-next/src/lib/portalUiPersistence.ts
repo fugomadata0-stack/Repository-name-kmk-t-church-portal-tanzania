@@ -17,6 +17,8 @@ export interface PortalUiSnapshotV1 {
   activeModule: string;
   activeSubmodule: string;
   expanded: Record<string, boolean>;
+  /** Menyu ya kando — imefichwa kwenye desktop (menyu kuu ya executive). */
+  sidebarCollapsed?: boolean;
   scrollTop: number;
   /** Data ya juu kwa moduli (filters, pagination, nk.) — haba tu */
   moduleSlices?: Record<string, unknown>;
@@ -62,6 +64,10 @@ export function writePortalUiSnapshot(patch: Partial<PortalUiSnapshotV1> & Pick<
       activeModule: nextModule,
       activeSubmodule: coerceSubmoduleForModule(nextModule, nextSubRaw),
       expanded: patch.expanded ?? prev?.expanded ?? {},
+      sidebarCollapsed:
+        typeof patch.sidebarCollapsed === "boolean"
+          ? patch.sidebarCollapsed
+          : (prev?.sidebarCollapsed ?? false),
       scrollTop: typeof patch.scrollTop === "number" ? patch.scrollTop : (prev?.scrollTop ?? 0),
       moduleSlices: patch.moduleSlices !== undefined ? patch.moduleSlices : (prev?.moduleSlices ?? {}),
     };

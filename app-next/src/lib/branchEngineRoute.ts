@@ -20,6 +20,12 @@ export function isMuundoBranchEngineSubmodule(submodule: string): boolean {
   return MUUNDO_BRANCH_ENGINE_SUBMODULES.has(submodule.trim());
 }
 
+/** Dashibodi Kuu au Muundo — zote zinatumia injini ya Matawi (iframe). */
+export function isPortalBranchEngineSurface(moduleKey: string, submodule: string): boolean {
+  if (moduleKey === "dashboard") return true;
+  return moduleKey === "muundo" && isMuundoBranchEngineSubmodule(submodule);
+}
+
 /** Ramani ya submodule ya muundo → iframe (scope, entity, moduli ya DD). */
 export function resolveBranchEngineRoute(
   submodule: string,
@@ -33,6 +39,12 @@ export function resolveBranchEngineRoute(
   const profileTawi = String(portalProfile?.tawi_scope ?? "").trim();
 
   switch (submodule.trim()) {
+    case MASTER_BRANCH_ENGINE_SUBMODULE:
+      return {
+        initialScope: "kitaifa",
+        initialEntityId: recordId,
+        initialModuleId: forcedModule || "executive",
+      };
     case TAWI_DASHBOARD_SUBMODULE:
       return {
         initialScope: "tawi",

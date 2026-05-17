@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
+import { LeadershipDocumentGallery } from "../executive/LeadershipDocumentGallery";
+import { LeadershipDocumentPreviewModal } from "../executive/LeadershipDocumentPreviewModal";
 import { usePortal } from "../../context/PortalContext";
+import { downloadLeadershipAppointmentCertificate } from "../../lib/leadershipAppointmentCertificatePdf";
+import { kiongoziToGalleryItem, kiongoziToPreviewProps } from "../../lib/leadershipDocumentPreview";
 import { downloadLeaderProfilePdf } from "../../lib/leadershipPdf";
+import { fetchUrlAsPdfImageDataUrl } from "../../lib/pdfInstitutional";
 import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { fetchMasterSettings } from "../../services/masterSettingsService";
 import {
@@ -12,6 +17,7 @@ import {
   subscribeLeadershipCvEngine,
   uploadLeadershipCvObject,
 } from "../../services/leadershipCvEngineService";
+import { readLeadershipCredentialPrefill, clearLeadershipCredentialPrefill } from "../../lib/leadershipCredentialPrefill";
 import { fetchChurchViongozi, fetchOfficialLeadershipSigners, upsertKiongozi } from "../../services/viongoziService";
 import type {
   KiongoziRecord,
@@ -141,6 +147,9 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
   const [levelFilter, setLevelFilter] = useState("");
   const [busy, setBusy] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [certPdfBusy, setCertPdfBusy] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [live, setLive] = useState<"idle" | "synced" | "pending" | "error">("idle");
   const [officialSigners, setOfficialSigners] = useState<{ full_name: string; title: string }[]>([]);
 
@@ -191,6 +200,18 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
   }, [reloadList, reportError]);
 
   useEffect(() => {
+    if (loadingList || !leaders.length) return;
+    const pre = readLeadershipCredentialPrefill();
+    if (!pre?.leaderId) return;
+    const hit = leaders.some((l) => l.id === pre.leaderId);
+    if (hit) {
+      setSelectedId(pre.leaderId);
+      pushToast(`Kiongozi amechaguliwa kutoka Cheti & CV: ${pre.fullName ?? pre.leaderId}`, "success");
+    }
+    clearLeadershipCredentialPrefill();
+  }, [loadingList, leaders, pushToast]);
+
+  useEffect(() => {
     if (!supabaseReady || !canViewViongozi) return;
     let cancelled = false;
     void (async () => {
@@ -205,6 +226,13 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
       cancelled = true;
     };
   }, [supabaseReady, canViewViongozi]);
+
+  useEffect(() => {
+    void fetchMasterSettings().then((ms) => {
+      const u = ms.theme.logo_url?.trim();
+      if (u) setLogoUrl(u);
+    });
+  }, []);
 
   useEffect(() => {
     if (!supabaseReady || !canViewViongozi) {
@@ -473,6 +501,39 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
     }
   }
 
+  async function onAppointmentCertPdf() {
+    if (!leader) return;
+    setCertPdfBusy(true);
+    try {
+      const ms = await fetchMasterSettings();
+      const logoDataUrl = logoUrl ? await fetchUrlAsPdfImageDataUrl(logoUrl) : null;
+      const p = profile;
+      const photoUrl =
+        (p?.profile_photo_storage_path ? await signLeadershipCvPath(p.profile_photo_storage_path) : null) ||
+        leader.photo_url ||
+        "";
+      const sigUrl =
+        (p?.signature_storage_path ? await signLeadershipCvPath(p.signature_storage_path) : null) || leader.signature_url || "";
+      const photoDataUrl = photoUrl ? await fetchUrlAsPdfImageDataUrl(photoUrl) : null;
+      const signatureDataUrl = sigUrl ? await fetchUrlAsPdfImageDataUrl(sigUrl) : null;
+      await downloadLeadershipAppointmentCertificate(leader, {
+        logoDataUrl,
+        photoDataUrl,
+        signatureDataUrl,
+        officialSealText: ms.identity.official_seal_text?.trim() || undefined,
+        portalBaseUrl: typeof window !== "undefined" ? window.location.origin : undefined,
+      });
+      pushToast("Cheti cha uteuzi limepakuliwa.", "success");
+    } catch (e) {
+      reportError(e, "Appointment cert PDF");
+      pushToast("PDF ya cheti imeshindikana.", "error");
+    } finally {
+      setCertPdfBusy(false);
+    }
+  }
+
+  const cvGalleryItems = useMemo(() => filteredLeaders.map(kiongoziToGalleryItem), [filteredLeaders]);
+
   async function uploadTo(
     kind: "photo" | "signature" | "cv" | "cert" | "attach",
     file: File | null,
@@ -551,6 +612,17 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
         )}
       </div>
 
+      <LeadershipDocumentGallery
+        items={cvGalleryItems}
+        onPreview={(item) => {
+          const L = leaders.find((x) => x.id === item.id);
+          if (L) {
+            setSelectedId(L.id);
+            setPreviewOpen(true);
+          }
+        }}
+      />
+
       <div className="grid gap-3 lg:grid-cols-[minmax(220px,280px)_1fr]">
         <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
           <label className="grid gap-1 text-xs font-semibold text-slate-700">
@@ -608,11 +680,26 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
+                    onClick={() => setPreviewOpen(true)}
+                    className="rounded-xl border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs font-semibold text-[#0B1F3A]"
+                  >
+                    Hakiki kamili
+                  </button>
+                  <button
+                    type="button"
+                    disabled={certPdfBusy}
+                    onClick={() => void onAppointmentCertPdf()}
+                    className="rounded-xl border border-[#D4AF37]/60 bg-gradient-to-r from-[#0B1F3A] to-[#123C69] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                  >
+                    {certPdfBusy ? "Cheti…" : "Cheti (PDF)"}
+                  </button>
+                  <button
+                    type="button"
                     disabled={!props.canEdit || busy || pdfBusy}
                     onClick={() => void onPdf()}
                     className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 disabled:opacity-50"
                   >
-                    {pdfBusy ? "PDF…" : "Pakua PDF"}
+                    {pdfBusy ? "PDF…" : "Pakua CV (PDF)"}
                   </button>
                   <button
                     type="button"
@@ -1186,6 +1273,31 @@ export function LeadershipCvEnginePanel(props: { canEdit: boolean }) {
           <option key={`title-${s.title}`} value={s.title} />
         ))}
       </datalist>
+
+      <LeadershipDocumentPreviewModal
+        open={previewOpen && !!leader}
+        onClose={() => setPreviewOpen(false)}
+        title={leader ? (leader.jina || leader.full_name || "Wasifu") : "Hakiki"}
+        preview={
+          leader
+            ? kiongoziToPreviewProps(leader, {
+                logoUrl,
+                photoUrl: previewPhoto || leader.photo_url,
+                biography: profile?.biography || leader.biography || leader.notes,
+                kind: "cv",
+              })
+            : { fullName: "—", titleSw: "—" }
+        }
+        pdfBusy={pdfBusy}
+        onDownloadPdf={leader ? async () => { await onPdf(); } : undefined}
+        onSaveDraft={
+          leader && props.canEdit
+            ? () => {
+                void onSave();
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

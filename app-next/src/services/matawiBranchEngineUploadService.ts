@@ -3,6 +3,7 @@ import {
   type EnterpriseUploadMetadata,
 } from "../lib/enterpriseStorageUpload";
 import { STORAGE_BUCKETS } from "../lib/storageBuckets";
+import { requireAuthUserId } from "../lib/authSessionCache";
 import { getSupabase } from "../lib/supabaseClient";
 import type { MasterBranchScope } from "./masterBranchEngineService";
 
@@ -15,15 +16,12 @@ export async function uploadBranchEngineFile(input: {
 }): Promise<EnterpriseUploadMetadata> {
   const c = getSupabase();
   if (!c) throw new Error("Supabase haijasanidiwa.");
-  const {
-    data: { user },
-  } = await c.auth.getUser();
-  if (!user) throw new Error("Ingia kwenye akaunti ili kupakia faili.");
+  const userId = requireAuthUserId();
 
   const safeName = input.file.name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 120);
   const prefix = [
     "branch-engine",
-    user.id,
+    userId,
     input.scope,
     input.entityId || "national",
     input.moduleId || "general",
@@ -49,7 +47,7 @@ export async function uploadBranchEngineFile(input: {
     bucket: result.bucket,
     mimeType: result.contentType || input.file.type || "application/octet-stream",
     fileSize: result.bytes,
-    uploadedBy: user.id,
+    uploadedBy: userId,
     uploadedAt: new Date().toISOString(),
   };
 }

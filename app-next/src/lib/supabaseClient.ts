@@ -231,4 +231,5 @@ export function resetSupabaseClientForTests(): void {
   _client = null;
   _boundSupabaseOrigin = "";
   _boundSupabaseAnonKey = "";
+  void import("./authSessionCache").then((m) => m.clearAuthSessionCache());
 }

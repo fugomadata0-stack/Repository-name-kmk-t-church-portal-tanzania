@@ -10,6 +10,7 @@ export const STORAGE_BUCKETS = {
   churchDocuments: "church-documents",
   developerPhotos: "developer-photos",
   leadershipCvAttachments: "leadership-cv-attachments",
+  leadershipCertificateAssets: "leadership-certificate-assets",
   siteAssets: "site-assets",
   structureLeaders: "structure-leaders",
   portalUploads: "portal-uploads",

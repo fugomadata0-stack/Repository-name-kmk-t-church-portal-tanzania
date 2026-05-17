@@ -1,5 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
+import { HierarchyRegistryHub } from "../components/branch-engine/HierarchyRegistryHub";
+import { FedhaEngineShell } from "../components/executive/FedhaEngineShell";
+import { MichangoIncomeEngineShell } from "../components/executive/MichangoIncomeEngineShell";
 import { SajiliMuundoPanel } from "../components/muundo/SajiliMuundoPanel";
 import { MatawiRecordFields, MATAWI_FORM_FIELD_KEYS } from "../components/muundo/MatawiRecordFields";
 import { ModalScrollLayer } from "../components/common/ModalScrollLayer";
@@ -36,6 +39,8 @@ import {
   MasterBranchExecutiveDashboard,
   NotificationsCenterPanel,
   EnterpriseLeadershipHub,
+  LeadershipCredentialsHub,
+  ExecutiveLeadershipProfileEngine,
   PortalDirectoryPanel,
   RegistrationRequestsPanel,
   SecurityMatrixPanel,
@@ -53,8 +58,17 @@ import {
 import { ViongoziWaMatawiHubPanel } from "../components/viongozi/ViongoziWaMatawiHubPanel";
 import type { PremiumTableExcelBulk, Column } from "../components/common/PremiumTable";
 import { SubmoduleEmptyState } from "../components/common/SubmoduleEmptyState";
-import { ENTERPRISE_VIONGOZI_SUBMODULE, modules } from "../data/portalModules";
+import {
+  ENTERPRISE_VIONGOZI_SUBMODULE,
+  EXECUTIVE_LEADERSHIP_PROFILE_SUBMODULE,
+  LEADERSHIP_CREDENTIALS_HUB_SUBMODULE,
+  modules,
+} from "../data/portalModules";
 import { isMuundoBranchEngineSubmodule, resolveBranchEngineRoute } from "../lib/branchEngineRoute";
+import { getPortalLayoutMode, type PortalLayoutMode } from "../lib/portalLayoutMode";
+import { EnterprisePageShell } from "../components/executive/EnterprisePageShell";
+import { PortalIntelligenceKpiStrip } from "../components/executive/PortalIntelligenceKpiStrip";
+import type { DashboardKpiSnapshot } from "../services/dashboardKpiAggregatesService";
 import {
   DAYOSISI_REGISTRY_SUBMODULE,
   JIMBO_REGISTRY_SUBMODULE,
@@ -186,6 +200,9 @@ interface Props {
   branchEngineModuleId?: string | null;
   /** Sawia na Topbar — zuia Rudi Nyuma wakati hapatiani kurudi */
   canNavigateBack?: boolean;
+  /** KPI za dashibodi — chanzo kimoja cha takwimu kwa moduli pana. */
+  kpiLive?: DashboardKpiSnapshot;
+  layoutMode?: PortalLayoutMode;
 }
 
 function mkId(prefix: string) {
@@ -265,6 +282,8 @@ function filterViongoziBySubmodule(
       filteredList = list.filter((r) => Boolean((r.jumuiya_name || "").trim()));
       break;
     case ENTERPRISE_VIONGOZI_SUBMODULE:
+    case EXECUTIVE_LEADERSHIP_PROFILE_SUBMODULE:
+    case LEADERSHIP_CREDENTIALS_HUB_SUBMODULE:
       filteredList = list;
       break;
     default:
@@ -1276,7 +1295,7 @@ export function ModulePage(props: Props) {
           }
         : undefined;
       return (
-        <div className="space-y-2">
+        <HierarchyRegistryHub level="dayosisi" kpi={props.kpiLive} dayosisi={props.dayosisi} majimbo={props.majimbo} matawi={props.matawi}>
           {!canCreateMuundo && !canEditMuundoRows ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Huna ruhusa ya kusimamia muundo wa kanisa.
@@ -1314,7 +1333,7 @@ export function ModulePage(props: Props) {
             }
             canExport={shared.canExport}
           />
-        </div>
+        </HierarchyRegistryHub>
       );
     }
     if (props.moduleKey === "muundo" && props.submodule === JIMBO_REGISTRY_SUBMODULE) {
@@ -1341,7 +1360,7 @@ export function ModulePage(props: Props) {
           }
         : undefined;
       return (
-        <div className="space-y-2">
+        <HierarchyRegistryHub level="jimbo" kpi={props.kpiLive} dayosisi={props.dayosisi} majimbo={props.majimbo} matawi={props.matawi}>
           {!canCreateMuundo && !canEditMuundoRows ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Huna ruhusa ya kusimamia muundo wa kanisa.
@@ -1391,7 +1410,7 @@ export function ModulePage(props: Props) {
             }
             canExport={shared.canExport}
           />
-        </div>
+        </HierarchyRegistryHub>
       );
     }
     if (props.moduleKey === "muundo" && props.submodule.includes("Orodha ya Matawi")) {
@@ -1418,7 +1437,7 @@ export function ModulePage(props: Props) {
           }
         : undefined;
       return (
-        <div className="space-y-2">
+        <HierarchyRegistryHub level="matawi" kpi={props.kpiLive} dayosisi={props.dayosisi} majimbo={props.majimbo} matawi={props.matawi}>
           {!canCreateMuundo && !canEditMuundoRows ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
               Huna ruhusa ya kusimamia muundo wa kanisa.
@@ -1600,7 +1619,37 @@ export function ModulePage(props: Props) {
             }
             canExport={shared.canExport}
           />
-        </div>
+        </HierarchyRegistryHub>
+      );
+    }
+    if (props.moduleKey === "viongozi" && props.submodule === EXECUTIVE_LEADERSHIP_PROFILE_SUBMODULE) {
+      return (
+        <Suspense fallback={<ModulePanelSuspenseFallback />}>
+          <ExecutiveLeadershipProfileEngine
+            viongozi={props.viongozi}
+            dayosisi={props.dayosisi}
+            majimbo={props.majimbo}
+            matawi={props.matawi}
+            canExport={shared.canExport}
+            canEdit={shared.canEdit}
+            kpiLive={props.kpiLive}
+          />
+        </Suspense>
+      );
+    }
+    if (props.moduleKey === "viongozi" && props.submodule === LEADERSHIP_CREDENTIALS_HUB_SUBMODULE) {
+      return (
+        <Suspense fallback={<ModulePanelSuspenseFallback />}>
+          <LeadershipCredentialsHub
+            viongozi={props.viongozi}
+            dayosisi={props.dayosisi}
+            majimbo={props.majimbo}
+            matawi={props.matawi}
+            canExport={shared.canExport}
+            canEdit={shared.canEdit}
+            kpiLive={props.kpiLive}
+          />
+        </Suspense>
       );
     }
     if (props.moduleKey === "viongozi" && props.submodule === ENTERPRISE_VIONGOZI_SUBMODULE) {
@@ -1768,6 +1817,82 @@ export function ModulePage(props: Props) {
       );
     }
     if (props.moduleKey === "fedha") {
+      const fedhaRows = fedhaFiltered;
+      const sumAina = (aina: string) =>
+        fedhaRows.filter((r) => r.aina === aina).reduce((s, x) => s + Number(x.kiasi || 0), 0);
+      const mapatoTotal = sumAina("Mapato");
+      const matumiziTotal = sumAina("Matumizi");
+      const michangoTotal = sumAina("Michango");
+      const netBalance = mapatoTotal - matumiziTotal;
+      const pendingCount = fedhaRows.filter((r) => {
+        const st = String(r.status ?? "").toLowerCase();
+        return st === "draft" || st === "submitted" || st === "pending";
+      }).length;
+      const topCategory =
+        Object.entries(
+          fedhaRows.reduce<Record<string, number>>((acc, r) => {
+            const k = r.kategoria || "N/A";
+            acc[k] = (acc[k] || 0) + Number(r.kiasi || 0);
+            return acc;
+          }, {}),
+        ).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+      const fedhaFilterSummary = `Submodule: ${props.submodule} · Mistari: ${fedhaRows.length}`;
+      const fedhaExportHeaders = ["Tarehe", "Aina", "Kategoria", "Kiasi", "Ngazi", "Dayosisi", "Jimbo", "Tawi", "Status"];
+      const exportFedhaExcel = async () => {
+        await exportRowsToExcel(
+          `KMKT_FEDHA_${new Date().toISOString().slice(0, 10)}`,
+          fedhaExportHeaders,
+          fedhaRows.map((r) => [
+            r.tarehe,
+            r.aina,
+            r.kategoria,
+            r.kiasi,
+            r.ngazi,
+            r.dayosisi,
+            r.jimbo,
+            r.tawi,
+            r.status,
+          ]),
+          { reportTitle: `FEDHA — ${props.submodule}`, filterSummary: fedhaFilterSummary, sheetName: "Fedha" },
+        );
+      };
+      const exportFedhaPdf = async () => {
+        await exportTableToPdf(
+          `FEDHA — ${props.submodule}`,
+          `KMKT_FEDHA_${new Date().toISOString().slice(0, 10)}`,
+          fedhaExportHeaders,
+          fedhaRows.map((r) => [
+            r.tarehe,
+            r.aina,
+            r.kategoria,
+            r.kiasi.toLocaleString(),
+            r.ngazi,
+            r.dayosisi,
+            r.jimbo,
+            r.tawi,
+            r.status,
+          ]),
+          { filterSummary: fedhaFilterSummary, showSignatureLine: true },
+        );
+      };
+      const printFedhaReport = () => {
+        openPrintableTable(
+          `FEDHA — ${props.submodule}`,
+          fedhaExportHeaders,
+          fedhaRows.map((r) => [
+            r.tarehe,
+            r.aina,
+            r.kategoria,
+            r.kiasi.toLocaleString(),
+            r.ngazi,
+            r.dayosisi,
+            r.jimbo,
+            r.tawi,
+            r.status,
+          ]),
+          { filterSummary: fedhaFilterSummary },
+        );
+      };
       const fedhaSpec = getPortalExcelFormSpec("fedha", props.submodule);
       const fedhaExcel: PremiumTableExcelBulk | undefined = fedhaSpec
         ? {
@@ -1796,11 +1921,27 @@ export function ModulePage(props: Props) {
           }
         : undefined;
       return (
+        <FedhaEngineShell
+          submodule={props.submodule}
+          kpiLive={props.kpiLive}
+          stats={{
+            rowCount: fedhaRows.length,
+            mapatoTotal,
+            matumiziTotal,
+            michangoTotal,
+            netBalance,
+            pendingCount,
+            topCategory,
+          }}
+          onExportExcel={exportFedhaExcel}
+          onExportPdf={exportFedhaPdf}
+          onPrint={printFedhaReport}
+        >
         <PremiumTable
           title="Miamala ya Fedha"
           subtitle={`${props.submodule} · Mapato, michango, matumizi`}
           persistenceScope={portalPremiumTableScope([props.moduleKey, props.submodule, "fedha"])}
-          rows={fedhaFiltered}
+          rows={fedhaRows}
           columns={[{ key: "tarehe", label: "Tarehe" }, { key: "aina", label: "Aina" }, { key: "kategoria", label: "Kategoria" }, { key: "kiasi", label: "Kiasi" }, { key: "ngazi", label: "Ngazi" }, { key: "dayosisi", label: "Dayosisi" }, { key: "jimbo", label: "Jimbo" }, { key: "tawi", label: "Tawi" }, { key: "status", label: "Status" }]}
           onAdd={() => setEditing({})}
           onEdit={(r) => setEditing(r)}
@@ -1840,6 +1981,7 @@ export function ModulePage(props: Props) {
             )
           }
         />
+        </FedhaEngineShell>
       );
     }
     if (props.moduleKey === "vyanzo_mapato") {
@@ -2068,22 +2210,23 @@ export function ModulePage(props: Props) {
         );
       };
       return (
-        <div className="space-y-3">
-          <section className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-            <article className="rounded-xl border border-slate-200 bg-white p-3 shadow"><p className="text-xs text-slate-600">Total Income</p><p className="text-lg font-bold text-[#0B1F3A]">TZS {grandTotal.toLocaleString()}</p></article>
-            <article className="rounded-xl border border-slate-200 bg-white p-3 shadow"><p className="text-xs text-slate-600">This Month / Year</p><p className="text-lg font-bold text-[#0B1F3A]">TZS {thisMonthIncome.toLocaleString()} / {thisYearIncome.toLocaleString()}</p></article>
-            <article className="rounded-xl border border-slate-200 bg-white p-3 shadow"><p className="text-xs text-slate-600">Top Source / Category</p><p className="text-sm font-bold text-[#0B1F3A]">{topSource} / {topCategory}</p></article>
-            <article className="rounded-xl border border-slate-200 bg-white p-3 shadow"><p className="text-xs text-slate-600">Pending / Restricted</p><p className="text-lg font-bold text-[#0B1F3A]">TZS {pendingAmount.toLocaleString()} / {restrictedBalance.toLocaleString()}</p></article>
-          </section>
-
-          <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow">
-            <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={() => void exportFinanceExcel()} className="rounded-xl border border-[#D4AF37] bg-amber-50 px-3 py-2 text-sm font-semibold text-[#0B1F3A]">Excel</button>
-              <button type="button" onClick={() => void exportFinancePdf()} className="rounded-xl bg-[#0B1F3A] px-3 py-2 text-sm font-semibold text-[#D4AF37]">PDF</button>
-              <button type="button" onClick={printFinanceReport} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-[#0B1F3A]">Chapisha</button>
-            </div>
-          </section>
-
+        <MichangoIncomeEngineShell
+          submodule={props.submodule}
+          kpiLive={props.kpiLive}
+          stats={{
+            grandTotal,
+            thisMonthIncome,
+            thisYearIncome,
+            filteredRowCount: rows.length,
+            pendingAmount,
+            restrictedBalance,
+            topSource,
+            topCategory,
+          }}
+          onExportExcel={exportFinanceExcel}
+          onExportPdf={exportFinancePdf}
+          onPrint={printFinanceReport}
+        >
           <Suspense
             fallback={
               <div className="grid gap-3 xl:grid-cols-2">
@@ -2469,7 +2612,7 @@ export function ModulePage(props: Props) {
             })()}
             {...shared}
           />
-        </div>
+        </MichangoIncomeEngineShell>
       );
     }
     if (props.moduleKey === "mipangilio") {
@@ -2515,8 +2658,33 @@ export function ModulePage(props: Props) {
     canPortalDeleteModule,
   ]);
 
+  const layoutMode = props.layoutMode ?? getPortalLayoutMode(props.moduleKey, props.submodule);
+  const isFullscreenEngine = layoutMode === "fullscreen";
+  const usesFinanceEngineShell =
+    props.moduleKey === "mapato_income" ||
+    (props.moduleKey === "fedha" && props.submodule !== "Audit Trail");
+  const hideModuleHeader = !isFullscreenEngine && usesFinanceEngineShell;
+  const showIntelligenceStrip =
+    layoutMode === "wide" &&
+    Boolean(props.kpiLive) &&
+    ["analytics", "ripoti", "muundo", "viongozi"].includes(props.moduleKey);
+
   return (
-    <div className="space-y-4">
+    <EnterprisePageShell
+      mode={layoutMode}
+      title={undefined}
+      subtitle={undefined}
+      intelligenceStrip={
+        showIntelligenceStrip ? (
+          <PortalIntelligenceKpiStrip
+            kpi={props.kpiLive}
+            moduleKey={props.moduleKey}
+            submodule={props.submodule}
+          />
+        ) : undefined
+      }
+    >
+      {!hideModuleHeader ? (
       <ModuleHeader
         title={`${props.submodule}`}
         subtitle="Ongoza, hariri, futa — Excel: Pakua blanki (Maelekezo + Data), jaza jalada Data, Pakia; au Excel orodha, PDF, chapisha."
@@ -2559,6 +2727,7 @@ export function ModulePage(props: Props) {
             : []
         }
       />
+      ) : null}
       <Suspense fallback={<ModulePanelSuspenseFallback />}>
         {props.moduleKey === "developer" ? <ErrorBoundary>{view}</ErrorBoundary> : view}
       </Suspense>
@@ -2604,7 +2773,7 @@ export function ModulePage(props: Props) {
           onSave={onSave as (p: any) => void | Promise<void>}
         />
       ) : null}
-    </div>
+    </EnterprisePageShell>
   );
 }
 

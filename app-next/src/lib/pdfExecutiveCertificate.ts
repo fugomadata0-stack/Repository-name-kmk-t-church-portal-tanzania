@@ -3,6 +3,11 @@
  */
 import type { jsPDF } from "jspdf";
 import { defaultKmktExecutiveInstitutionLines } from "./kmktExecutiveInstitution";
+import {
+  resolveLeadershipCertificateTheme,
+  themeToPdfCertPalette,
+  type LeadershipCertificateTheme,
+} from "./leadershipCertificateTheme";
 import { fitPdfLinesToWidth, normalizePdfReadableText } from "./pdfInstitutional";
 
 export const CERT = {
@@ -16,6 +21,8 @@ export const CERT = {
   emerald: [5, 120, 85] as const,
   /** Kijani cha bendera ya Tanzania (msisitizo). */
   flagGreen: [30, 181, 58] as const,
+  flagBlue: [0, 122, 204] as const,
+  flagBlack: [15, 23, 42] as const,
   cream: [255, 252, 245] as const,
   paper: [253, 251, 247] as const,
   ink: [30, 41, 59] as const,
@@ -25,8 +32,74 @@ export function defaultKmktInstitutionalAddressLines(): string[] {
   return defaultKmktExecutiveInstitutionLines();
 }
 
+export type ExecutiveCertificatePalette = {
+  navy: readonly [number, number, number];
+  navyMid: readonly [number, number, number];
+  gold: readonly [number, number, number];
+  goldSoft: readonly [number, number, number];
+  goldVibrant: readonly [number, number, number];
+  emerald: readonly [number, number, number];
+  flagGreen: readonly [number, number, number];
+  flagBlue: readonly [number, number, number];
+  flagBlack: readonly [number, number, number];
+  cream: readonly [number, number, number];
+  paper: readonly [number, number, number];
+  ink: readonly [number, number, number];
+};
+
+function paletteFromTheme(theme?: LeadershipCertificateTheme | null): ExecutiveCertificatePalette {
+  if (!theme) return CERT;
+  const p = themeToPdfCertPalette(theme);
+  return {
+    navy: p.navy,
+    navyMid: p.navyMid,
+    gold: p.gold,
+    goldSoft: p.goldSoft,
+    goldVibrant: p.goldVibrant,
+    emerald: p.emerald,
+    flagGreen: p.flagGreen,
+    flagBlue: p.flagBlue,
+    flagBlack: p.flagBlack,
+    cream: p.cream,
+    paper: p.paper,
+    ink: p.ink,
+  };
+}
+
+/** Pembe nne — mistari ya rangi za bendera (institutional premium). */
+export function drawNationalFlagCornerOrnaments(doc: jsPDF, theme?: LeadershipCertificateTheme | null, insetMm = 5): void {
+  const pal = paletteFromTheme(theme);
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const len = 28;
+  const thick = 1.1;
+  const gap = 0.35;
+
+  const drawCorner = (ox: number, oy: number, dx: number, dy: number) => {
+    const stripes = [pal.flagGreen, pal.goldVibrant, pal.flagBlue, pal.flagBlack] as const;
+    stripes.forEach((rgb, i) => {
+      doc.setDrawColor(...rgb);
+      doc.setLineWidth(thick);
+      const off = i * (thick + gap);
+      doc.line(ox, oy + dy * off, ox + dx * len, oy + dy * off + dx * len * 0.02);
+      doc.line(ox + dx * off, oy, ox + dx * off + dy * len * 0.02, oy + dy * len);
+    });
+  };
+
+  drawCorner(insetMm, insetMm, 1, 1);
+  drawCorner(pageW - insetMm, insetMm, -1, 1);
+  drawCorner(insetMm, pageH - insetMm, 1, -1);
+  drawCorner(pageW - insetMm, pageH - insetMm, -1, -1);
+}
+
+export { resolveLeadershipCertificateTheme, type LeadershipCertificateTheme };
+
 /** Mchoro wa watermark + muhuri wa kioo — chini ya maudhui. */
-export function drawLuxuryCertificateWatermark(doc: jsPDF, opts?: { line1?: string; line2?: string; sealText?: string }): void {
+export function drawLuxuryCertificateWatermark(
+  doc: jsPDF,
+  opts?: { line1?: string; line2?: string; sealText?: string; theme?: LeadershipCertificateTheme | null }
+): void {
+  const pal = paletteFromTheme(opts?.theme);
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const cx = pageW / 2;
@@ -35,7 +108,7 @@ export function drawLuxuryCertificateWatermark(doc: jsPDF, opts?: { line1?: stri
   const line2 = normalizePdfReadableText(opts?.line2 ?? "HATI RASMI · THIBITISHO KWA QR");
   const seal = normalizePdfReadableText(opts?.sealText ?? "CHETI RASMI");
 
-  doc.setDrawColor(...CERT.goldSoft);
+  doc.setDrawColor(...pal.goldSoft);
   doc.setLineWidth(0.35);
   doc.circle(cx, cy, 52, "S");
   doc.setLineWidth(0.18);
@@ -59,7 +132,8 @@ export function drawLuxuryCertificateWatermark(doc: jsPDF, opts?: { line1?: stri
 }
 
 /** Pembe za dhahabu + bingi mbili za ukurasa. */
-export function drawCertificateOrnamentalFrame(doc: jsPDF, insetMm = 5): void {
+export function drawCertificateOrnamentalFrame(doc: jsPDF, insetMm = 5, theme?: LeadershipCertificateTheme | null): void {
+  const pal = paletteFromTheme(theme);
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const x0 = insetMm;
@@ -67,22 +141,24 @@ export function drawCertificateOrnamentalFrame(doc: jsPDF, insetMm = 5): void {
   const x1 = pageW - insetMm;
   const y1 = pageH - insetMm;
 
-  doc.setDrawColor(...CERT.gold);
+  drawNationalFlagCornerOrnaments(doc, theme, insetMm);
+
+  doc.setDrawColor(...pal.gold);
   doc.setLineWidth(0.55);
   doc.rect(x0, y0, x1 - x0, y1 - y0, "S");
 
-  doc.setDrawColor(...CERT.navy);
+  doc.setDrawColor(...pal.navy);
   doc.setLineWidth(0.22);
   doc.rect(x0 + 1.4, y0 + 1.4, x1 - x0 - 2.8, y1 - y0 - 2.8, "S");
 
   const s = 9;
-  doc.setFillColor(...CERT.goldSoft);
+  doc.setFillColor(...pal.goldSoft);
   doc.triangle(x0, y0, x0 + s, y0, x0, y0 + s, "F");
   doc.triangle(x1, y0, x1 - s, y0, x1, y0 + s, "F");
   doc.triangle(x0, y1, x0 + s, y1, x0, y1 - s, "F");
   doc.triangle(x1, y1, x1 - s, y1, x1, y1 - s, "F");
 
-  doc.setFillColor(...CERT.gold);
+  doc.setFillColor(...pal.gold);
   doc.triangle(x0 + 1.2, y0 + 1.2, x0 + s * 0.55, y0 + 1.2, x0 + 1.2, y0 + s * 0.55, "F");
   doc.triangle(x1 - 1.2, y0 + 1.2, x1 - s * 0.55, y0 + 1.2, x1 - 1.2, y0 + s * 0.55, "F");
   doc.triangle(x0 + 1.2, y1 - 1.2, x0 + s * 0.55, y1 - 1.2, x0 + 1.2, y1 - s * 0.55, "F");
@@ -99,22 +175,25 @@ export type ExecutiveCertificateHeaderOpts = {
   subtitle?: string;
   /** Nambari ya kumbukumbu / uhakiki inayoonekana kwenye cheti. */
   verificationSerial?: string;
+  theme?: LeadershipCertificateTheme | null;
 };
 
 /** Band ya juu ya cheti: navy + dhahabu, nembo, QR, majina makubwa. Rudisha `y` baada ya kanda. */
 export function drawExecutiveCertificateHeaderBand(doc: jsPDF, opts: ExecutiveCertificateHeaderOpts): number {
+  const pal = paletteFromTheme(opts.theme);
   const pageW = doc.internal.pageSize.getWidth();
   const m = opts.margin;
   const org = (opts.orgLines?.length ? opts.orgLines : defaultKmktInstitutionalAddressLines()).map((l) => normalizePdfReadableText(l));
 
   const lineCount = Math.max(4, org.length);
-  const headerH = Math.min(120, Math.max(88, 34 + lineCount * 4.25 + (opts.subtitle?.trim() ? 22 : 12)));
-  doc.setFillColor(...CERT.navy);
+  const lineStep = 4.85;
+  const headerH = Math.min(128, Math.max(92, 36 + lineCount * lineStep + (opts.subtitle?.trim() ? 24 : 14)));
+  doc.setFillColor(...pal.navy);
   doc.rect(0, 0, pageW, headerH, "F");
 
-  doc.setFillColor(...CERT.flagGreen);
+  doc.setFillColor(...pal.flagGreen);
   doc.rect(0, 0, 2.2, headerH, "F");
-  doc.setFillColor(...CERT.goldVibrant);
+  doc.setFillColor(...pal.goldVibrant);
   doc.rect(2.2, 0, 1.4, headerH, "F");
 
   for (let i = 0; i < 5; i++) {
@@ -123,9 +202,9 @@ export function drawExecutiveCertificateHeaderBand(doc: jsPDF, opts: ExecutiveCe
     doc.rect(0, i * 1.1, pageW, 1.15, "F");
   }
 
-  doc.setFillColor(...CERT.goldVibrant);
+  doc.setFillColor(...pal.goldVibrant);
   doc.rect(0, headerH - 1.6, pageW, 1.6, "F");
-  doc.setFillColor(...CERT.goldSoft);
+  doc.setFillColor(...pal.goldSoft);
   doc.rect(0, headerH - 3.2, pageW, 0.9, "F");
 
   const logo = opts.logoDataUrl?.trim() ? opts.logoDataUrl : null;
@@ -133,7 +212,7 @@ export function drawExecutiveCertificateHeaderBand(doc: jsPDF, opts: ExecutiveCe
     try {
       doc.setFillColor(255, 255, 255);
       doc.roundedRect(m, 9, 24, 24, 2.2, 2.2, "F");
-      doc.setDrawColor(...CERT.gold);
+      doc.setDrawColor(...pal.gold);
       doc.setLineWidth(0.25);
       doc.roundedRect(m, 9, 24, 24, 2.2, 2.2, "S");
       doc.addImage(logo, logo.includes("jpeg") ? "JPEG" : "PNG", m + 1.1, 10.1, 21.8, 21.8);
@@ -147,7 +226,7 @@ export function drawExecutiveCertificateHeaderBand(doc: jsPDF, opts: ExecutiveCe
     try {
       doc.setFillColor(255, 255, 255);
       doc.roundedRect(pageW - m - 26, 8, 26, 26, 2.2, 2.2, "F");
-      doc.setDrawColor(...CERT.gold);
+      doc.setDrawColor(...pal.gold);
       doc.roundedRect(pageW - m - 26, 8, 26, 26, 2.2, 2.2, "S");
       doc.addImage(qr, "PNG", pageW - m - 24.2, 10, 22.4, 22.4);
       doc.setFont("helvetica", "normal");
@@ -178,18 +257,18 @@ export function drawExecutiveCertificateHeaderBand(doc: jsPDF, opts: ExecutiveCe
   let hy = 12;
   for (const ln of org) {
     doc.text(ln, pageW / 2, hy, { align: "center", maxWidth: pageW - m * 2 });
-    hy += 4.2;
+    hy += lineStep;
   }
 
   hy += 2;
-  doc.setDrawColor(...CERT.goldSoft);
+  doc.setDrawColor(...pal.goldSoft);
   doc.setLineWidth(0.12);
   doc.line(pageW / 2 - 38, hy, pageW / 2 + 38, hy);
   hy += 5;
 
   doc.setFont("helvetica", "bold");
   const swTitle = normalizePdfReadableText(opts.certTitleSw);
-  const tSw = fitPdfLinesToWidth(doc, swTitle, bandW, 15, 10.5, 2);
+  const tSw = fitPdfLinesToWidth(doc, swTitle, bandW, 16, 11, 3);
   doc.setFontSize(tSw.fontSize);
   for (const ln of tSw.lines) {
     doc.text(ln, pageW / 2, hy, { align: "center" });
@@ -200,7 +279,7 @@ export function drawExecutiveCertificateHeaderBand(doc: jsPDF, opts: ExecutiveCe
   doc.setFontSize(10);
   doc.setTextColor(255, 248, 220);
   const enTitle = normalizePdfReadableText(opts.certTitleEn);
-  const tEn = fitPdfLinesToWidth(doc, enTitle, bandW, 11, 8.5, 2);
+  const tEn = fitPdfLinesToWidth(doc, enTitle, bandW, 12, 9.5, 3);
   doc.setFontSize(tEn.fontSize);
   for (const ln of tEn.lines) {
     doc.text(ln, pageW / 2, hy, { align: "center" });
@@ -212,7 +291,7 @@ export function drawExecutiveCertificateHeaderBand(doc: jsPDF, opts: ExecutiveCe
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(226, 232, 240);
-    const sub = fitPdfLinesToWidth(doc, normalizePdfReadableText(opts.subtitle), bandW, 8, 6.5, 2);
+    const sub = fitPdfLinesToWidth(doc, normalizePdfReadableText(opts.subtitle), bandW, 9, 7.5, 3);
     doc.setFontSize(sub.fontSize);
     for (const ln of sub.lines) {
       doc.text(ln, pageW / 2, hy, { align: "center" });

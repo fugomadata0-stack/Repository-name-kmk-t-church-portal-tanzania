@@ -75,7 +75,10 @@ function toDb(r) {
     previous_responsibility: r.previousResponsibility || "",
     requested_scope: r.requestedScope || "",
     unit_name: r.unitName || "",
-    dynamic_payload: r.dynamicPayload || {},
+    dynamic_payload:
+      r.dynamicPayload && typeof r.dynamicPayload === "object" && !Array.isArray(r.dynamicPayload)
+        ? r.dynamicPayload
+        : {},
     status: r.status,
     verification_flag: r.verificationFlag || "",
     submitted_at: r.submittedAt || now(),

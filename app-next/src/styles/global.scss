@@ -71,3 +71,79 @@ body {
   background-color: var(--kmt-gold-soft);
   color: var(--kmt-navy);
 }
+
+/* Moduli za portal — jaza eneo linalobaki la skrini */
+[data-portal-main] #portal-main-scroll {
+  .enterprise-page-shell {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .leadership-doc-print,
+  .leadership-doc-print *,
+  .print-pdf-master-doc,
+  .print-pdf-master-doc * {
+    visibility: visible;
+  }
+  .leadership-doc-print,
+  .print-pdf-master-doc {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 210mm;
+    max-height: none !important;
+    overflow: visible !important;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 auto;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* Mobile A4 preview — fixed aspect, no layout shift */
+.print-pdf-master-doc {
+  box-sizing: border-box;
+  contain: layout paint style;
+}
+
+/* KPI stabilization — visible sizing, no collapse */
+.portal-kpi-shell {
+  min-height: 7.5rem;
+  contain: layout style;
+}
+.portal-kpi-card {
+  isolation: isolate;
+  -webkit-font-smoothing: antialiased;
+}
+.portal-kpi-card [data-kpi-live] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-kpi-card .animate-pulse {
+    animation: none !important;
+  }
+  .portal-kpi-shell * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Mobile: stable scroll + touch targets */
+@media (max-width: 640px) {
+  .portal-kpi-shell {
+    max-width: 100%;
+  }
+  #portal-main-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+}

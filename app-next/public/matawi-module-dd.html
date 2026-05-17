@@ -427,10 +427,22 @@
       background:white;
       border:1px solid var(--border);
       border-radius:24px;
-      padding:18px;
+      padding:18px 18px 18px 22px;
       position:relative;
       overflow:hidden;
       box-shadow:0 14px 32px rgba(15,23,42,.08);
+      text-align:center;
+    }
+
+    .kpi-card .kpi-vstripe{
+      position:absolute;
+      left:0;
+      top:0;
+      bottom:0;
+      width:6px;
+      border-radius:24px 0 0 24px;
+      background:linear-gradient(to bottom,#1EB93A 0%,#1EB93A 24%,#FFD700 24%,#FFD700 48%,#007ACC 48%,#007ACC 72%,#0f172a 72%);
+      z-index:2;
     }
 
     .kpi-card::before{
@@ -462,7 +474,8 @@
       font-size:11px;
       font-weight:1000;
       text-transform:uppercase;
-      letter-spacing:.05em;
+      letter-spacing:.12em;
+      text-align:center;
     }
 
     .kpi-card strong{
@@ -474,6 +487,8 @@
       margin-top:12px;
       font-weight:1000;
       word-break:break-word;
+      text-align:center;
+      letter-spacing:.02em;
     }
 
     .kpi-card small{
@@ -483,6 +498,8 @@
       color:#64748b;
       margin-top:8px;
       font-weight:800;
+      text-align:center;
+      line-height:1.45;
     }
 
     .finance-source-grid{
@@ -1015,16 +1032,67 @@
       display:none!important;
     }
     html.embedded-portal main{
-      padding:10px 12px 18px;
+      padding:4px 6px 8px;
       max-width:none;
+      width:100%;
+      display:flex;
+      flex-direction:column;
+    }
+    html.embedded-portal #kpiExecutiveSection{
+      order:-100;
     }
     html.embedded-portal .command-section,
-    html.embedded-portal .dynamic-panel{
-      border-radius:18px;
+    html.embedded-portal .dynamic-panel,
+    html.embedded-portal .forms-engine,
+    html.embedded-portal .module-card,
+    html.embedded-portal .kpi-card,
+    html.embedded-portal .advanced-card,
+    html.embedded-portal .finance-source,
+    html.embedded-portal .field,
+    html.embedded-portal .pdf-preview{
+      border:none!important;
+      outline:none!important;
+      box-shadow:none!important;
+      border-radius:12px;
       margin-top:0;
+      margin-bottom:8px;
+    }
+    html.embedded-portal body{
+      background:#f4f7fb;
+      margin:0;
+      overflow-x:hidden;
+    }
+    html.embedded-portal .kpi-grid{
+      grid-template-columns:repeat(auto-fill,minmax(min(100%,168px),1fr));
+      gap:12px;
+    }
+    html.embedded-portal .kpi-card{
+      min-height:128px;
+      padding:14px;
+      transition:transform .2s ease, box-shadow .2s ease;
+    }
+    html.embedded-portal .kpi-card:hover{
+      transform:translateY(-2px);
+      box-shadow:0 16px 36px rgba(15,23,42,.12);
+    }
+    html.embedded-portal .module-grid{
+      gap:8px;
     }
     html.embedded-portal .section-title h3{
-      font-size:15px;
+      font-size:14px;
+    }
+    @media(min-width:768px){
+      html.embedded-portal main{padding:6px 10px 12px}
+      html.embedded-portal .kpi-grid{grid-template-columns:repeat(auto-fill,minmax(188px,1fr));gap:14px}
+    }
+    @media(min-width:1280px){
+      html.embedded-portal .kpi-grid{grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+    }
+    @media(min-width:1536px){
+      html.embedded-portal .kpi-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+    }
+    html.embedded-portal .kpi-tabs{
+      justify-content:center;
     }
 
     @media print{
@@ -1309,11 +1377,11 @@
   </section>
 
 
-  <section class="command-section">
+  <section class="command-section" id="kpiExecutiveSection">
     <div class="section-title">
       <div>
-        <h3>📊 KPI Dashboards — Tawi, Jimbo, Dayosisi, KMK(T)</h3>
-        <p>KPI zinafuata baada ya modules. Data ya Tawi inakwenda Jimbo, Jimbo kwenda Dayosisi, Dayosisi kwenda KMK(T).</p>
+        <h3>📊 KPI — Mahudhurio Leo · Wiki · Mwezi · Mwaka</h3>
+        <p>Waumini (pamoja na familia). Mahudhurio — si vikao. Data inapanda Tawi → Jimbo → Dayosisi → KMK(T).</p>
       </div>
       <button class="btn-blue no-print" onclick="refreshKpis()">🔄 Refresh KPI</button>
     </div>
@@ -1838,7 +1906,8 @@ const kpis = {
 
 function kpiCard(k){
   return `
-    <article class="kpi-card" style="--stripe:linear-gradient(90deg,${k[3]},var(--gold))">
+    <article class="kpi-card" data-kpi-live="true" data-kpi-key="${String(k[0]).trim().toLowerCase().replace(/\s+/g,"-")}" style="--stripe:linear-gradient(90deg,${k[3]},var(--gold))">
+      <div class="kpi-vstripe" aria-hidden></div>
       <span>${k[0]}</span>
       <strong>${k[1]}</strong>
       <small>${k[2]}</small>

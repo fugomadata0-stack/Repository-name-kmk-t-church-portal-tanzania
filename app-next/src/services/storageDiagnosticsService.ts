@@ -1,5 +1,6 @@
 import { REQUIRED_MEDIA_BUCKETS, checkRequiredMediaBuckets, checkSupabaseMediaLink } from "./mediaHealthService";
-import { getSupabase, getSupabaseProjectOrigin, validateSupabaseEnv } from "../lib/supabase";
+import { getCachedAuthUserEmail, getCachedSession } from "../lib/authSessionCache";
+import { getSupabaseProjectOrigin, validateSupabaseEnv } from "../lib/supabase";
 
 export type StorageDiagnosticRow = {
   id: string;
@@ -38,15 +39,12 @@ export async function fetchStorageDiagnostics(): Promise<StorageDiagnosticsSnaps
     hint: env.ok ? undefined : "Weka app-next/.env.local au Vercel Environment Variables, kisha build/deploy upya.",
   });
 
-  const client = getSupabase();
   let authSignedIn = false;
   let authEmail: string | null = null;
 
-  if (client) {
-    const { data } = await client.auth.getSession();
-    authSignedIn = Boolean(data.session);
-    authEmail = data.session?.user?.email ?? null;
-  }
+  const cached = getCachedSession();
+  authSignedIn = Boolean(cached);
+  authEmail = getCachedAuthUserEmail();
 
   rows.push({
     id: "auth",

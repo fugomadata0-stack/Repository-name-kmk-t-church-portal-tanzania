@@ -1,18 +1,24 @@
 import { usePortal } from "../../context/PortalContext";
 import { NotificationBell } from "../notifications/NotificationBell";
 import { useEffect, useState } from "react";
-import { Menu } from "lucide-react";
+import { Menu, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 interface Props {
   title: string;
   onOpenMobileSidebar: () => void;
   /** Tumia kusogeza moduli programu (mf. taarifa kutoka bell). */
   onNavigateToModule?: (moduleKey: string, submodule?: string) => void;
-  /** False inapoonyesha tayari uko kwenye Dashibodi/Overview — kitufe kinazima na tooltip. */
-  canBack?: boolean;
+  sidebarCollapsed?: boolean;
+  onToggleSidebarCollapse?: () => void;
 }
 
-export function Topbar({ title, onOpenMobileSidebar, onNavigateToModule, canBack = true }: Props) {
+export function Topbar({
+  title,
+  onOpenMobileSidebar,
+  onNavigateToModule,
+  sidebarCollapsed,
+  onToggleSidebarCollapse,
+}: Props) {
   const { supabaseReady, authUser, portalProfile, role, signOut, scopeBadgeLabel } = usePortal();
   const [installEvent, setInstallEvent] = useState<any>(null);
   const [installed, setInstalled] = useState(false);
@@ -33,12 +39,9 @@ export function Topbar({ title, onOpenMobileSidebar, onNavigateToModule, canBack
       window.removeEventListener("appinstalled", onInstalled);
     };
   }, []);
-  const goBack = () => {
-    window.dispatchEvent(new Event("kmt-portal-submodule-back"));
-  };
   return (
-    <header className="sticky top-0 z-30 border-b border-amber-200/90 bg-white/85 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-md">
-      <div className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-2 sm:px-4 sm:py-3">
+    <header className="sticky top-0 z-40 shrink-0 border-b border-amber-200/80 bg-white/90 pt-[env(safe-area-inset-top)] shadow-sm backdrop-blur-md">
+      <div className="flex flex-col gap-1.5 px-2 py-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1.5 sm:px-3 sm:py-2">
         <div className="flex min-w-0 items-center gap-2">
           <button
             type="button"
@@ -48,6 +51,21 @@ export function Topbar({ title, onOpenMobileSidebar, onNavigateToModule, canBack
           >
             <Menu className="h-5 w-5" strokeWidth={2} aria-hidden />
           </button>
+          {onToggleSidebarCollapse ? (
+            <button
+              type="button"
+              className="hidden shrink-0 items-center justify-center rounded-lg border border-slate-200 p-2 text-slate-800 hover:bg-slate-50 lg:flex"
+              onClick={onToggleSidebarCollapse}
+              aria-label={sidebarCollapsed ? "Panua menyu ya kando" : "Ficha menyu ya kando"}
+              title={sidebarCollapsed ? "Panua menyu" : "Ficha menyu"}
+            >
+              {sidebarCollapsed ? (
+                <PanelLeftOpen className="h-5 w-5" strokeWidth={2} aria-hidden />
+              ) : (
+                <PanelLeftClose className="h-5 w-5" strokeWidth={2} aria-hidden />
+              )}
+            </button>
+          ) : null}
           <h2 className="min-w-0 flex-1 hyphens-auto break-words text-base font-bold leading-snug text-[#0f1e46] sm:text-lg">
             {title}
           </h2>
@@ -85,15 +103,6 @@ export function Topbar({ title, onOpenMobileSidebar, onNavigateToModule, canBack
           >
             {supabaseReady ? "Supabase" : "Local"}
           </span>
-          <button
-            type="button"
-            onClick={goBack}
-            disabled={!canBack}
-            title={canBack ? "Rudi nyuma" : "Tayari uko kwenye Dashibodi."}
-            className="shrink-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm text-slate-800 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
-          >
-            ← Rudi
-          </button>
           <span className="hidden max-w-[200px] truncate text-xs text-slate-600 md:inline" title={authUser?.email ?? ""}>
             {portalProfile?.full_name?.trim() || authUser?.email || "—"}
           </span>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Crown, FileDown, Link2, Loader2, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { Crown, Eye, FileDown, Link2, Loader2, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { usePortal } from "../../context/PortalContext";
 import { isSupabaseConfigured } from "../../lib/supabaseClient";
 import { uploadNationalLeadershipAsset } from "../../lib/nationalLeadershipUpload";
@@ -17,6 +17,10 @@ import {
   type NationalLeadershipRoleKey,
 } from "../../services/nationalLeadershipService";
 import { ResponsiveLazyImage } from "../common/ResponsiveLazyImage";
+import { LeadershipDocumentGallery } from "../executive/LeadershipDocumentGallery";
+import { LeadershipDocumentPreviewModal } from "../executive/LeadershipDocumentPreviewModal";
+import { LeadershipDocumentUploadCenter } from "../executive/LeadershipDocumentUploadCenter";
+import { nationalRowToGalleryItem, nationalRowToPreviewProps } from "../../lib/leadershipDocumentPreview";
 import { ExecutiveLeadershipCertificatePreview } from "./ExecutiveLeadershipCertificatePreview";
 import { SettingsSupabaseBanner } from "./SettingsSupabaseBanner";
 
@@ -103,6 +107,8 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
   const [savingRole, setSavingRole] = useState<NationalLeadershipRoleKey | null>(null);
   const [uploadKey, setUploadKey] = useState<string | null>(null);
   const [pdfBusy, setPdfBusy] = useState<NationalLeadershipRoleKey | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [previewRole, setPreviewRole] = useState<NationalLeadershipRoleKey | null>(null);
   const realtimeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async (opts?: { silent?: boolean }) => {
@@ -276,6 +282,17 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
 
   const orderedCards = useMemo(() => ROLE_KEYS.map((k) => state?.[k]).filter(Boolean) as NationalLeadershipProfileRow[], [state]);
 
+  const galleryItems = useMemo(() => orderedCards.map(nationalRowToGalleryItem), [orderedCards]);
+
+  useEffect(() => {
+    void fetchMasterSettingsOptional().then((ms) => {
+      const u = ms?.theme.logo_url?.trim();
+      if (u) setLogoUrl(u);
+    });
+  }, []);
+
+  const previewRow = previewRole && state ? state[previewRole] : null;
+
   if (loading || !state) {
     return (
       <div className="space-y-4">
@@ -351,6 +368,21 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
           </div>
         </div>
       </header>
+
+      <LeadershipDocumentGallery
+        items={galleryItems}
+        onPreview={(item) => {
+          const rk = item.roleKey as NationalLeadershipRoleKey | undefined;
+          if (rk && ROLE_KEYS.includes(rk)) setPreviewRole(rk);
+        }}
+        onBulkExport={(selected) => {
+          for (const it of selected) {
+            const rk = it.roleKey as NationalLeadershipRoleKey | undefined;
+            const r = rk && state?.[rk];
+            if (r) void exportNationalCertificate(r);
+          }
+        }}
+      />
 
       <div className="space-y-5">
         {orderedCards.map((row) => (
@@ -478,6 +510,20 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
             </NatLeadFormSection>
 
             <NatLeadFormSection title="Picha, saini, CV na viambatanishi / Faili">
+              {canEdit ? (
+                <LeadershipDocumentUploadCenter
+                  kinds={["photo", "signature", "cv", "attach"]}
+                  disabled={!canEdit}
+                  busy={!!uploadKey}
+                  onUpload={async (kind, file) => {
+                    if (kind === "attach") {
+                      pushToast("Tumia sehemu ya viambatanishi hapa chini kwa URL.", "info");
+                      return;
+                    }
+                    await uploadAsset(row.role_key, kind as "photo" | "signature" | "cv", file);
+                  }}
+                />
+              ) : null}
               <div className="grid gap-4 md:grid-cols-2">
                 <UploadRow
                   label="Picha ya wasifu / Profile photo"
@@ -586,6 +632,14 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
+                    onClick={() => setPreviewRole(row.role_key)}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-2 text-xs font-semibold text-[#0B1F3A] shadow-sm transition hover:bg-amber-100"
+                  >
+                    <Eye className="h-4 w-4" aria-hidden />
+                    Hakiki kamili
+                  </button>
+                  <button
+                    type="button"
                     disabled={pdfBusy === row.role_key}
                     aria-busy={pdfBusy === row.role_key}
                     onClick={() => void exportNationalCertificate(row)}
@@ -639,6 +693,31 @@ export function NationalLeadershipEnginePanel(props: { canEdit: boolean }) {
           </article>
         ))}
       </div>
+      <LeadershipDocumentPreviewModal
+        open={!!previewRow}
+        onClose={() => setPreviewRole(null)}
+        title={previewRow ? nationalLeadershipDisplayTitle(previewRow, "sw") : "Hakiki"}
+        preview={
+          previewRow
+            ? nationalRowToPreviewProps(previewRow, { logoUrl, kind: "certificate" })
+            : { fullName: "—", titleSw: "—" }
+        }
+        pdfBusy={previewRow ? pdfBusy === previewRow.role_key : false}
+        onDownloadPdf={
+          previewRow
+            ? async () => {
+                await exportNationalCertificate(previewRow);
+              }
+            : undefined
+        }
+        onSaveDraft={
+          previewRow && canEdit
+            ? () => {
+                void save(previewRow.role_key);
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

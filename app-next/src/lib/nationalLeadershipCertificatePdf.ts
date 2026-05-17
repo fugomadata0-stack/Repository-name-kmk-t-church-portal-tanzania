@@ -13,6 +13,7 @@ import {
   drawExecutivePortraitFrame,
   drawLuxuryCertificateWatermark,
   drawLuxurySectionBar,
+  resolveLeadershipCertificateTheme,
 } from "./pdfExecutiveCertificate";
 import { nationalLeadershipDisplayTitle, type NationalLeadershipProfileRow } from "../services/nationalLeadershipService";
 
@@ -61,14 +62,16 @@ export async function downloadNationalLeadershipExecutiveCertificate(
   const credentialSerial = formatLeadershipCredentialSerial("NAT", row.role_key);
   const roleTitle = nationalLeadershipDisplayTitle(row, "sw");
   const roleTitleEn = nationalLeadershipDisplayTitle(row, "en");
+  const theme = resolveLeadershipCertificateTheme({ roleKey: row.role_key, cheo: roleTitle });
 
   const decoratePage = () => {
     drawLuxuryCertificateWatermark(doc, {
       line1: "KMK(T)",
       line2: "UONGOZI WA KITAIFA · DATA LIVE",
       sealText: "CHETI RASMI",
+      theme,
     });
-    drawCertificateOrnamentalFrame(doc);
+    drawCertificateOrnamentalFrame(doc, 5, theme);
   };
   decoratePage();
 
@@ -86,6 +89,7 @@ export async function downloadNationalLeadershipExecutiveCertificate(
     certTitleEn: "EXECUTIVE LEADERSHIP PROFILE",
     subtitle: normalizePdfReadableText(`${roleTitle} · ${roleTitleEn}`),
     verificationSerial: credentialSerial,
+    theme,
   });
 
   const photo = row.profile_photo_url?.trim() ? await fetchUrlAsPdfImageDataUrl(row.profile_photo_url) : null;

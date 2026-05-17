@@ -5,13 +5,18 @@ import { MASTER_BRANCH_ENGINE_SUBMODULE } from "./masterBranchEngineHub";
 /** Submodule ya foleni ya vibali — tumia kwenye URL na arifa (thamani ya kisasa). */
 export const DASHBOARD_PENDING_APPROVALS_SUBMODULE = "Vibali vinavyosubiri";
 
-/** Majina ya zamani (Kiingereza) → Kiswahili — viungo vya zamani na sessionStorage bado hufanya kazi. */
+/** Majina ya zamani (Kiingereza / dashibodi ya awali) → injini mpya. */
 export const DASHBOARD_SUBMODULE_LEGACY_TO_SW: Record<string, string> = {
-  Overview: "Muhtasari",
-  "KPI Cards": "Kadi za KPI",
-  Alerts: "Arifa",
-  "Recent Activity": "Shughuli za hivi karibuni",
-  "Pending Approvals": "Vibali vinavyosubiri",
+  Overview: "Injini ya Ngazi — Executive",
+  "KPI Cards": "Injini ya Ngazi — Executive",
+  Alerts: "Injini ya Ngazi — Executive",
+  "Recent Activity": "Injini ya Ngazi — Executive",
+  "Pending Approvals": "Injini ya Ngazi — Executive",
+  Muhtasari: "Injini ya Ngazi — Executive",
+  "Kadi za KPI": "Injini ya Ngazi — Executive",
+  Arifa: "Injini ya Ngazi — Executive",
+  "Shughuli za hivi karibuni": "Injini ya Ngazi — Executive",
+  "Vibali vinavyosubiri": "Injini ya Ngazi — Executive",
 };
 
 const DASHBOARD_LEGACY_LOWER = (() => {

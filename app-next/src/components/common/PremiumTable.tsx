@@ -461,7 +461,7 @@ export function PremiumTable<T extends { id: string; status?: string }>({
   }
 
   return (
-    <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4">
+    <section className="premium-table-shell flex min-h-0 min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-3 shadow-lg sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0 flex-1">
           <h3 className="break-words text-lg font-bold text-[#0B1F3A]">{title}</h3>
@@ -666,7 +666,7 @@ export function PremiumTable<T extends { id: string; status?: string }>({
         </div>
       ) : (
         <>
-          <div className="mt-4 max-h-[min(70vh,52rem)] overflow-auto rounded-xl border border-slate-200 bg-white shadow-inner [-webkit-overflow-scrolling:touch]">
+          <div className="mt-4 max-h-[min(calc(100dvh-11.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)),52rem)] min-h-[min(24rem,calc(100dvh-14rem))] flex-1 overflow-auto rounded-xl border border-slate-200 bg-white shadow-inner [-webkit-overflow-scrolling:touch]">
             <table className="w-full min-w-[720px] border-separate border-spacing-0 text-sm">
               <thead className="sticky top-0 z-20 border-b border-slate-200 bg-slate-100 text-slate-900 shadow-[0_1px_0_0_rgba(15,23,42,0.08)]">
                 <tr>
@@ -864,7 +864,7 @@ export function PremiumTable<T extends { id: string; status?: string }>({
                 </div>
               ) : null}
             </div>
-            <div className="mt-4 max-h-[65vh] overflow-auto rounded-xl border border-slate-200">
+            <div className="mt-4 max-h-[min(calc(100dvh-11.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)),52rem)] overflow-auto rounded-xl border border-slate-200">
               <table className="w-full min-w-[520px] text-sm">
                 <tbody>
                   {buildDetailRows(viewRow).map(([label, value], idx) => (

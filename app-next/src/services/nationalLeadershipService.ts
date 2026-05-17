@@ -116,7 +116,11 @@ export function formatNationalLeadershipHeaderSummary(
   const line = [...rows]
     .filter((r) => r.is_visible && r.full_name.trim())
     .sort((a, b) => a.sort_order - b.sort_order || a.role_key.localeCompare(b.role_key))
-    .map((r) => `${nationalLeadershipDisplayTitle(r, "sw")}: ${r.full_name.trim()}`)
+    .map((r) => {
+      const phone = r.phone?.trim() || r.whatsapp?.trim();
+      const base = `${nationalLeadershipDisplayTitle(r, "sw")}: ${r.full_name.trim()}`;
+      return phone ? `${base} · Simu ${phone}` : base;
+    })
     .join("  ·  ");
   if (!line) return null;
   return line.length > maxLen ? `${line.slice(0, Math.max(0, maxLen - 1))}…` : line;

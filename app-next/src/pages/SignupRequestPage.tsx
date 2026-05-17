@@ -15,6 +15,7 @@ import {
 import {
   insertPhase33SignupRequest,
   validatePasswordRemote,
+  phase33DynamicPayloadAsStrings,
 } from "../services/phase33SignupService";
 import { logAuditAction } from "../services/auditLogService";
 import type { SignupReferencePayload } from "../services/signupReferenceFromSupabase";
@@ -293,7 +294,7 @@ export function SignupRequestPage() {
         setBusy(false);
         return;
       }
-      const dyn = form.dynamicPayload;
+      const dyn = phase33DynamicPayloadAsStrings(form.dynamicPayload);
       let submitPayload = dyn;
       try {
         submitPayload = enrichSignupPayloadWithStructureIds(dyn, signupRef);

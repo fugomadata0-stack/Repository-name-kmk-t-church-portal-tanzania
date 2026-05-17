@@ -1,11 +1,15 @@
 /**
  * Pakua DOM node kama PNG (hakiki ya cheti / kadi) — tumia html2canvas (lazy).
  */
-export async function downloadDomAsPng(element: HTMLElement, filenameBase: string): Promise<void> {
+export async function downloadDomAsPng(
+  element: HTMLElement,
+  filenameBase: string,
+  scale = 2,
+): Promise<void> {
   const { default: html2canvas } = await import("html2canvas");
   const safe = filenameBase.replace(/[^\w.-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 72) || "kmkt-export";
   const canvas = await html2canvas(element, {
-    scale: 2,
+    scale: Math.min(4, Math.max(2, scale)),
     useCORS: true,
     allowTaint: false,
     logging: false,

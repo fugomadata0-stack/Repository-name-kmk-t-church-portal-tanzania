@@ -25,6 +25,7 @@ import { ModalScrollLayer } from "../common/ModalScrollLayer";
 import { usePortal } from "../../context/PortalContext";
 import { parseOptionalNumberInput, parseRequiredNumberInput } from "../../lib/parseInputNumber";
 import { safeArray, safeLower } from "../../lib/safe";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { getSupabase } from "../../lib/supabaseClient";
 import { STAGE2_COLORS, stage2GradHeader } from "../../lib/stage2Theme";
 import {
@@ -328,6 +329,11 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
     }
   }, [reportError]);
 
+  const reloadWithMetrics = useCallback(async () => {
+    await load();
+    dispatchPortalReloadMetrics();
+  }, [load]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -470,7 +476,7 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
       const ids = await persistCore();
       if (!ids) return;
       pushToast("Ombi limehifadhiwa.", "success");
-      await load();
+      await reloadWithMetrics();
       setReq((r) => ({ ...r, id: ids.requestId }));
       setExistingBenId(ids.beneficiaryId);
     } catch (e) {
@@ -504,7 +510,7 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
       await notifyAidSubmitted({ beneficiaryName: name });
       pushToast("Ombi limehifadhiwa.", "success");
       setWizardOpen(false);
-      await load();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Misaada — wasilisho");
       pushToast("Imeshindikana kuhifadhi ombi.", "error");
@@ -529,7 +535,7 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
       await notifyAidInReview({ beneficiaryName: ben.full_name?.trim() ?? "—" });
       pushToast("Ombi limehamishwa kwenye ukaguzi.", "success");
       setWizardOpen(false);
-      await load();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Misaada — ukaguzi");
       pushToast("Imeshindikana kuhifadhi ombi.", "error");
@@ -560,7 +566,7 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
       });
       pushToast("Ombi limeidhinishwa.", "success");
       setWizardOpen(false);
-      await load();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Misaada — idhini");
       pushToast("Imeshindikana kuhifadhi ombi.", "error");
@@ -586,7 +592,7 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
       });
       pushToast("Ombi limekataliwa.", "info");
       setWizardOpen(false);
-      await load();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Misaada — kukataliwa");
       pushToast("Imeshindikana kuhifadhi ombi.", "error");
@@ -625,7 +631,7 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
       });
       pushToast("Msaada umetolewa.", "success");
       setWizardOpen(false);
-      await load();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Misaada — utoaji");
       pushToast("Imeshindikana kuhifadhi ombi.", "error");
@@ -641,7 +647,7 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
       await deleteAidRequest(delReqId);
       pushToast("Ombi limefutwa.", "success");
       setDelReqId(null);
-      await load();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Misaada — futa");
       pushToast("Imeshindikana kufuta.", "error");
@@ -657,7 +663,7 @@ export function AidManagementPanel(props: { highlightRecordId?: string | null; s
       await deleteAidBeneficiary(delBenId);
       pushToast("Mwanufaika amefutwa.", "success");
       setDelBenId(null);
-      await load();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Misaada — futa mwanufaika");
       pushToast("Huwezi kufuta (kunaweza kuwa na maombi yanayohusiana).", "error");

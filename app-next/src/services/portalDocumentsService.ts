@@ -7,7 +7,8 @@ import { inferContentType } from "../lib/storageUpload";
 import { formatCaughtError, formatPostgrestError, formatStorageError } from "../lib/supabaseErrors";
 import { publicStorageObjectPath } from "../lib/storagePaths";
 import { STORAGE_BUCKETS } from "../lib/storageBuckets";
-import { getSupabase, getSupabaseOrThrow } from "../lib/supabase";
+import { getCachedSession } from "../lib/authSessionCache";
+import { getSupabaseOrThrow } from "../lib/supabase";
 import { unwrapList } from "../lib/supabaseResult";
 import { getCurrentUserId } from "../lib/supabaseAuthSession";
 import type { ChurchDocumentRecord } from "../types";
@@ -72,11 +73,8 @@ function rowToRecord(r: Record<string, unknown>): ChurchDocumentRecord {
   };
 }
 
-async function currentUploaderLabel(): Promise<string> {
-  const c = getSupabase();
-  if (!c) return "";
-  const { data } = await c.auth.getUser();
-  const u = data.user;
+function currentUploaderLabel(): string {
+  const u = getCachedSession()?.user;
   if (!u) return "";
   return String(u.user_metadata?.full_name ?? u.email ?? "").trim();
 }
@@ -113,8 +111,8 @@ export type ChurchDocumentInsertPayload = {
 export async function insertChurchDocument(row: ChurchDocumentInsertPayload): Promise<ChurchDocumentRecord> {
   try {
     const c = clientOrThrow();
-    const userId = await getCurrentUserId();
-    const uploader = row.uploaded_by?.trim() || (await currentUploaderLabel());
+    const userId = getCurrentUserId();
+    const uploader = row.uploaded_by?.trim() || currentUploaderLabel();
     const now = new Date().toISOString();
     const { data, error } = await c
       .from("documents")
@@ -181,7 +179,7 @@ export async function updateChurchDocument(
 ): Promise<ChurchDocumentRecord> {
   try {
     const c = clientOrThrow();
-    const userId = await getCurrentUserId();
+    const userId = getCurrentUserId();
     const { data, error } = await c
       .from("documents")
       .update({

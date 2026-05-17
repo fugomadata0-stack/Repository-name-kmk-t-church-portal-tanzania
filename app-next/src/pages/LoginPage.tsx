@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Activity,
   Bell,
@@ -22,6 +22,15 @@ import { fetchPortalPublicDashboardCounts } from "../services/portalPublicDashbo
 import { fetchMasterSettingsOptional, readMasterSettingsCache } from "../services/masterSettingsService";
 import { fetchChurchIdentityOptional } from "../services/settingsTablesService";
 import { ResponsiveLazyImage } from "../components/common/ResponsiveLazyImage";
+import { PublicBranchEngineLiveKpis } from "../components/site/PublicBranchEngineLiveKpis";
+import { NationalLeadershipShowcase } from "../components/site/NationalLeadershipShowcase";
+import { PublicLandingFaithFooter } from "../components/site/PublicLandingFaithFooter";
+import { PublicLandingEnterpriseStrip } from "../components/site/PublicLandingEnterpriseStrip";
+import { PublicLandingModulesSection } from "../components/site/PublicLandingModulesSection";
+import { PublicLandingContentHub } from "../components/site/PublicLandingContentHub";
+import { PublicLandingSecurityHub } from "../components/site/PublicLandingSecurityHub";
+import { PublicLandingNoticeHost } from "../components/site/PublicLandingNoticeHost";
+import { usePublicLandingNotices } from "../hooks/usePublicLandingNotices";
 
 const HERO_IMAGE_CANDIDATES = [
   [
@@ -111,37 +120,6 @@ const KPI_CARD_STYLES = [
   "border-orange-400/35 bg-gradient-to-br from-orange-500/15 to-orange-950/25 shadow-orange-500/10",
 ] as const;
 
-const MODULE_CARD_ACCENT = [
-  "from-amber-500/90 to-amber-700/90",
-  "from-sky-500/90 to-indigo-700/90",
-  "from-emerald-500/90 to-teal-800/90",
-  "from-violet-500/90 to-purple-800/90",
-  "from-rose-500/90 to-pink-900/90",
-  "from-cyan-500/90 to-blue-900/90",
-  "from-orange-500/90 to-amber-900/90",
-  "from-fuchsia-500/90 to-purple-900/90",
-  "from-lime-500/90 to-green-900/90",
-  "from-red-500/90 to-rose-950/90",
-  "from-teal-500/90 to-cyan-950/90",
-  "from-indigo-500/90 to-slate-900/90",
-  "from-yellow-500/90 to-amber-950/90",
-  "from-stone-400/90 to-stone-800/90",
-] as const;
-
-const SECURITY_BULLETS = [
-  "Ruhusa za mfumo zinadhibitiwa kwa ngazi (Roles & Permissions).",
-  "Audit Trail inarekodi mabadiliko muhimu kwa uwajibikaji.",
-  "Data za umma zinaoneshwa kwa sera za Supabase na RLS.",
-] as const;
-
-function formatDateSafe(v: string | null | undefined): string {
-  const s = String(v ?? "").trim();
-  if (!s) return "-";
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("sw-TZ");
-}
-
 /** Takwimu halisi kutoka Supabase; si nambari bandia. */
 function formatStatCount(value: number | null, loading: boolean, queryFailed: boolean): string {
   if (loading) return "…";
@@ -182,6 +160,9 @@ function normalizeHexColor(value: string | null | undefined, fallback: string): 
 
 export function LoginPage() {
   const { signInWithEmailPassword, authBusy, supabaseReady } = usePortal();
+  const { notices, pushNotice, dismissNotice } = usePublicLandingNotices();
+  const didNotifyPublicLoad = useRef(false);
+  const lastKpiNoticeAt = useRef(0);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -234,7 +215,8 @@ export function LoginPage() {
     attendanceVisitorsMonth: false,
   });
 
-  const [moduleGateMsg, setModuleGateMsg] = useState("");
+  const [publicLiveAt, setPublicLiveAt] = useState<string | null>(null);
+  const [publicContentLoading, setPublicContentLoading] = useState(true);
 
   const [branding, setBranding] = useState(() => {
     const cache = readMasterSettingsCache();
@@ -298,6 +280,7 @@ export function LoginPage() {
 
     let cancelled = false;
     setPublicStatsLoading(true);
+    setPublicContentLoading(true);
     setPublicLoadError("");
     setStatQueryFailed({
       dayosisi: false,
@@ -413,6 +396,21 @@ export function LoginPage() {
           attendanceSessionsMonth: !!countsErr || (!!countsRow && !attendanceRpcOk),
           attendanceVisitorsMonth: !!countsErr || (!!countsRow && !attendanceRpcOk),
         });
+        if (!cancelled) {
+          setPublicLiveAt(new Date().toISOString());
+          const nNews = ((newsRes.error ? [] : newsRes.data) ?? []).length;
+          const nEvents = ((eventsRes.error ? [] : eventsRes.data) ?? []).length;
+          const nDocs = ((docsRes.error ? [] : docsRes.data) ?? []).length;
+          const nSermons = ((sermonsRes.error ? [] : sermonsRes.data) ?? []).length;
+          if (!didNotifyPublicLoad.current) {
+            didNotifyPublicLoad.current = true;
+            pushNotice({
+              title: "Taarifa za umma",
+              level: "success",
+              message: `Imepakiwa: ${nNews} habari · ${nEvents} matukio · ${nDocs} nyaraka · ${nSermons} mahubiri.`,
+            });
+          }
+        }
       } catch {
         if (!cancelled) {
           setPublicLoadError("Imeshindikana kuunganisha na seva ya data.");
@@ -450,14 +448,17 @@ export function LoginPage() {
           });
         }
       } finally {
-        if (!cancelled) setPublicStatsLoading(false);
+        if (!cancelled) {
+          setPublicStatsLoading(false);
+          setPublicContentLoading(false);
+        }
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [supabaseReady]);
+  }, [supabaseReady, pushNotice]);
 
   const refreshPublicKpiStrip = useCallback(async () => {
     const client = getSupabase();
@@ -518,10 +519,20 @@ export function LoginPage() {
         attendanceSessionsMonth: attOk ? counts.attendanceSessionsMonth : null,
         attendanceVisitorsMonth: attOk ? counts.attendanceVisitorsMonth : null,
       }));
+      setPublicLiveAt(new Date().toISOString());
+      const now = Date.now();
+      if (now - lastKpiNoticeAt.current > 45_000) {
+        lastKpiNoticeAt.current = now;
+        pushNotice({
+          title: "KPI hai",
+          level: "info",
+          message: "Takwimu za umma zimesasishwa kutoka Supabase.",
+        });
+      }
     } catch {
       /* polling / realtime — jaribu tena baadaye */
     }
-  }, [supabaseReady]);
+  }, [supabaseReady, pushNotice]);
 
   useEffect(() => {
     if (!supabaseReady) return;
@@ -574,6 +585,18 @@ export function LoginPage() {
     });
   }, []);
 
+  const onModuleGate = useCallback(
+    (title: string) => {
+      pushNotice({
+        title: "Ulinzi wa moduli",
+        level: "info",
+        message: `“${title}” — tafadhali ingia ili kufungua kipengele hiki.`,
+      });
+      scrollToLoginCard();
+    },
+    [pushNotice, scrollToLoginCard],
+  );
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLocalError("");
@@ -607,8 +630,8 @@ export function LoginPage() {
     { key: "viongozi", label: "Viongozi" },
     { key: "nyaraka", label: "Nyaraka" },
     { key: "matukio", label: "Matukio" },
-    { key: "attendanceSessionsToday", label: "Mahudhurio — vikao leo" },
-    { key: "attendanceSessionsMonth", label: "Mahudhurio — vikao (mwezi)" },
+    { key: "attendanceSessionsToday", label: "Mahudhurio — leo" },
+    { key: "attendanceSessionsMonth", label: "Mahudhurio — mwezi" },
     { key: "attendanceVisitorsMonth", label: "Wageni (mwezi)" },
   ];
 
@@ -631,21 +654,17 @@ export function LoginPage() {
         aria-hidden
       />
       <div className="pointer-events-none fixed inset-0 z-0 opacity-[0.07] [background-image:linear-gradient(rgba(255,255,255,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.06)_1px,transparent_1px)] [background-size:48px_48px]" aria-hidden />
-      <nav className="sticky top-0 z-40 border-b border-white/10 bg-[#0a1628]/85 pt-[env(safe-area-inset-top)] shadow-lg shadow-black/20 backdrop-blur-xl">
-        <div className="mx-auto flex w-full min-w-0 max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-3">
+      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0a1628]/90 pt-[env(safe-area-inset-top)] shadow-lg shadow-black/20 backdrop-blur-xl">
+        <div className="mx-auto flex w-full min-w-0 max-w-[min(100%,96rem)] flex-wrap items-center justify-between gap-2 px-3 py-2.5 sm:px-5 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             {branding.logo ? (
               <ResponsiveLazyImage
                 src={branding.logo}
                 alt={branding.shortName}
-
                 className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-amber-400/30"
                 width={40}
                 height={40}
-                loading="eager"
-                fetchpriority="high"
-                decoding="async"
-
+                priority
               />
             ) : null}
             <div className="min-w-0">
@@ -653,14 +672,33 @@ export function LoginPage() {
               <p className="truncate text-xs text-slate-400">{branding.officialName}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={scrollToLoginCard}
-            className="shrink-0 rounded-xl border border-amber-400/40 bg-gradient-to-r px-4 py-2 text-sm font-semibold text-[#0a1628] shadow-md shadow-amber-900/20 transition hover:brightness-105"
-            style={{ backgroundImage: `linear-gradient(90deg, ${theme.accent}, #f0d78c)` }}
-          >
-            Ingia
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-1.5 sm:gap-2">
+            <a
+              href="#public-engine-kpis"
+              className="rounded-lg border border-emerald-400/45 bg-emerald-600/20 px-2.5 py-1.5 text-xs font-semibold text-emerald-50 shadow-sm transition duration-200 hover:bg-emerald-500/30 sm:text-sm"
+            >
+              KPI
+            </a>
+            <a
+              href="#modules-overview"
+              className="rounded-lg border border-sky-400/45 bg-sky-600/20 px-2.5 py-1.5 text-xs font-semibold text-sky-50 shadow-sm transition duration-200 hover:bg-sky-500/30 sm:text-sm"
+            >
+              Moduli
+            </a>
+            <a
+              href="/auth/signup-request"
+              className="hidden rounded-lg border border-violet-400/45 bg-violet-600/20 px-2.5 py-1.5 text-xs font-semibold text-violet-50 shadow-sm transition duration-200 hover:bg-violet-500/30 sm:inline sm:text-sm"
+            >
+              Omba Akaunti
+            </a>
+            <button
+              type="button"
+              onClick={scrollToLoginCard}
+              className="shrink-0 rounded-lg border border-amber-400/55 bg-gradient-to-r from-amber-400/95 to-amber-200/90 px-4 py-2 text-sm font-semibold text-[#0a1628] shadow-md shadow-amber-900/25 transition duration-200 hover:brightness-105 active:scale-[0.98]"
+            >
+              Ingia
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -669,15 +707,10 @@ export function LoginPage() {
           <ResponsiveLazyImage
             src={hero.src}
             alt="Mwonekano wa imani na ibada"
-
-            className="block h-[clamp(220px,42vh,520px)] min-h-[200px] w-full object-cover transition-opacity duration-700 md:h-[520px]"
-
-            loading="eager"
-            fetchpriority="high"
-            decoding="async"
+            className="block h-[clamp(240px,48vh,680px)] min-h-[220px] w-full object-cover transition-opacity duration-700 lg:h-[min(72vh,680px)]"
             width={1920}
             height={1080}
-
+            priority
             onError={() => {
               setHero((p) => {
                 const variants = HERO_IMAGE_CANDIDATES[p.idx];
@@ -704,7 +737,7 @@ export function LoginPage() {
         )}
         <div className="absolute inset-0 bg-gradient-to-r from-[#030712]/95 via-[#0B1F3A]/88 to-[#123C69]/75" />
 
-        <div className="absolute inset-0 z-10 mx-auto grid max-h-full w-full max-w-7xl items-start gap-6 overflow-y-auto overscroll-y-contain px-4 py-6 [-webkit-overflow-scrolling:touch] sm:items-center sm:py-8 lg:grid-cols-[1.15fr_0.85fr] lg:overflow-visible lg:py-8">
+        <div className="absolute inset-0 z-10 mx-auto grid max-h-full w-full max-w-[min(100%,96rem)] items-start gap-6 overflow-y-auto overscroll-y-contain px-4 py-6 [-webkit-overflow-scrolling:touch] sm:items-center sm:py-8 lg:grid-cols-[1.15fr_0.85fr] lg:overflow-visible lg:min-h-[min(72vh,680px)] lg:py-10">
           <div className="animate-kmkt-fade-up text-white [animation-delay:40ms]">
             <p className="text-xs font-semibold uppercase tracking-[0.26em] text-amber-300/95">KANISA LA MENNONITE LA KIINJILI TANZANIA</p>
             <h1 className="font-kmkt-display mt-3 text-3xl font-bold leading-tight tracking-tight text-white md:text-5xl md:leading-[1.15]">
@@ -748,13 +781,10 @@ export function LoginPage() {
               <ResponsiveLazyImage
                 src={branding.logo}
                 alt={branding.shortName}
-
                 className="mx-auto mb-3 h-16 w-16 rounded-full object-cover ring-2 ring-[#D4AF37]/35"
                 width={128}
                 height={128}
-                loading="eager"
-                fetchpriority="high"
-                decoding="async"
+                priority
                 onError={() => setLogoBroken(true)}
               />
             ) : (
@@ -763,13 +793,10 @@ export function LoginPage() {
                   <ResponsiveLazyImage
                     src={LOCAL_LOGO_CANDIDATES[logoVariant]}
                     alt={branding.shortName}
-
                     className="mx-auto mb-3 h-16 w-16 rounded-full object-cover ring-2 ring-[#D4AF37]/35"
                     width={128}
                     height={128}
-                    loading="eager"
-                    fetchpriority="high"
-                    decoding="async"
+                    priority
                     onError={() => {
                       if (logoVariant < LOCAL_LOGO_CANDIDATES.length - 1) setLogoVariant((v) => v + 1);
                       else setLogoBroken(true);
@@ -917,149 +944,36 @@ export function LoginPage() {
         ) : null}
       </section>
 
-      <section id="modules-overview" className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-8">
-        <div className="animate-kmkt-fade-up">
-          <h3 className="font-kmkt-display text-xl font-bold text-white md:text-2xl">Vipengele vya mfumo</h3>
-          <p className="mt-1 text-sm text-slate-400">Vinjari maktaba ya moduli kabla ya kuingia — huna ruhusa ya ndani bila akaunti.</p>
-        </div>
-        {moduleGateMsg ? (
-          <p className="mt-4 rounded-xl border border-amber-400/40 bg-amber-500/15 px-3 py-2 text-sm text-amber-50 backdrop-blur-sm" role="status">
-            {moduleGateMsg}
-          </p>
-        ) : null}
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {MODULE_CARDS.map((m, idx) => {
-            const Icon = m.icon;
-            const accent = MODULE_CARD_ACCENT[idx % MODULE_CARD_ACCENT.length];
-            return (
-              <button
-                key={m.title}
-                type="button"
-                onClick={() => {
-                  setModuleGateMsg("Tafadhali ingia ili kufungua kipengele hiki.");
-                  scrollToLoginCard();
-                }}
-                style={{ animationDelay: `${100 + idx * 35}ms` }}
-                className="login-premium-module group animate-kmkt-fade-up w-full rounded-2xl border border-white/12 bg-white/[0.06] p-4 text-left shadow-lg shadow-black/30 backdrop-blur-md transition duration-200 hover:-translate-y-0.5 hover:border-amber-400/45 hover:bg-white/[0.09] hover:shadow-xl hover:shadow-amber-950/40"
-              >
-                <div className="flex items-start gap-3">
-                  <div className={`rounded-xl bg-gradient-to-br p-2 text-white shadow-inner ${accent}`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white">{m.title}</p>
-                    <p className="mt-1 text-xs text-slate-400">{m.desc}</p>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+      <PublicBranchEngineLiveKpis />
 
-      <section className="relative z-10 mx-auto grid w-full max-w-7xl gap-4 px-4 pb-8 lg:grid-cols-2">
-        <article className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-lg shadow-black/25 backdrop-blur-md">
-          <h4 className="font-kmkt-display text-lg font-bold text-white">Habari Mpya</h4>
-          <div className="mt-3 space-y-2">
-            {news.length === 0 ? (
-              <p className="text-sm text-slate-400">Hakuna taarifa bado</p>
-            ) : (
-              news.map((n) => (
-                <div key={n.id} className="rounded-lg border border-white/10 bg-slate-950/40 p-2.5">
-                  <p className="text-sm font-semibold text-slate-100">{n.title}</p>
-                  <p className="text-xs text-slate-400">{formatDateSafe(n.created_at)}</p>
-                </div>
-              ))
-            )}
-          </div>
-        </article>
+      <NationalLeadershipShowcase />
 
-        <article className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-lg shadow-black/25 backdrop-blur-md">
-          <h4 className="font-kmkt-display text-lg font-bold text-white">Matukio Yajayo</h4>
-          <div className="mt-3 space-y-2">
-            {events.length === 0 ? (
-              <p className="text-sm text-slate-400">Hakuna taarifa bado</p>
-            ) : (
-              events.map((ev) => (
-                <div key={ev.id} className="rounded-lg border border-white/10 bg-slate-950/40 p-2.5">
-                  <p className="text-sm font-semibold text-slate-100">{ev.title}</p>
-                  <p className="text-xs text-slate-400">
-                    {formatDateSafe(ev.event_date)} • {ev.location || "Eneo halijatajwa"}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </article>
+      <PublicLandingEnterpriseStrip
+        stats={{
+          matawi: stats.matawi,
+          waumini: stats.waumini,
+          dayosisi: stats.dayosisi,
+          loading: publicStatsLoading,
+        }}
+        liveAt={publicLiveAt}
+      />
 
-        <article className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-lg shadow-black/25 backdrop-blur-md">
-          <h4 className="font-kmkt-display text-lg font-bold text-white">Nyaraka za Umma</h4>
-          <div className="mt-3 space-y-2">
-            {documents.length === 0 ? (
-              <p className="text-sm text-slate-400">Hakuna taarifa bado</p>
-            ) : (
-              documents.map((d) => (
-                <div key={d.id} className="rounded-lg border border-white/10 bg-slate-950/40 p-2.5">
-                  <p className="text-sm font-semibold text-slate-100">{d.title}</p>
-                  <p className="text-xs text-slate-400">
-                    {d.category || "Nyingine"} • {formatDateSafe(d.created_at)}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </article>
+      <PublicLandingModulesSection modules={MODULE_CARDS} onModuleGate={onModuleGate} />
 
-        <article className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-lg shadow-black/25 backdrop-blur-md">
-          <h4 className="font-kmkt-display text-lg font-bold text-white">Media Highlights & Livestream</h4>
-          <div className="mt-3 space-y-2">
-            {liveNow.length === 0 ? (
-              <p className="text-sm text-slate-400">Hakuna livestream ya moja kwa moja kwa sasa</p>
-            ) : (
-              liveNow.map((lv) =>
-                lv.stream_url ? (
-                  <a
-                    key={lv.id}
-                    href={lv.stream_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block rounded-lg border border-rose-400/35 bg-rose-500/10 p-2.5 backdrop-blur-sm"
-                  >
-                    <p className="text-sm font-semibold text-rose-100">LIVE • {lv.title}</p>
-                  </a>
-                ) : (
-                  <div key={lv.id} className="rounded-lg border border-rose-400/35 bg-rose-500/10 p-2.5">
-                    <p className="text-sm font-semibold text-rose-100">LIVE • {lv.title}</p>
-                  </div>
-                )
-              )
-            )}
-            {sermons.length === 0 ? (
-              <p className="mt-2 text-sm text-slate-400">Hakuna taarifa bado</p>
-            ) : (
-              sermons.slice(0, 3).map((s) => (
-                <div key={s.id} className="rounded-lg border border-white/10 bg-slate-950/40 p-2.5">
-                  <p className="text-sm font-semibold text-slate-100">{s.title}</p>
-                  <p className="text-xs text-slate-400">
-                    {s.preacher || "Mhudumu"} • {formatDateSafe(s.date)}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </article>
-      </section>
+      <PublicLandingContentHub
+        news={news}
+        events={events}
+        documents={documents}
+        liveNow={liveNow}
+        sermons={sermons}
+        loading={publicContentLoading}
+      />
 
-      <section className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-8">
-        <article className="rounded-2xl border border-white/12 bg-white/[0.06] p-5 shadow-lg shadow-black/25 backdrop-blur-md">
-          <h4 className="font-kmkt-display text-lg font-bold text-white">Usalama, Roles & Permissions</h4>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-300">
-            {SECURITY_BULLETS.map((x) => (
-              <li key={x}>{x}</li>
-            ))}
-          </ul>
-        </article>
-      </section>
+      <PublicLandingSecurityHub />
+
+      <PublicLandingFaithFooter />
+
+      <PublicLandingNoticeHost notices={notices} onDismiss={dismissNotice} />
 
       <footer className="relative z-10 border-t border-white/10 bg-[#050a14]/90 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 py-5 text-sm text-slate-300 md:flex-row md:items-center md:justify-between">

@@ -16,6 +16,28 @@ export const KMKT_SLATE: [number, number, number] = [71, 85, 105];
 export const KMKT_EMERALD: [number, number, number] = [16, 129, 96];
 export const KMKT_LIGHT_GRAY: [number, number, number] = [248, 250, 252];
 const KMKT_PUBLIC_URL = "https://v0-church-portal-tanzania.vercel.app";
+const TZ_FLAG_GREEN: [number, number, number] = [30, 181, 58];
+const TZ_FLAG_GOLD: [number, number, number] = [255, 215, 0];
+const TZ_FLAG_BLUE: [number, number, number] = [0, 122, 204];
+const TZ_FLAG_BLACK: [number, number, number] = [15, 23, 42];
+
+/** Mistari wima ya rangi za bendera — pembeni ya kila ukurasa wa PDF. */
+function drawPdfTanzaniaFlagVerticalEdge(doc: InstanceType<typeof import("jspdf").jsPDF>): void {
+  const pageH = doc.internal.pageSize.getHeight();
+  const stripes: [number, number, number][] = [TZ_FLAG_GREEN, TZ_FLAG_GOLD, TZ_FLAG_BLUE, TZ_FLAG_BLACK];
+  let x = 0;
+  const w = 2.15;
+  const gap = 0.12;
+  for (const rgb of stripes) {
+    doc.setFillColor(...rgb);
+    doc.rect(x, 0, w, pageH, "F");
+    x += w + gap;
+  }
+}
+
+function pdfTitleWithWideSpacing(title: string): string {
+  return normalizePdfReadableText(title).replace(/\s+/g, "   ");
+}
 
 function printableGeneratedAt(): string {
   return new Date().toLocaleString("sw-TZ");
@@ -219,8 +241,14 @@ export async function exportTableToPdf(
 
   let y = 8;
 
+  drawPdfTanzaniaFlagVerticalEdge(doc);
+
   doc.setFillColor(...primary);
   doc.rect(0, 0, pageWidth, 34, "F");
+  doc.setFillColor(...TZ_FLAG_GREEN);
+  doc.rect(9.5, 0, 2.2, 34, "F");
+  doc.setFillColor(...TZ_FLAG_GOLD);
+  doc.rect(11.85, 0, 1.4, 34, "F");
   doc.setFillColor(...secondary);
   doc.rect(0, 28, pageWidth, 8, "F");
   doc.setFillColor(...accent);
@@ -311,7 +339,7 @@ export async function exportTableToPdf(
   doc.setFont("helvetica", "bold");
   doc.setTextColor(...primary);
   const titleMaxW = pageWidth - margin * 3;
-  const titleFit = fitPdfLinesToWidth(doc, reportTitle, titleMaxW, 14, 9.5, 6);
+  const titleFit = fitPdfLinesToWidth(doc, pdfTitleWithWideSpacing(reportTitle), titleMaxW, 15, 10.5, 6);
   const titleBlockH = Math.max(
     28,
     titleFit.lines.length * titleFit.lineHeight + 14
@@ -413,6 +441,7 @@ export async function exportTableToPdf(
     tableLineWidth: 0.25,
     theme: "grid",
     willDrawPage: (data: { doc: InstanceType<typeof import("jspdf").jsPDF> }) => {
+      drawPdfTanzaniaFlagVerticalEdge(data.doc);
       drawKmktPdfWatermark(data.doc, {
         line1: master.identity.short_name?.trim() || "KMK(T)",
         line2: "RIPOTI RASMI · DATA LIVE KUTOKA SUPABASE",

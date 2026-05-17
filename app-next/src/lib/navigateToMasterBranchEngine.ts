@@ -1,5 +1,7 @@
 import { buildBranchEnginePortalUrl } from "./branchEnginePortalUrl";
 import {
+  DAYOSISI_ENGINE_SUBMODULE,
+  JIMBO_ENGINE_SUBMODULE,
   MASTER_BRANCH_ENGINE_SUBMODULE,
   MATAWI_ENGINE_SUBMODULE,
   MATAWI_REGISTRY_SUBMODULE,
@@ -8,12 +10,16 @@ import {
 
 export type MasterBranchNavigateTarget =
   | "executive"
+  | "dayosisi"
+  | "jimbo"
   | "matawi"
   | "registry"
   | "tawi-dashboard";
 
 const TARGET_SUBMODULE: Record<MasterBranchNavigateTarget, string> = {
   executive: MASTER_BRANCH_ENGINE_SUBMODULE,
+  dayosisi: DAYOSISI_ENGINE_SUBMODULE,
+  jimbo: JIMBO_ENGINE_SUBMODULE,
   matawi: MATAWI_ENGINE_SUBMODULE,
   registry: MATAWI_REGISTRY_SUBMODULE,
   "tawi-dashboard": TAWI_DASHBOARD_SUBMODULE,

@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { getSupabase } from "../lib/supabaseClient";
 import { KMKT_PUBLIC_PORTAL_URL, formatTawiBranchCredentialSerial } from "../lib/kmktExecutiveInstitution";
 import type { NationalLeadershipRoleKey } from "../services/nationalLeadershipService";
+import {
+  OFFICIAL_CERT_STATUS_LABELS,
+  fetchPublicOfficialCertificateVerifyOptional,
+  type PublicOfficialCertificateVerify,
+} from "../services/leadershipOfficialCertificateService";
 
 const NATIONAL_KEYS = new Set<string>(["askofu_mkuu", "katibu_mkuu", "naibu_katibu_mkuu", "mhasibu_mkuu"]);
 
@@ -73,18 +78,36 @@ function tawiRegistryVerificationUi(raw: string | null | undefined): {
   };
 }
 
+function officialCertStatusUi(status: string | undefined): { label: string; pillClass: string; trusted: boolean } {
+  const s = String(status ?? "").trim().toLowerCase();
+  const meta = OFFICIAL_CERT_STATUS_LABELS[s as keyof typeof OFFICIAL_CERT_STATUS_LABELS];
+  const label = meta?.sw ?? status ?? "—";
+  if (s === "approved" || s === "verified") {
+    return { label, pillClass: "bg-emerald-100 text-emerald-900 ring-emerald-300/60", trusted: true };
+  }
+  if (s === "pending") {
+    return { label, pillClass: "bg-amber-100 text-amber-950 ring-amber-400/50", trusted: false };
+  }
+  if (s === "rejected" || s === "archived") {
+    return { label, pillClass: "bg-red-100 text-red-900 ring-red-300/50", trusted: false };
+  }
+  return { label, pillClass: "bg-slate-100 text-slate-800 ring-slate-300/60", trusted: false };
+}
+
 export function VerifyLeadershipPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [national, setNational] = useState<NationalRow | null>(null);
   const [church, setChurch] = useState<ChurchRow | null>(null);
   const [tawi, setTawi] = useState<TawiVerifyRow | null>(null);
+  const [officialCert, setOfficialCert] = useState<PublicOfficialCertificateVerify | null>(null);
 
   const params = useMemo(() => new URLSearchParams(typeof window !== "undefined" ? window.location.search : ""), []);
 
   const nid = (params.get("nid") || "").trim().toLowerCase();
   const vid = (params.get("vid") || "").trim();
   const tid = (params.get("tid") || "").trim();
+  const vrf = (params.get("vrf") || "").trim();
 
   useEffect(() => {
     let stop = false;
@@ -92,11 +115,23 @@ export function VerifyLeadershipPage() {
       setNational(null);
       setChurch(null);
       setTawi(null);
+      setOfficialCert(null);
       setErr("");
       setLoading(true);
       const c = getSupabase();
       if (!c) {
         setErr("Mazingira ya Supabase hayajasanidiwa.");
+        setLoading(false);
+        return;
+      }
+      if (vrf) {
+        const row = await fetchPublicOfficialCertificateVerifyOptional(vrf);
+        if (stop) return;
+        if (!row.found) {
+          setErr("Hakuna cheti rasmi kinacholingana na nambari hii ya uhakiki.");
+        } else {
+          setOfficialCert(row);
+        }
         setLoading(false);
         return;
       }
@@ -146,13 +181,13 @@ export function VerifyLeadershipPage() {
         setLoading(false);
         return;
       }
-      setErr("Ombi si sahihi. Tumia ?nid=…, ?vid=UUID ya kiongozi, au ?tid=UUID ya tawi.");
+      setErr("Ombi si sahihi. Tumia ?vrf=KMK-VRF-…, ?nid=…, ?vid=UUID ya kiongozi, au ?tid=UUID ya tawi.");
       setLoading(false);
     })();
     return () => {
       stop = true;
     };
-  }, [nid, vid, tid]);
+  }, [nid, vid, tid, vrf]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#071832] via-[#0B1F4D] to-[#123C69] p-4 sm:p-8">
@@ -169,6 +204,59 @@ export function VerifyLeadershipPage() {
             {loading ? <p className="text-sm text-slate-600">Inapakia…</p> : null}
             {!loading && err ? (
               <p className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">{err}</p>
+            ) : null}
+            {!loading && !err && officialCert?.found ? (
+              <div className="space-y-2 text-sm">
+                {(() => {
+                  const reg = officialCertStatusUi(officialCert.status);
+                  return (
+                    <>
+                      <p className="text-xs font-semibold uppercase text-slate-500">Cheti rasmi cha uongozi</p>
+                      <p>
+                        <span className="font-semibold text-[#0B1F4D]">Mwenye cheti:</span>{" "}
+                        {officialCert.holderFullName || "—"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-[#0B1F4D]">Cheo:</span> {officialCert.positionTitle || "—"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-[#0B1F4D]">Ngazi / eneo:</span>{" "}
+                        {officialCert.hierarchyLabel || "—"}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-[#0B1F4D]">Nambari ya cheti:</span>{" "}
+                        <code className="rounded bg-slate-100 px-1 text-xs">{officialCert.certificateNumber || "—"}</code>
+                      </p>
+                      <p>
+                        <span className="font-semibold text-[#0B1F4D]">Nambari ya uhakiki:</span>{" "}
+                        <code className="rounded bg-slate-100 px-1 text-[10px]">{officialCert.verificationId || "—"}</code>
+                      </p>
+                      {officialCert.issuedAt ? (
+                        <p>
+                          <span className="font-semibold text-[#0B1F4D]">Imetolewa:</span>{" "}
+                          {new Date(officialCert.issuedAt).toLocaleString("sw-TZ")}
+                        </p>
+                      ) : null}
+                      <p className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-[#0B1F4D]">Hali:</span>
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${reg.pillClass}`}>
+                          {reg.label}
+                        </span>
+                      </p>
+                      <p
+                        className={`mt-3 flex flex-col gap-1 rounded-xl border border-white/60 px-3 py-2 text-xs font-medium ring-1 ${reg.pillClass}`}
+                      >
+                        <span className="font-bold">{reg.trusted ? "Cheti kinathibitishwa na KMK(T)" : "Angalia hali ya cheti"}</span>
+                        <span className="text-[11px] font-normal leading-snug opacity-95">
+                          {reg.trusted
+                            ? "Rekodi hii ipo katika sajili rasmi ya vyeti vya uongozi."
+                            : "Cheti bado kinaweza kuwa kinasubiri idhini au halijaidhinishwa."}
+                        </span>
+                      </p>
+                    </>
+                  );
+                })()}
+              </div>
             ) : null}
             {!loading && !err && national ? (
               <div className="space-y-2 text-sm">
@@ -269,7 +357,7 @@ export function VerifyLeadershipPage() {
                 })()}
               </div>
             ) : null}
-            {!loading && !err && !national && !church && !tawi ? (
+            {!loading && !err && !national && !church && !tawi && !officialCert?.found ? (
               <p className="text-sm text-slate-600">Hakuna rekodi inayolingana na kiungo hiki.</p>
             ) : null}
             <div className="border-t border-slate-200 pt-4 text-center text-xs text-slate-500">

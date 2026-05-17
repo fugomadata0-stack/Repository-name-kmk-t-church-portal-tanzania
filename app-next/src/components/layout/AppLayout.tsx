@@ -20,6 +20,7 @@ import {
   type DashboardKpiSnapshot,
 } from "../../services/dashboardKpiAggregatesService";
 import { dedupeInFlight } from "../../lib/inFlightDedupe";
+import { repairAllLegacyStructureLinks } from "../../lib/legacyStructureMirror";
 import { isAbortLikeError } from "../../lib/supabaseErrors";
 import { DASHBOARD_KPI_LOAD_ERROR_SW, HAIJAPATIKANA_DATA_SW } from "../../lib/supabaseUiMessages";
 import { dispatchPortalReloadMetrics, KMT_PORTAL_RELOAD_METRICS_EVENT } from "../../lib/portalEvents";
@@ -31,7 +32,13 @@ import {
   PORTAL_HOME_AFTER_LOGIN,
   shouldOpenBranchEngineAsPortalHome,
 } from "../../lib/branchEnginePortalUrl";
-import { isMuundoBranchEngineSubmodule } from "../../lib/branchEngineRoute";
+import { isPortalBranchEngineSurface, resolveBranchEngineRoute } from "../../lib/branchEngineRoute";
+import {
+  getPortalLayoutMode,
+  isPortalWideSurface,
+  shouldHidePortalProjectRibbon,
+} from "../../lib/portalLayoutMode";
+import { MasterBranchExecutiveDashboard } from "../branch-engine/MasterBranchExecutiveDashboard";
 import {
   coerceSubmoduleForModule,
   getDashboardDefaultSubmodule,
@@ -44,27 +51,68 @@ import {
   PORTAL_DRAFT_EVENT_FLUSH,
   type PortalDraftScope,
 } from "../../lib/portalDraftRecovery";
+import { ErrorBoundary } from "../common/ErrorBoundary";
 import { CookieConsentBanner } from "./CookieConsentBanner";
 import { MaintenanceBanner } from "./MaintenanceBanner";
 import { PortalAutoDraftRecovery } from "../draft/PortalAutoDraftRecovery";
 import { SiteFooter } from "./SiteFooter";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { ExecutiveMenuBar } from "../executive/ExecutiveMenuBar";
+import { ExecutiveLayout } from "../executive/ExecutiveLayout";
+import { GlobalBackButton } from "../executive/GlobalBackButton";
 import { PortalProjectNotesRibbon } from "./PortalProjectNotesRibbon";
-const Dashboard = lazy(async () => {
-  const m = await import("../../pages/Dashboard");
-  return { default: m.Dashboard };
-});
-
 const ModulePage = lazy(async () => {
   const m = await import("../../pages/ModulePage");
   return { default: m.ModulePage };
 });
 
+/** Hali ya kusawazisha vipimo vya dashibodi — loading / hitilafu. */
+function PortalKpiSyncStatus({
+  refreshing,
+  error,
+  onRetry,
+}: {
+  refreshing: boolean;
+  error: string | null;
+  onRetry: () => void;
+}) {
+  if (!refreshing && !error) return null;
+  return (
+    <div
+      className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/80 bg-slate-50/95 px-3 py-2 text-xs sm:px-4"
+      role="status"
+      aria-live="polite"
+      aria-busy={refreshing}
+    >
+      {refreshing ? (
+        <span className="inline-flex items-center gap-2 font-medium text-slate-700">
+          <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#123C69] border-t-transparent" aria-hidden />
+          Inasasisha vipimo vya mfumo…
+        </span>
+      ) : (
+        <span />
+      )}
+      {error ? (
+        <span className="flex flex-wrap items-center gap-2 text-amber-900">
+          <span role="alert">{error}</span>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-semibold text-amber-950 shadow-sm hover:bg-amber-50"
+          >
+            Jaribu tena
+          </button>
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function ModuleLoadingFallback() {
   return (
     <div
-      className="flex min-h-[40vh] flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-8 text-slate-600"
+      className="flex min-h-[calc(100dvh-10rem)] flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-8 text-slate-600"
       role="status"
       aria-live="polite"
       aria-busy="true"
@@ -76,10 +124,26 @@ function ModuleLoadingFallback() {
 }
 
 export function AppLayout() {
-  const { pushToast, reportError, site, about, canPortalViewModule, noModuleRbac, authInitialized, authUser, role, rbacLoading } =
-    usePortal();
+  const {
+    pushToast,
+    reportError,
+    site,
+    about,
+    canPortalViewModule,
+    noModuleRbac,
+    authInitialized,
+    authUser,
+    role,
+    rbacLoading,
+    portalProfile,
+  } = usePortal();
   useSiteDocumentMeta(site);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    const snap = typeof window !== "undefined" ? readPortalUiSnapshot(authUser?.id) : null;
+    if (typeof snap?.sidebarCollapsed === "boolean") return snap.sidebarCollapsed;
+    return Boolean(authUser);
+  });
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() => {
     const snap = typeof window !== "undefined" ? readPortalUiSnapshot(authUser?.id) : null;
     if (snap?.expanded && Object.keys(snap.expanded).length > 0) return snap.expanded;
@@ -128,9 +192,6 @@ export function AppLayout() {
   const [fedha, setFedha] = useState<FedhaRecord[]>([]);
   const [incomeSources, setIncomeSources] = useState<IncomeSourceRecord[]>([]);
   const [incomeManagement, setIncomeManagement] = useState<IncomeManagementRecord[]>([]);
-  const [auditLogCount, setAuditLogCount] = useState(0);
-  const [securityCounts, setSecurityCounts] = useState({ directory: 0, visibilityRules: 0, rbacMatrixRows: 0 });
-  const [wauminiCounts, setWauminiCounts] = useState({ families: 0, members: 0, activeMembers: 0, baptized: 0 });
   const [kpiLive, setKpiLive] = useState<DashboardKpiSnapshot>(() => emptyDashboardKpiSnapshot());
   const [kpiRefreshing, setKpiRefreshing] = useState(false);
   const [kpiError, setKpiError] = useState<string | null>(null);
@@ -141,6 +202,7 @@ export function AppLayout() {
   /** Nusu sekunde za mwisho za kuwa nyuma — kusawazisha vipima baada ya kurudi. */
   const lastResumeHiddenMsRef = useRef(0);
   const lastDashboardMetricsAtRef = useRef(0);
+  const legacyStructureRepairRef = useRef(false);
   const lastIncomeDataAtRef = useRef(0);
   const restoredScrollRef = useRef(false);
 
@@ -167,8 +229,9 @@ export function AppLayout() {
       activeModule,
       activeSubmodule,
       expanded,
+      sidebarCollapsed,
     });
-  }, [authUser?.id, activeModule, activeSubmodule, expanded]);
+  }, [authUser?.id, activeModule, activeSubmodule, expanded, sidebarCollapsed]);
 
   useEffect(() => {
     if (!authUser?.id || restoredScrollRef.current) return;
@@ -199,6 +262,7 @@ export function AppLayout() {
           activeModule,
           activeSubmodule,
           expanded,
+          sidebarCollapsed,
           scrollTop: el.scrollTop,
         });
       }, 400);
@@ -208,16 +272,13 @@ export function AppLayout() {
       el.removeEventListener("scroll", onScroll);
       if (t) window.clearTimeout(t);
     };
-  }, [authUser?.id, activeModule, activeSubmodule, expanded]);
+  }, [authUser?.id, activeModule, activeSubmodule, expanded, sidebarCollapsed]);
 
   /** Hesabu + dayosisi za KPI za dashibodi — zote kutoka Supabase kwa wakati mmoja. */
   const loadDashboardMetrics = useCallback(async () => {
     return dedupeInFlight("portal:load-dashboard-metrics", async () => {
     const client = getSupabase();
     if (!client) {
-      setAuditLogCount(0);
-      setSecurityCounts({ directory: 0, visibilityRules: 0, rbacMatrixRows: 0 });
-      setWauminiCounts({ families: 0, members: 0, activeMembers: 0, baptized: 0 });
       setDayosisi([]);
       setMajimbo([]);
       setMatawi([]);
@@ -264,9 +325,6 @@ export function AppLayout() {
       const securityErr = getErr(2);
       const wauminiErr = getErr(3);
       setDayosisi((prev) => getVal(0, [], prev));
-      setAuditLogCount((prev) => getVal(1, 0, prev));
-      setSecurityCounts((prev) => getVal(2, { directory: 0, visibilityRules: 0, rbacMatrixRows: 0 }, prev));
-      setWauminiCounts((prev) => getVal(3, { families: 0, members: 0, activeMembers: 0, baptized: 0 }, prev));
       setMajimbo((prev) => getVal(4, [], prev));
       setMatawi((prev) => getVal(5, [], prev));
       setFedha((prev) => getVal(6, [], prev));
@@ -306,9 +364,13 @@ export function AppLayout() {
     } finally {
       setKpiRefreshing(false);
       lastDashboardMetricsAtRef.current = Date.now();
+      if (authUser?.id && !legacyStructureRepairRef.current) {
+        legacyStructureRepairRef.current = true;
+        void dedupeInFlight("portal:repair-legacy-structure-links", () => repairAllLegacyStructureLinks());
+      }
     }
     });
-  }, [reportError, role]);
+  }, [reportError, role, authUser?.id]);
 
   const loadViongoziList = useCallback(async () => {
     return dedupeInFlight("portal:load-viongozi-list", async () => {
@@ -434,11 +496,11 @@ export function AppLayout() {
   useEffect(() => {
     if (!authInitialized || !authUser) return;
     if (!getSupabase()) {
-      setAuditLogCount(0);
-      setSecurityCounts({ directory: 0, visibilityRules: 0, rbacMatrixRows: 0 });
-      setWauminiCounts({ families: 0, members: 0, activeMembers: 0, baptized: 0 });
       setMajimbo([]);
       setMatawi([]);
+      setKpiLive(emptyDashboardKpiSnapshot());
+      setKpiError(null);
+      setKpiRefreshing(false);
       return;
     }
     if (activeModule !== "dashboard") return;
@@ -667,8 +729,9 @@ export function AppLayout() {
     (moduleKey: string, submodule: string, extras?: { recordId?: string | null; engineModuleId?: string | null }) => {
       if (typeof window === "undefined") return;
       try {
-        if (moduleKey === "muundo" && isMuundoBranchEngineSubmodule(submodule)) {
+        if (isPortalBranchEngineSurface(moduleKey, submodule)) {
           const href = buildBranchEnginePortalUrl({
+            moduleKey: moduleKey === "dashboard" ? "dashboard" : "muundo",
             submodule,
             recordId: extras?.recordId ?? highlightRecordId ?? undefined,
             engineModuleId: extras?.engineModuleId ?? branchEngineModuleId ?? undefined,
@@ -851,6 +914,11 @@ export function AppLayout() {
     return () => window.clearTimeout(t);
   }, [highlightRecordId]);
 
+  const layoutMode = getPortalLayoutMode(activeModule, activeSubmodule);
+  const branchEngineSurface = layoutMode === "fullscreen";
+  const moduleWorkspace = activeModule !== "dashboard";
+  const wideSurface = moduleWorkspace || isPortalWideSurface(activeModule, activeSubmodule);
+
   const canSubBack = useMemo(() => {
     const mod = modules.find((m) => m.key === activeModule);
     const subs = mod?.submodules ?? [];
@@ -882,6 +950,12 @@ export function AppLayout() {
           }}
           mobileOpen={mobileOpen}
           onCloseMobile={() => setMobileOpen(false)}
+          collapsed={authUser ? sidebarCollapsed : false}
+          onToggleCollapse={
+            authUser
+              ? () => setSidebarCollapsed((c) => !c)
+              : undefined
+          }
         />
         <main className="flex min-h-0 min-w-0 flex-1 flex-col" data-portal-main>
           {!online ? (
@@ -890,51 +964,83 @@ export function AppLayout() {
             </div>
           ) : null}
           <MaintenanceBanner site={site} />
+          {authUser ? (
+            <PortalKpiSyncStatus
+              refreshing={kpiRefreshing}
+              error={kpiError}
+              onRetry={() => void loadDashboardMetrics()}
+            />
+          ) : null}
           <Topbar
             title={activeSubmodule || "Dashibodi Kuu"}
             onOpenMobileSidebar={() => setMobileOpen(true)}
             onNavigateToModule={(moduleKey, submodule) => {
               selectModule(moduleKey, submodule ?? "");
             }}
-            canBack={canSubBack}
+            sidebarCollapsed={authUser ? sidebarCollapsed : undefined}
+            onToggleSidebarCollapse={
+              authUser ? () => setSidebarCollapsed((c) => !c) : undefined
+            }
           />
+          {authUser ? (
+            <ExecutiveMenuBar
+              activeModule={activeModule}
+              activeSubmodule={activeSubmodule}
+              canViewModule={canPortalViewModule}
+              onNavigate={(moduleKey, submodule) => selectModule(moduleKey, submodule)}
+            />
+          ) : null}
           <div
             id="portal-main-scroll"
             tabIndex={-1}
-            className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-auto overscroll-y-contain p-3 pb-[max(5rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch] focus:outline-none sm:p-4"
+            className={`relative flex min-h-0 min-w-0 flex-1 flex-col overscroll-y-contain [-webkit-overflow-scrolling:touch] focus:outline-none ${
+              branchEngineSurface
+                ? "overflow-hidden p-0"
+                : moduleWorkspace
+                  ? "overflow-y-auto overflow-x-hidden p-0"
+                  : "overflow-y-auto overflow-x-auto p-0 pb-[max(5rem,env(safe-area-inset-bottom))]"
+            }`}
           >
+            <div className={`pointer-events-none sticky top-0 z-20 shrink-0 pt-1 ${wideSurface ? "px-1 sm:px-2" : "px-3 sm:px-4"}`}>
+              <div className="pointer-events-auto inline-block">
+                <GlobalBackButton canBack={canSubBack} />
+              </div>
+            </div>
             {authInitialized &&
             authUser &&
             visibleModules.length > 0 &&
-            !(activeModule === "muundo" && isMuundoBranchEngineSubmodule(activeSubmodule)) ? (
+            !shouldHidePortalProjectRibbon(activeModule, activeSubmodule) ? (
               <PortalProjectNotesRibbon show />
             ) : null}
             {noModuleRbac ? (
-              <div className="mb-4">
+              <ExecutiveLayout className="mb-4 px-4 pt-2 md:px-6 xl:px-8">
                 <NoModuleAccessNotice />
-              </div>
+              </ExecutiveLayout>
             ) : null}
+            <div className={moduleWorkspace ? "flex min-h-0 w-full flex-1 flex-col" : "w-full"}>
             <Suspense fallback={<ModuleLoadingFallback />}>
+              <ErrorBoundary sectionLabel={activeModule === "dashboard" ? "Dashibodi" : `Moduli: ${activeModule}`}>
               {activeModule === "dashboard" ? (
-                <Dashboard
-                  submodule={activeSubmodule}
+                <MasterBranchExecutiveDashboard
                   dayosisi={dayosisi}
                   majimbo={majimbo}
                   matawi={matawi}
-                  viongozi={viongozi}
-                  fedha={fedha}
-                  incomeManagement={incomeManagement}
-                  auditLogCount={auditLogCount}
-                  securityCounts={securityCounts}
-                  wauminiCounts={wauminiCounts}
                   kpiLive={kpiLive}
-                  kpiRefreshing={kpiRefreshing}
-                  kpiError={kpiError}
+                  {...resolveBranchEngineRoute(activeSubmodule, portalProfile, {
+                    recordId: highlightRecordId,
+                    engineModuleId: branchEngineModuleId,
+                  })}
                 />
               ) : (
+                <ExecutiveLayout
+                  bleed
+                  className={`flex min-h-0 w-full flex-1 flex-col ${branchEngineSurface ? "" : "py-0"}`}
+                >
                 <ModulePage
                   moduleKey={activeModule}
                   submodule={activeSubmodule}
+                  layoutMode={layoutMode}
+                  kpiLive={kpiLive}
                   canNavigateBack={canSubBack}
                   dayosisi={dayosisi}
                   setDayosisi={setDayosisi}
@@ -981,11 +1087,14 @@ export function AppLayout() {
                     }
                   }}
                 />
+                </ExecutiveLayout>
               )}
+              </ErrorBoundary>
             </Suspense>
+            </div>
           </div>
           <PortalAutoDraftRecovery scope={draftScope} rootId="portal-main-scroll" enabled={authInitialized && Boolean(authUser)} />
-          <SiteFooter site={site} about={about} />
+          {!branchEngineSurface && !moduleWorkspace ? <SiteFooter site={site} about={about} /> : null}
         </main>
       </div>
       <CookieConsentBanner site={site} />

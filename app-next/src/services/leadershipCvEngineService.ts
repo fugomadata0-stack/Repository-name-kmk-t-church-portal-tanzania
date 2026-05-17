@@ -6,6 +6,7 @@ import { enterpriseStorageUpload, PORTAL_DOCUMENT_FILE_GUARD } from "../lib/ente
 import { buildSafeStoragePath } from "../lib/storageUpload";
 import { mbToBytes, validateSelectedFile } from "../lib/fileUploadGuard";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { coalesceRealtimeCallback } from "../lib/portalHardening/realtimeCoalesce";
 import type {
   LeadershipCvAttachmentRow,
   LeadershipCvBundle,
@@ -330,7 +331,7 @@ export type LeadershipCvRealtimeHandlers = {
 export function subscribeLeadershipCvEngine(h: LeadershipCvRealtimeHandlers): RealtimeChannel | null {
   const c = getSupabase();
   if (!c || !isSupabaseRealtimeEnabled()) return null;
-  const bump = () => h.onChange?.();
+  const bump = coalesceRealtimeCallback(() => h.onChange?.(), 520);
   return c
     .channel("leadership-cv-engine-live")
     .on("postgres_changes", { event: "*", schema: "public", table: "leadership_profiles" }, bump)

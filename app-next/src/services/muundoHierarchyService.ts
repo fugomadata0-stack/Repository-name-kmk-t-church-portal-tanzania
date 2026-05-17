@@ -4,6 +4,7 @@ import {
   mirrorLegacyJimboToStructure,
   mirrorLegacyTawiToStructure,
 } from "../lib/legacyStructureMirror";
+import { getCachedSession } from "../lib/authSessionCache";
 import { dedupeInFlight } from "../lib/inFlightDedupe";
 import { formatPostgrestError } from "../lib/supabaseErrors";
 import { getSupabase } from "../lib/supabaseClient";
@@ -268,11 +269,12 @@ export async function patchChurchTawiVerificationStatus(tawiId: string, next: Ch
   const c = getSupabase();
   if (!c || !isPersistedUuid(tawiId)) throw new Error("Kitambulisho cha tawi si halali.");
   const normalized = normalizeTawiVerification(next);
-  const { data: auth } = await c.auth.getUser();
-  const performerId = auth.user?.id ?? null;
+  const authUser = getCachedSession()?.user;
+  const performerId = authUser?.id ?? null;
   const performerName =
-    (typeof auth.user?.email === "string" && auth.user.email.trim()) ||
-    (typeof auth.user?.user_metadata?.full_name === "string" && String(auth.user.user_metadata.full_name).trim()) ||
+    (typeof authUser?.email === "string" && authUser.email.trim()) ||
+    (typeof authUser?.user_metadata?.full_name === "string" &&
+      String(authUser.user_metadata.full_name).trim()) ||
     null;
 
   const patch: Record<string, unknown> = {

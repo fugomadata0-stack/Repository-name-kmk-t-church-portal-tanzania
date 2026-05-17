@@ -3,13 +3,19 @@ import type { ModuleItem } from "../types";
 /** Kipengele cha uongozi wa kina: nafasi zisizo na kikomo, makamati, PDF, realtime. */
 export const ENTERPRISE_VIONGOZI_SUBMODULE = "Enterprise — Nafasi, Makamati & PDF";
 
+/** Injini ya vyeti & CV — chanzo kimoja kwa ngazi zote (kitaifa → tawi). */
+export const LEADERSHIP_CREDENTIALS_HUB_SUBMODULE = "Cheti & CV — Injini ya Ngazi Kuu";
+
+/** Wasifu wa uongozi — nafasi, elimu, huduma na viungo vya cheti. */
+export const EXECUTIVE_LEADERSHIP_PROFILE_SUBMODULE = "Wasifu wa Uongozi — Injini ya Ngazi";
+
 /** Orodha ya moduli na submoduli — chanzo cha ukweli wa mpangilio (sio data ya biashara). */
 export const modules: ModuleItem[] = [
   {
     key: "dashboard",
     label: "Dashibodi Kuu",
     color: "from-blue-600 to-indigo-700",
-    submodules: ["Muhtasari", "Kadi za KPI", "Arifa", "Shughuli za hivi karibuni", "Vibali vinavyosubiri"],
+    submodules: ["Injini ya Ngazi — Executive"],
   },
   { key: "developer", label: "Developer", color: "from-slate-600 to-slate-900", submodules: ["Wasifu"] },
   { key: "documents", label: "Documents", color: "from-amber-600 to-orange-800", submodules: ["Nyaraka"] },
@@ -95,6 +101,8 @@ export const modules: ModuleItem[] = [
     label: "Viongozi",
     color: "from-violet-600 to-indigo-700",
     submodules: [
+      EXECUTIVE_LEADERSHIP_PROFILE_SUBMODULE,
+      LEADERSHIP_CREDENTIALS_HUB_SUBMODULE,
       "KMK(T) VIONGOZI WA NGAZI KUU TANZANIA",
       "Viongozi wa Dayosisi",
       "Viongozi wa Majimbo",

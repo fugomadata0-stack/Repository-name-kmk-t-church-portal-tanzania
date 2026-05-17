@@ -16,6 +16,7 @@ import {
   Activity,
   RefreshCw,
 } from "lucide-react";
+import { dispatchPortalReloadMetrics } from "../../lib/portalEvents";
 import { usePortal } from "../../context/PortalContext";
 import { getSupabase } from "../../lib/supabaseClient";
 import { SUPABASE_QUERY_ERROR_SW } from "../../lib/supabaseUiMessages";
@@ -204,6 +205,11 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
     }
   }, [reportError]);
 
+  const reloadWithMetrics = useCallback(async () => {
+    await loadAll();
+    dispatchPortalReloadMetrics();
+  }, [loadAll]);
+
   useEffect(() => {
     void loadAll();
   }, [loadAll]);
@@ -348,7 +354,7 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
         scheduled_at: scheduleLocal ? new Date(scheduleLocal).toISOString() : null,
       });
       pushToast("Ujumbe umehifadhiwa", "success");
-      await loadAll();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Mawasiliano — hifadhi rasimu");
       pushToast("Imeshindikana kuhifadhi ujumbe.", "error");
@@ -384,7 +390,7 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
       setSubject("");
       setCustomRaw("");
       setScheduleLocal("");
-      await loadAll();
+      await reloadWithMetrics();
       pushToast(`Wapokeaji ${recipients}`, "info");
       const edge = await invokeSendCommunicationWorkflow(communication.id);
       if (!edge.ok) {
@@ -392,7 +398,7 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
         pushToast("Foleni imehifadhiwa; Edge Function haijapatikana au imeshindwa. Sanidi utoaji kwenye Supabase.", "info");
       } else {
         pushToast("Ujumbe unatumwa kupitia seva (SMS/barua pepe).", "success");
-        await loadAll();
+        await reloadWithMetrics();
       }
     } catch (e) {
       if (e instanceof Error && e.message === "NO_RECIPIENTS") {
@@ -412,7 +418,7 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
     try {
       await simulateSendCommunication(id);
       pushToast("Ujumbe umetumwa", "success");
-      await loadAll();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Mawasiliano — mfano wa utoaji");
       pushToast("Imeshindikana kutuma ujumbe", "error");
@@ -431,7 +437,7 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
         pushToast("Imeshindikana kuunganisha na Edge Function.", "error");
       } else {
         pushToast("Utumaji umefanywa.", "success");
-        await loadAll();
+        await reloadWithMetrics();
       }
     } catch (e) {
       reportError(e, "Mawasiliano — Tuma sasa");
@@ -451,7 +457,7 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
         pushToast("Imeshindikana kuunganisha na Edge Function.", "error");
       } else {
         pushToast("Jaribio la kutuma tena limeanza.", "success");
-        await loadAll();
+        await reloadWithMetrics();
       }
     } catch (e) {
       reportError(e, "Mawasiliano — jaribu tena");
@@ -466,7 +472,7 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
     try {
       await cancelScheduledCommunication(id);
       pushToast("Ratiba imeghairiwa.", "info");
-      await loadAll();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Mawasiliano — ghairi");
     } finally {
@@ -481,7 +487,7 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
       await deleteCommunication(delCampaignId);
       pushToast("Imefutwa.", "success");
       setDelCampaignId(null);
-      await loadAll();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Mawasiliano — futa");
     } finally {
@@ -510,7 +516,7 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
       setTplName("");
       setTplBody("");
       setTplSubject("");
-      await loadAll();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Mawasiliano — kiolezo");
     } finally {
@@ -525,7 +531,7 @@ export function CommunicationsPanel(props: { submodule?: string; highlightRecord
       await deleteTemplate(delTplId);
       pushToast("Kimefutwa.", "success");
       setDelTplId(null);
-      await loadAll();
+      await reloadWithMetrics();
     } catch (e) {
       reportError(e, "Mawasiliano — futa kiolezo");
     } finally {

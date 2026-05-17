@@ -1,4 +1,6 @@
+import { requireAuthUserId } from "../lib/authSessionCache";
 import { formatPostgrestError, isMissingTableError } from "../lib/supabaseErrors";
+import { singleFlight } from "../lib/singleFlight";
 import { stripUndefined } from "../lib/supabaseResult";
 import { getSupabase } from "../lib/supabaseClient";
 import type { MasterBranchScope } from "./masterBranchEngineService";
@@ -32,6 +34,15 @@ function clientOrThrow() {
   const c = getSupabase();
   if (!c) throw new Error("Supabase haijasanidiwa — weka VITE_SUPABASE_URL na VITE_SUPABASE_ANON_KEY.");
   return c;
+}
+
+function resolveUserId(authUserId?: string | null): string {
+  const id = authUserId?.trim() || requireAuthUserId();
+  return id;
+}
+
+function workspaceFlightKey(op: string, userId: string, scope: MasterBranchScope, entityId: string): string {
+  return `branch-ws:${op}:${userId}:${scope}:${entityId || ""}`;
 }
 
 function normalizePayload(raw: unknown): BranchEngineWorkspacePayload {
@@ -86,20 +97,17 @@ function normalizePayload(raw: unknown): BranchEngineWorkspacePayload {
   return { fields };
 }
 
-export async function loadBranchEngineWorkspace(
+async function loadBranchEngineWorkspaceInner(
   scope: MasterBranchScope,
-  entityId = "",
+  entityId: string,
+  userId: string,
 ): Promise<BranchEngineWorkspaceRecord | null> {
   const c = clientOrThrow();
-  const {
-    data: { user },
-  } = await c.auth.getUser();
-  if (!user) throw new Error("Ingia kwenye akaunti ili kupakia data kutoka Supabase.");
 
   const { data, error } = await c
     .from("portal_branch_engine_workspace")
     .select("scope, entity_id, active_module_id, form_payload, updated_at")
-    .eq("auth_user_id", user.id)
+    .eq("auth_user_id", userId)
     .eq("scope", scope)
     .eq("entity_id", entityId || "")
     .maybeSingle();
@@ -124,51 +132,64 @@ export async function loadBranchEngineWorkspace(
   };
 }
 
+export async function loadBranchEngineWorkspace(
+  scope: MasterBranchScope,
+  entityId = "",
+  authUserId?: string | null,
+): Promise<BranchEngineWorkspaceRecord | null> {
+  const userId = resolveUserId(authUserId);
+  return singleFlight(workspaceFlightKey("load", userId, scope, entityId), () =>
+    loadBranchEngineWorkspaceInner(scope, entityId, userId),
+  );
+}
+
 export async function saveBranchEngineWorkspace(input: {
   scope: MasterBranchScope;
   entityId?: string;
   activeModuleId?: string;
   payload: BranchEngineWorkspacePayload;
+  authUserId?: string | null;
 }): Promise<void> {
-  const c = clientOrThrow();
-  const {
-    data: { user },
-  } = await c.auth.getUser();
-  if (!user) throw new Error("Ingia kwenye akaunti ili kuhifadhi kwenye Supabase.");
+  const userId = resolveUserId(input.authUserId);
+  const entityId = input.entityId ?? "";
 
-  const row = stripUndefined({
-    auth_user_id: user.id,
-    scope: input.scope,
-    entity_id: input.entityId ?? "",
-    active_module_id: input.activeModuleId ?? "registration",
-    form_payload: input.payload,
-  });
+  return singleFlight(workspaceFlightKey("save", userId, input.scope, entityId), async () => {
+    const c = clientOrThrow();
+    const row = stripUndefined({
+      auth_user_id: userId,
+      scope: input.scope,
+      entity_id: entityId,
+      active_module_id: input.activeModuleId ?? "registration",
+      form_payload: input.payload,
+    });
 
-  const { error } = await c.from("portal_branch_engine_workspace").upsert(row, {
-    onConflict: "auth_user_id,scope,entity_id",
-  });
+    const { error } = await c.from("portal_branch_engine_workspace").upsert(row, {
+      onConflict: "auth_user_id,scope,entity_id",
+    });
 
-  if (error) {
-    if (isMissingTableError(error)) {
-      throw new Error(
-        "Jedwali portal_branch_engine_workspace halipo — endesha migration kwenye Supabase.",
-      );
+    if (error) {
+      if (isMissingTableError(error)) {
+        throw new Error(
+          "Jedwali portal_branch_engine_workspace halipo — endesha migration kwenye Supabase.",
+        );
+      }
+      throw new Error(formatPostgrestError(error, "portal_branch_engine_workspace upsert"));
     }
-    throw new Error(formatPostgrestError(error, "portal_branch_engine_workspace upsert"));
-  }
+  });
 }
 
-export async function clearBranchEngineWorkspace(scope: MasterBranchScope, entityId = ""): Promise<void> {
+export async function clearBranchEngineWorkspace(
+  scope: MasterBranchScope,
+  entityId = "",
+  authUserId?: string | null,
+): Promise<void> {
+  const userId = resolveUserId(authUserId);
   const c = clientOrThrow();
-  const {
-    data: { user },
-  } = await c.auth.getUser();
-  if (!user) throw new Error("Ingia kwenye akaunti ili kufuta data.");
 
   const { error } = await c
     .from("portal_branch_engine_workspace")
     .delete()
-    .eq("auth_user_id", user.id)
+    .eq("auth_user_id", userId)
     .eq("scope", scope)
     .eq("entity_id", entityId || "");
 

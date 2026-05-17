@@ -6,6 +6,11 @@ export type ResponsiveLazyImageProps = {
   className?: string;
   loading?: "lazy" | "eager";
   fetchpriority?: "high" | "low" | "auto";
+  /**
+   * Picha muhimu (logo, hero, viongozi wakuu) — pakia mara moja, si lazy.
+   * Hupunguza ujumbe wa Edge: "Images loaded lazily and replaced with placeholders".
+   */
+  priority?: boolean;
 } & Pick<ImgHTMLAttributes<HTMLImageElement>, "width" | "height" | "decoding" | "onError">;
 
 export default function ResponsiveLazyImage({
@@ -13,16 +18,20 @@ export default function ResponsiveLazyImage({
   alt,
   className,
   loading,
-  fetchpriority = "auto",
+  fetchpriority,
+  priority = false,
   width,
   height,
-  decoding = "async",
+  decoding,
   onError,
 }: ResponsiveLazyImageProps) {
   const trimmed = src?.trim();
   if (!trimmed) return null;
 
-  const resolvedLoading = loading ?? (fetchpriority === "high" ? "eager" : "lazy");
+  const isPriority = priority || fetchpriority === "high";
+  const resolvedLoading = loading ?? (isPriority ? "eager" : "lazy");
+  const resolvedPriority = fetchpriority ?? (isPriority ? "high" : "auto");
+  const resolvedDecoding = decoding ?? (isPriority ? "sync" : "async");
 
   return (
     <img
@@ -32,9 +41,9 @@ export default function ResponsiveLazyImage({
       loading={resolvedLoading}
       width={width}
       height={height}
-      decoding={decoding}
+      decoding={resolvedDecoding}
       onError={onError}
-      {...({ fetchpriority } as ImgHTMLAttributes<HTMLImageElement>)}
+      {...({ fetchpriority: resolvedPriority } as ImgHTMLAttributes<HTMLImageElement>)}
     />
   );
 }
