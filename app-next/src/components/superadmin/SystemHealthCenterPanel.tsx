@@ -81,7 +81,8 @@ function MaintenanceControl() {
   const { site, saveSite, refreshSite, role } = usePortal();
   const [message, setMessage] = useState(site.maintenance_message || "Tovuti na mfumo wetu kwa sasa unafanyiwa maboresho ya kiufundi ili kuboresha utendaji, usalama na ubora wa huduma. Tunaomba radhi kwa usumbufu. Tafadhali jaribu tena baada ya muda mfupi.");
   const [busy, setBusy] = useState(false);
-  const permitted = role === "super_admin" || role === "chief_admin";
+  const normalizedRole = String(role ?? "").trim().toLowerCase().replace(/[ -]/g, "_");
+  const permitted = ["super_admin", "super_administrator", "chief_admin", "chief_administrator", "national_admin", "national_administrator", "developer", "system_admin", "system_administrator", "office_admin", "office_administrator"].includes(normalizedRole);
 
   useEffect(() => { if (site.maintenance_message) setMessage(site.maintenance_message); }, [site.maintenance_message]);
 
