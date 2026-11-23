@@ -39,7 +39,7 @@ function AuthBootFallback() {
 export function RootShell() {
   const { pathname } = usePublicPath();
   const { supabaseReady, authInitialized, session, profileGateBlocked, portalDirectoryLoadError, role, portalProfile } = usePortal();
-  const adminLoginRequested = typeof window !== "undefined" &&
+  const adminLoginRequested = !session && typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("maintenance-admin-login") === "1";
 
   const withMaintenance = (node: JSX.Element) => adminLoginRequested ? node : (
