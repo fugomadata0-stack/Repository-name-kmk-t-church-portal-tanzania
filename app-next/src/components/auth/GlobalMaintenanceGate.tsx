@@ -3,19 +3,14 @@ import { Wrench, ShieldCheck, RefreshCw } from "lucide-react";
 import { getSupabase } from "../../lib/supabaseClient";
 
 type MaintenanceSettings = { enabled: boolean; message: string };
-
-const DEFAULT_MESSAGE =
-  "Tovuti na mfumo wetu kwa sasa unafanyiwa maboresho ya kiufundi ili kuboresha utendaji, usalama na ubora wa huduma. Kwa muda huu, baadhi ya huduma zinaweza kutopatikana. Tunaomba radhi kwa usumbufu wowote. Tafadhali jaribu tena baada ya muda mfupi.";
+const DEFAULT_MESSAGE = "Tovuti na mfumo wetu kwa sasa unafanyiwa maboresho ya kiufundi ili kuboresha utendaji, usalama na ubora wa huduma. Kwa muda huu, baadhi ya huduma zinaweza kutopatikana. Tunaomba radhi kwa usumbufu wowote. Tafadhali jaribu tena baada ya muda mfupi.";
 
 function isPrivileged(role: unknown): boolean {
   const value = String(role ?? "").trim().toLowerCase().replace(/[ -]/g, "_");
   return ["super_admin","super_administrator","chief_admin","chief_administrator","national_admin","national_administrator","developer","system_admin","system_administrator","office_admin","office_administrator"].includes(value);
 }
 
-/** Public maintenance gate reading the existing site_settings flag. */
-export function GlobalMaintenanceGate({
-  role, profileRole, authenticated, children,
-}: {
+export function GlobalMaintenanceGate({ role, profileRole, authenticated, children }: {
   role?: unknown; profileRole?: unknown; authenticated: boolean; children: ReactNode;
 }) {
   const [settings, setSettings] = useState<MaintenanceSettings | null>(null);
@@ -26,12 +21,11 @@ export function GlobalMaintenanceGate({
     const client = getSupabase();
     if (!client) { setSettings(null); setChecking(false); return; }
     try {
-      const { data, error } = await client.from("site_settings")
-        .select("maintenance_mode,maintenance_message").limit(1).maybeSingle();
+      const { data, error } = await client.from("site_settings").select("maintenance_mode,maintenance_message").limit(1).maybeSingle();
       if (error) throw error;
       setSettings({ enabled: Boolean(data?.maintenance_mode), message: String(data?.maintenance_message ?? "").trim() });
     } catch {
-      // Fail open during DB/API outage to avoid locking the public site.
+      // Fail open during DB/API outage; avoid a permanent public lockout.
       setSettings(null);
     } finally { setChecking(false); }
   }, []);
@@ -50,7 +44,6 @@ export function GlobalMaintenanceGate({
   }, [load]);
 
   if (privileged || checking || !settings?.enabled) return <>{children}</>;
-
   return (
     <main className="min-h-screen flex items-center justify-center bg-[#081323] px-4 py-10 text-white">
       <section className="w-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-2xl backdrop-blur">
@@ -65,9 +58,12 @@ export function GlobalMaintenanceGate({
             <p className="font-semibold text-white">Tafadhali jaribu tena baada ya muda mfupi.</p>
             <p className="mt-2 text-sm text-slate-300">Tunajitahidi kuhakikisha unapata huduma bora, salama na yenye ufanisi zaidi.</p>
           </div>
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-3"><button type="button" onClick={() => { setChecking(true); void load(); }} className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-[#10223a] transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-[#081323]">
-            <RefreshCw className="h-4 w-4" aria-hidden="true" /> Jaribu tena
-          </button>
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+            <button type="button" onClick={() => { setChecking(true); void load(); }} className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-[#10223a] transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-[#081323]">
+              <RefreshCw className="h-4 w-4" aria-hidden="true" /> Jaribu tena
+            </button>
+            <a href="/?maintenance-admin-login=1" className="inline-flex items-center rounded-xl border border-white/20 px-5 py-3 text-sm font-medium text-white hover:bg-white/10">Developer / Admin access</a>
+          </div>
           <div className="mt-9 flex items-center justify-center gap-2 text-xs text-slate-400"><ShieldCheck className="h-4 w-4" aria-hidden="true" /> Asante kwa uvumilivu na imani yako.</div>
         </div>
         <div className="h-1 w-full bg-gradient-to-r from-transparent via-amber-300/70 to-transparent" />
