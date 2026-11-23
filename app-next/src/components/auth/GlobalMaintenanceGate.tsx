@@ -21,9 +21,10 @@ export function GlobalMaintenanceGate({ role, profileRole, authenticated, childr
     const client = getSupabase();
     if (!client) { setSettings(null); setChecking(false); return; }
     try {
-      const { data, error } = await client.from("site_settings").select("maintenance_mode,maintenance_message").limit(1).maybeSingle();
+      const { data, error } = await client.rpc("get_public_maintenance_status");
       if (error) throw error;
-      setSettings({ enabled: Boolean(data?.maintenance_mode), message: String(data?.maintenance_message ?? "").trim() });
+      const row = Array.isArray(data) ? data[0] : data;
+      setSettings({ enabled: Boolean(row?.maintenance_enabled), message: String(row?.maintenance_message ?? "").trim() });
     } catch {
       // Fail open during DB/API outage; avoid a permanent public lockout.
       setSettings(null);
