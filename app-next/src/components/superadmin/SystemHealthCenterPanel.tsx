@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, AlertTriangle, Database, HardDrive, RefreshCw, ServerCog } from "lucide-react";
+import { Activity, AlertTriangle, Database, HardDrive, RefreshCw, ServerCog, Power, Save } from "lucide-react";
 import type { HealthBadgeStatus, SystemHealthSnapshot } from "../../types";
 import { fetchSystemHealthSnapshot } from "../../services/systemHealthService";
 import { usePortal } from "../../context/PortalContext";
@@ -75,6 +75,65 @@ function fmtDate(v: string | null | undefined): string {
   const t = Date.parse(v);
   if (!Number.isFinite(t)) return String(v);
   return new Date(t).toLocaleString("sw-TZ");
+}
+
+function MaintenanceControl() {
+  const { site, saveSite, pushToast, role } = usePortal();
+  const [message, setMessage] = useState(site.maintenance_message || "Tovuti na mfumo wetu kwa sasa unafanyiwa maboresho ya kiufundi ili kuboresha utendaji, usalama na ubora wa huduma. Tunaomba radhi kwa usumbufu. Tafadhali jaribu tena baada ya muda mfupi.");
+  const [busy, setBusy] = useState(false);
+  const permitted = role === "super_admin" || role === "chief_admin";
+
+  useEffect(() => { setMessage(site.maintenance_message || message); }, [site.maintenance_message]);
+
+  async function changeMode(enabled: boolean) {
+    if (!permitted || busy) return;
+    const confirmText = enabled
+      ? "Washa Maintenance Mode? Wageni wataona ukurasa wa matengenezo."
+      : "Zima Maintenance Mode? Website itafunguliwa kwa wageni.";
+    if (!window.confirm(confirmText)) return;
+    setBusy(true);
+    try {
+      await saveSite({ maintenance_mode: enabled, maintenance_message: message.trim() });
+      pushToast(enabled ? "Maintenance Mode imewashwa." : "Maintenance Mode imezimwa.", "success");
+    } finally { setBusy(false); }
+  }
+
+  async function saveMessage() {
+    if (!permitted || busy) return;
+    setBusy(true);
+    try {
+      await saveSite({ maintenance_message: message.trim() });
+      pushToast("Ujumbe wa Maintenance umehifadhiwa.", "success");
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <section className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-slate-900">Website Maintenance Control</h2>
+          <p className="mt-1 text-sm text-slate-600">Funga website kwa wageni wakati wa maboresho; Developer/Super Admin wanaendelea kufanya kazi.</p>
+        </div>
+        <span className={site.maintenance_mode ? "rounded-full bg-amber-100 px-3 py-1 text-sm font-bold text-amber-900" : "rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-900"}>
+          {site.maintenance_mode ? "MAINTENANCE ON" : "LIVE — MAINTENANCE OFF"}
+        </span>
+      </div>
+      {!permitted ? <p className="mt-3 text-sm text-rose-700">Ruhusa ya kubadilisha hali hii ni ya Super Admin/Chief Admin pekee.</p> : null}
+      <label className="mt-4 block text-sm font-semibold text-slate-800">
+        Ujumbe unaoonekana kwa wageni
+        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} disabled={!permitted || busy} className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-normal leading-6 disabled:opacity-60" />
+      </label>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" disabled={!permitted || busy} onClick={() => void saveMessage()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 disabled:opacity-50">
+          <Save className="h-4 w-4" /> Hifadhi Ujumbe
+        </button>
+        <button type="button" disabled={!permitted || busy} onClick={() => void changeMode(!site.maintenance_mode)} className={site.maintenance_mode ? "inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-50" : "inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"}>
+          <Power className="h-4 w-4" /> {busy ? "Inahifadhi..." : site.maintenance_mode ? "ZIMA MAINTENANCE — FUNGUA WEBSITE" : "WASHA MAINTENANCE MODE"}
+        </button>
+      </div>
+      <p className="mt-3 text-xs text-slate-600">Ujumbe na switch vinahifadhiwa kwenye Supabase site_settings. Hali ya wageni hukagua upya kila sekunde 30.</p>
+    </section>
+  );
 }
 
 function navigateModule(moduleKey: string, submodule?: string) {
