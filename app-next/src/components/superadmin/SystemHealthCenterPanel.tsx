@@ -78,12 +78,12 @@ function fmtDate(v: string | null | undefined): string {
 }
 
 function MaintenanceControl() {
-  const { site, saveSite, pushToast, role } = usePortal();
+  const { site, saveSite, refreshSite, role } = usePortal();
   const [message, setMessage] = useState(site.maintenance_message || "Tovuti na mfumo wetu kwa sasa unafanyiwa maboresho ya kiufundi ili kuboresha utendaji, usalama na ubora wa huduma. Tunaomba radhi kwa usumbufu. Tafadhali jaribu tena baada ya muda mfupi.");
   const [busy, setBusy] = useState(false);
   const permitted = role === "super_admin" || role === "chief_admin";
 
-  useEffect(() => { setMessage(site.maintenance_message || message); }, [site.maintenance_message]);
+  useEffect(() => { if (site.maintenance_message) setMessage(site.maintenance_message); }, [site.maintenance_message]);
 
   async function changeMode(enabled: boolean) {
     if (!permitted || busy) return;
