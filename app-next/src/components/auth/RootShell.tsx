@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactElement } from "react";
 import { GlobalMaintenanceGate } from "./GlobalMaintenanceGate";
 import { ErrorBoundary } from "../common/ErrorBoundary";
 import { PortalBootShell } from "../common/PortalSkeleton";
@@ -42,7 +42,7 @@ export function RootShell() {
   const adminLoginRequested = !session && typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("maintenance-admin-login") === "1";
 
-  const withMaintenance = (node: JSX.Element) => adminLoginRequested ? node : (
+  const withMaintenance = (node: ReactElement) => adminLoginRequested ? node : (
     <GlobalMaintenanceGate authenticated={Boolean(session)} role={role} profileRole={portalProfile?.role_key}>
       {node}
     </GlobalMaintenanceGate>
