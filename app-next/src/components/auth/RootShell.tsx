@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense } from "react";\nimport { GlobalMaintenanceGate } from "./GlobalMaintenanceGate";
 import { ErrorBoundary } from "../common/ErrorBoundary";
 import { PortalBootShell } from "../common/PortalSkeleton";
 import { buildBranchEnginePortalUrl } from "../../lib/branchEnginePortalUrl";
@@ -62,30 +62,30 @@ export function RootShell() {
   }
 
   if (isSignupRequestPath(pathname)) {
-    return <SignupRequestPage />;
+    return withMaintenance(<SignupRequestPage />);
   }
 
   if (isAcceptInvitePath(pathname)) {
-    return <AcceptInvitePage />;
+    return withMaintenance(<AcceptInvitePage />);
   }
   if (isVerifyMemberPath(pathname)) {
     const memberId = pathname.split("/").filter(Boolean).pop() ?? "";
-    return <VerifyMemberPage memberId={memberId} />;
+    return withMaintenance(<VerifyMemberPage memberId={memberId} />);
   }
   if (isVerifyLeadershipPath(pathname)) {
-    return <VerifyLeadershipPage />;
+    return withMaintenance(<VerifyLeadershipPage />);
   }
 
   if (!session) {
-    return <LoginPage />;
+    return withMaintenance(<LoginPage />);
   }
 
   if (portalDirectoryLoadError) {
-    return <PortalDirectoryLoadError />;
+    return withMaintenance(<PortalDirectoryLoadError />);
   }
 
   if (profileGateBlocked) {
-    return <ProfileGateBlocked />;
+    return withMaintenance(<ProfileGateBlocked />);
   }
 
   return (
