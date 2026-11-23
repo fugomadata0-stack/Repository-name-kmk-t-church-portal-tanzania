@@ -316,7 +316,8 @@ export function SystemHealthCenterPanel() {
   }
 
   return (
-    <div className="space-y-5">\n      <MaintenanceControl />
+    <div className="space-y-5">
+      <MaintenanceControl />
       <section className="rounded-2xl border border-[#1e3a6e]/30 bg-gradient-to-r from-[#0B1F3A] via-[#123C69] to-[#0B1F3A] p-5 text-white shadow-xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
