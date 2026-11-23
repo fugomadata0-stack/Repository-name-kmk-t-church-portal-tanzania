@@ -1,4 +1,5 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactElement } from "react";
+import { GlobalMaintenanceGate } from "./GlobalMaintenanceGate";
 import { ErrorBoundary } from "../common/ErrorBoundary";
 import { PortalBootShell } from "../common/PortalSkeleton";
 import { buildBranchEnginePortalUrl } from "../../lib/branchEnginePortalUrl";
@@ -20,13 +21,11 @@ import { ProfileGateBlocked } from "./ProfileGateBlocked";
 import { SupabaseEnvMissing } from "./SupabaseEnvMissing";
 import { usePortal } from "../../context/PortalContext";
 
-/** Dashibodi na moduli — lazy ili ukurasa wa kuingia usibebe bundle kubwa (haraka zaidi). */
 const AppLayout = lazy(async () => {
   const m = await import("../layout/AppLayout");
   return { default: m.AppLayout };
 });
 
-/** Hali moja ya kuingia — skeli tu, bila maandishi yanayojirudia. */
 function AuthBootFallback() {
   return (
     <div className="flex min-h-screen flex-col bg-[#eef2f7]" role="status" aria-busy="true" aria-label="Inaandaa portal">
@@ -39,8 +38,15 @@ function AuthBootFallback() {
 
 export function RootShell() {
   const { pathname } = usePublicPath();
-  const { supabaseReady, authInitialized, session, profileGateBlocked, portalDirectoryLoadError } =
-    usePortal();
+  const { supabaseReady, authInitialized, session, profileGateBlocked, portalDirectoryLoadError, role, portalProfile } = usePortal();
+  const adminLoginRequested = !session && typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("maintenance-admin-login") === "1";
+
+  const withMaintenance = (node: ReactElement) => adminLoginRequested ? node : (
+    <GlobalMaintenanceGate authenticated={Boolean(session)} role={role} profileRole={portalProfile?.role_key}>
+      {node}
+    </GlobalMaintenanceGate>
+  );
 
   if (typeof window !== "undefined" && isStandaloneMatawiHtmlPath(pathname)) {
     const params = new URLSearchParams(window.location.search);
@@ -52,47 +58,23 @@ export function RootShell() {
     );
     return <AuthBootFallback />;
   }
-
-  if (!authInitialized) {
-    return <AuthBootFallback />;
-  }
-
-  if (!supabaseReady) {
-    return <SupabaseEnvMissing />;
-  }
-
-  if (isSignupRequestPath(pathname)) {
-    return <SignupRequestPage />;
-  }
-
-  if (isAcceptInvitePath(pathname)) {
-    return <AcceptInvitePage />;
-  }
+  if (!authInitialized) return <AuthBootFallback />;
+  if (!supabaseReady) return <SupabaseEnvMissing />;
+  if (isSignupRequestPath(pathname)) return withMaintenance(<SignupRequestPage />);
+  if (isAcceptInvitePath(pathname)) return withMaintenance(<AcceptInvitePage />);
   if (isVerifyMemberPath(pathname)) {
     const memberId = pathname.split("/").filter(Boolean).pop() ?? "";
-    return <VerifyMemberPage memberId={memberId} />;
+    return withMaintenance(<VerifyMemberPage memberId={memberId} />);
   }
-  if (isVerifyLeadershipPath(pathname)) {
-    return <VerifyLeadershipPage />;
-  }
-
-  if (!session) {
-    return <LoginPage />;
-  }
-
-  if (portalDirectoryLoadError) {
-    return <PortalDirectoryLoadError />;
-  }
-
-  if (profileGateBlocked) {
-    return <ProfileGateBlocked />;
-  }
-
-  return (
+  if (isVerifyLeadershipPath(pathname)) return withMaintenance(<VerifyLeadershipPage />);
+  if (!session) return withMaintenance(<LoginPage />);
+  if (portalDirectoryLoadError) return withMaintenance(<PortalDirectoryLoadError />);
+  if (profileGateBlocked) return withMaintenance(<ProfileGateBlocked />);
+  return withMaintenance(
     <ErrorBoundary>
       <Suspense fallback={<AuthBootFallback />}>
         <AppLayout />
       </Suspense>
-    </ErrorBoundary>
+    </ErrorBoundary>,
   );
 }
