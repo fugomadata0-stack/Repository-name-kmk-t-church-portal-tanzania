@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Wrench, ShieldCheck, RefreshCw } from "lucide-react";
 import { getSupabase } from "../../lib/supabaseClient";
 
@@ -16,7 +16,7 @@ function isPrivileged(role: unknown): boolean {
 export function GlobalMaintenanceGate({
   role, profileRole, authenticated, children,
 }: {
-  role?: unknown; profileRole?: unknown; authenticated: boolean; children: React.ReactNode;
+  role?: unknown; profileRole?: unknown; authenticated: boolean; children: ReactNode;
 }) {
   const [settings, setSettings] = useState<MaintenanceSettings | null>(null);
   const [checking, setChecking] = useState(true);
@@ -65,7 +65,7 @@ export function GlobalMaintenanceGate({
             <p className="font-semibold text-white">Tafadhali jaribu tena baada ya muda mfupi.</p>
             <p className="mt-2 text-sm text-slate-300">Tunajitahidi kuhakikisha unapata huduma bora, salama na yenye ufanisi zaidi.</p>
           </div>
-          <button type="button" onClick={() => { setChecking(true); void load(); }} className="mt-7 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-[#10223a] transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-[#081323]">
+          <div className="mt-7 flex flex-wrap items-center justify-center gap-3"><button type="button" onClick={() => { setChecking(true); void load(); }} className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-semibold text-[#10223a] transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-amber-300 focus:ring-offset-2 focus:ring-offset-[#081323]">
             <RefreshCw className="h-4 w-4" aria-hidden="true" /> Jaribu tena
           </button>
           <div className="mt-9 flex items-center justify-center gap-2 text-xs text-slate-400"><ShieldCheck className="h-4 w-4" aria-hidden="true" /> Asante kwa uvumilivu na imani yako.</div>
